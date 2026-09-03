@@ -91,6 +91,26 @@ def generar_pdf_reporte(df_comparativa, nombre_proyecto):
     
     return pdf.output(dest='S').encode('latin1')
 
+# ---------- DATOS POR DEFECTO ----------
+DATOS_POR_DEFECTO = {
+    "Grupo": [
+        "TERRACERÍAS", "PILOTES Y CIMENTACIONES", "PILAS Y ESTRIBOS",
+        "TRABES PREFABRICADAS", "LOSA SUPERIOR", "APARATOS DE APOYO",
+        "BARRERAS Y PROTECCIONES", "DRENAJE Y PAVIMENTO", "SEÑALAMIENTO"
+    ],
+    "Ejecutado (MXN)": [
+        801050.00, 6626640.00, 3526750.00, 3541102.50,
+        0.00, 0.00, 0.00, 0.00, 0.00
+    ],
+    "Total (MXN)": [
+        1055050.00, 8154550.00, 5745550.00, 23565500.00,
+        6605010.00, 1715000.00, 2724290.00, 1083430.00, 199445.00
+    ],
+    "Avance Esperado %": [
+        70.0, 75.0, 60.0, 25.0, 10.0, 5.0, 5.0, 5.0, 5.0
+    ]
+}
+
 # ---------- BARRA LATERAL: NAVEGACIÓN ----------
 st.sidebar.header("📋 Navegación")
 seccion = st.sidebar.radio(
@@ -109,7 +129,6 @@ if seccion == "🏠 Inicio":
     - 📈 **Llevar un historial** de avance y ver curvas S.
     """)
     
-    # Mostrar resumen rápido
     if st.session_state.df_catalogo is not None:
         st.success(f"✅ Catálogo cargado: {len(st.session_state.df_catalogo)} conceptos")
     else:
@@ -193,12 +212,12 @@ elif seccion == "📐 Generadores":
 elif seccion == "📊 Comparativa":
     st.subheader("📊 Comparativa: Catálogo vs Estimación")
     
-    # Verificar que hay catálogo cargado
+    # Si no hay catálogo, usar datos por defecto
     if st.session_state.df_catalogo is None:
-        st.warning("⚠️ Primero carga tu catálogo de generadores en la sección 'Generadores'.")
-        st.stop()
-    
-    df_catalogo = st.session_state.df_catalogo
+        st.warning("⚠️ No hay catálogo cargado. Usando datos de ejemplo.")
+        df_catalogo = pd.DataFrame(DATOS_POR_DEFECTO)
+    else:
+        df_catalogo = st.session_state.df_catalogo
     
     # Cargar estimación
     archivo_estimacion = st.file_uploader(
@@ -250,7 +269,7 @@ elif seccion == "📊 Comparativa":
                 if "EJE" in df_catalogo.columns:
                     # Usar EJE como clave
                     comparativa = pd.merge(
-                        df_catalogo[["EJE", "RESULTADO", "UNIDAD"]],
+                        df_catalogo[["EJE", "RESULTADO", "UNIDAD"] if "UNIDAD" in df_catalogo.columns else ["EJE", "RESULTADO"]],
                         df_estimacion[[columna_concepto, columna_cantidad]],
                         left_on="EJE",
                         right_on=columna_concepto,
@@ -367,4 +386,4 @@ elif seccion == "📈 Historial":
 
 # ---------- PIE DE PÁGINA ----------
 st.divider()
-st.caption("Sistema de Estimaciones v3.0 — Módulos integrados")
+st.caption("Sistema de Estimaciones v3.1 — Versión robusta con manejo de errores")
