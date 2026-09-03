@@ -212,12 +212,15 @@ elif seccion == "📐 Generadores":
 elif seccion == "📊 Comparativa":
     st.subheader("📊 Comparativa: Catálogo vs Estimación")
     
-    # Si no hay catálogo, usar datos por defecto
+    # Verificar si hay catálogo cargado
     if st.session_state.df_catalogo is None:
-        st.warning("⚠️ No hay catálogo cargado. Usando datos de ejemplo.")
-        df_catalogo = pd.DataFrame(DATOS_POR_DEFECTO)
-    else:
-        df_catalogo = st.session_state.df_catalogo
+        st.warning("⚠️ No hay catálogo cargado. Carga uno en la sección 'Generadores'.")
+        st.info("💡 Si no tienes un catálogo, sube un archivo Excel con tus generadores.")
+        # No usamos datos por defecto para evitar errores
+        st.stop()
+    
+    df_catalogo = st.session_state.df_catalogo
+    st.success(f"✅ Catálogo cargado: {len(df_catalogo)} conceptos")
     
     # Cargar estimación
     archivo_estimacion = st.file_uploader(
@@ -226,128 +229,145 @@ elif seccion == "📊 Comparativa":
         key="estimacion"
     )
     
-    if archivo_estimacion:
+    if not archivo_estimacion:
+        st.info("👈 Sube un archivo Excel para comenzar la comparativa.")
+        st.stop()
+    
+    try:
+        excel_est = pd.ExcelFile(archivo_estimacion)
+        hojas_est = excel_est.sheet_names
+        hoja_est = st.selectbox(
+            "Selecciona la hoja con la estimación",
+            hojas_est,
+            key="hoja_est"
+        )
+        df_estimacion = pd.read_excel(archivo_estimacion, sheet_name=hoja_est)
+        st.session_state.df_estimacion = df_estimacion
+        
+        st.success(f"✅ Estimación cargada: {len(df_estimacion)} conceptos")
+        
+        # Mostrar vista previa
+        st.subheader("📋 Vista previa de la estimación")
+        st.dataframe(df_estimacion.head(10), width='stretch')
+        
+        # ---------- COMPARATIVA ----------
+        st.subheader("📊 Comparativa vs Generadores")
+        
+        # Identificar columnas clave en la estimación
+        columnas_est = df_estimacion.columns.tolist()
+        columna_concepto = None
+        for col in columnas_est:
+            if any(palabra in col.upper() for palabra in ["CONCEPTO", "CODIGO", "EJE", "CLAVE", "DESCRIPCION"]):
+                columna_concepto = col
+                break
+        
+        columna_cantidad = None
+        for col in columnas_est:
+            if any(palabra in col.upper() for palabra in ["CANTIDAD", "VOLUMEN", "RESULTADO", "IMPORTE"]):
+                columna_cantidad = col
+                break
+        
+        if columna_concepto is None or columna_cantidad is None:
+            st.warning(f"No se pudieron identificar columnas clave. Concepto: {columna_concepto}, Cantidad: {columna_cantidad}")
+            st.write("Columnas disponibles en la estimación:", columnas_est)
+            st.stop()
+        
+        # Verificar que el catálogo tenga la columna EJE
+        if "EJE" not in df_catalogo.columns:
+            st.warning("El catálogo no tiene la columna 'EJE'. No se puede hacer la comparativa.")
+            st.stop()
+        
+        # Hacer la comparativa
         try:
-            excel_est = pd.ExcelFile(archivo_estimacion)
-            hojas_est = excel_est.sheet_names
-            hoja_est = st.selectbox(
-                "Selecciona la hoja con la estimación",
-                hojas_est,
-                key="hoja_est"
+            # Seleccionar columnas del catálogo
+            columnas_catalogo = ["EJE", "RESULTADO"]
+            if "UNIDAD" in df_catalogo.columns:
+                columnas_catalogo.append("UNIDAD")
+            
+            comparativa = pd.merge(
+                df_catalogo[columnas_catalogo],
+                df_estimacion[[columna_concepto, columna_cantidad]],
+                left_on="EJE",
+                right_on=columna_concepto,
+                how="outer"
             )
-            df_estimacion = pd.read_excel(archivo_estimacion, sheet_name=hoja_est)
-            st.session_state.df_estimacion = df_estimacion
             
-            st.success(f"✅ Estimación cargada: {len(df_estimacion)} conceptos")
+            comparativa.rename(columns={
+                "RESULTADO": "Volumen_Generador",
+                columna_cantidad: "Volumen_Estimado"
+            }, inplace=True)
             
-            # Mostrar vista previa
-            st.subheader("📋 Vista previa de la estimación")
-            st.dataframe(df_estimacion.head(10), width='stretch')
+            # Calcular diferencias
+            comparativa["Diferencia_%"] = (
+                (comparativa["Volumen_Estimado"] - comparativa["Volumen_Generador"]) 
+                / comparativa["Volumen_Generador"] * 100
+            ).round(1)
+            comparativa["Diferencia_%"] = comparativa["Diferencia_%"].fillna(0)
             
-            # ---------- COMPARATIVA ----------
-            st.subheader("📊 Comparativa vs Generadores")
+            comparativa["Estado"] = comparativa["Diferencia_%"].apply(
+                lambda x: "⚠️ Revisar" if abs(x) > 10 else "✅ OK"
+            )
             
-            # Identificar columnas clave en la estimación
-            columnas_est = df_estimacion.columns.tolist()
-            columna_concepto = None
-            for col in columnas_est:
-                if any(palabra in col.upper() for palabra in ["CONCEPTO", "CODIGO", "EJE", "CLAVE", "DESCRIPCION"]):
-                    columna_concepto = col
-                    break
+            # Guardar en session_state
+            st.session_state.comparativa = comparativa
             
-            columna_cantidad = None
-            for col in columnas_est:
-                if any(palabra in col.upper() for palabra in ["CANTIDAD", "VOLUMEN", "RESULTADO", "IMPORTE"]):
-                    columna_cantidad = col
-                    break
+            # Mostrar
+            st.dataframe(comparativa, width='stretch', height=400)
             
-            if columna_concepto is None or columna_cantidad is None:
-                st.warning(f"No se pudieron identificar columnas clave. Concepto: {columna_concepto}, Cantidad: {columna_cantidad}")
-                st.write("Columnas disponibles en la estimación:", columnas_est)
+            # Resumen de errores
+            errores = comparativa[comparativa["Estado"] == "⚠️ Revisar"]
+            if len(errores) > 0:
+                st.warning(f"⚠️ {len(errores)} conceptos con diferencias > 10%")
             else:
-                # Hacer la comparativa
-                if "EJE" in df_catalogo.columns:
-                    # Usar EJE como clave
-                    comparativa = pd.merge(
-                        df_catalogo[["EJE", "RESULTADO", "UNIDAD"] if "UNIDAD" in df_catalogo.columns else ["EJE", "RESULTADO"]],
-                        df_estimacion[[columna_concepto, columna_cantidad]],
-                        left_on="EJE",
-                        right_on=columna_concepto,
-                        how="outer"
-                    )
-                    
-                    comparativa.rename(columns={
-                        "RESULTADO": "Volumen_Generador",
-                        columna_cantidad: "Volumen_Estimado"
-                    }, inplace=True)
-                    
-                    # Calcular diferencias
-                    comparativa["Diferencia_%"] = (
-                        (comparativa["Volumen_Estimado"] - comparativa["Volumen_Generador"]) 
-                        / comparativa["Volumen_Generador"] * 100
-                    ).round(1)
-                    comparativa["Diferencia_%"] = comparativa["Diferencia_%"].fillna(0)
-                    
-                    comparativa["Estado"] = comparativa["Diferencia_%"].apply(
-                        lambda x: "⚠️ Revisar" if abs(x) > 10 else "✅ OK"
-                    )
-                    
-                    # Guardar en session_state
-                    st.session_state.comparativa = comparativa
-                    
-                    # Mostrar
-                    st.dataframe(comparativa, width='stretch', height=400)
-                    
-                    # Resumen de errores
-                    errores = comparativa[comparativa["Estado"] == "⚠️ Revisar"]
-                    if len(errores) > 0:
-                        st.warning(f"⚠️ {len(errores)} conceptos con diferencias > 10%")
-                    else:
-                        st.success("✅ Todos los conceptos están dentro del rango aceptable (±10%)")
-                    
-                    # ---------- GENERAR INFORME ----------
-                    if len(errores) > 0:
-                        st.subheader("📄 Generar Informe de Errores")
-                        
-                        # Excel
-                        excel_data = generar_informe_excel(errores)
+                st.success("✅ Todos los conceptos están dentro del rango aceptable (±10%)")
+            
+            # ---------- GENERAR INFORME ----------
+            if len(errores) > 0:
+                st.subheader("📄 Generar Informe de Errores")
+                
+                # Excel
+                excel_data = generar_informe_excel(errores)
+                st.download_button(
+                    label="📥 Descargar informe de errores (Excel)",
+                    data=excel_data,
+                    file_name="informe_errores.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+                
+                # PDF
+                if st.button("📄 Generar PDF"):
+                    try:
+                        pdf_data = generar_pdf_reporte(comparativa, "Proyecto")
                         st.download_button(
-                            label="📥 Descargar informe de errores (Excel)",
-                            data=excel_data,
-                            file_name="informe_errores.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            label="📥 Descargar informe (PDF)",
+                            data=pdf_data,
+                            file_name="informe_estimacion.pdf",
+                            mime="application/pdf"
                         )
-                        
-                        # PDF
-                        if st.button("📄 Generar PDF"):
-                            pdf_data = generar_pdf_reporte(comparativa, "Proyecto")
-                            st.download_button(
-                                label="📥 Descargar informe (PDF)",
-                                data=pdf_data,
-                                file_name="informe_estimacion.pdf",
-                                mime="application/pdf"
-                            )
-                    
-                    # ---------- APROBAR ----------
-                    if st.button("✅ Aprobar Estimación"):
-                        # Agregar al historial
-                        st.session_state.historial.append({
-                            "fecha": datetime.now(),
-                            "monto": df_estimacion[columna_cantidad].sum() if columna_cantidad else 0,
-                            "conceptos": len(df_estimacion)
-                        })
-                        st.success("🎉 Estimación aprobada. Avance actualizado.")
-                        
-                        # Mostrar avance acumulado
-                        total_acumulado = sum([h["monto"] for h in st.session_state.historial])
-                        st.metric("💰 Avance Acumulado", f"${total_acumulado:,.2f}")
-                        
-                else:
-                    st.warning("El catálogo no tiene la columna 'EJE' para hacer la comparativa.")
-                    
+                    except Exception as e:
+                        st.error(f"Error al generar PDF: {e}")
+            
+            # ---------- APROBAR ----------
+            if st.button("✅ Aprobar Estimación"):
+                # Agregar al historial
+                st.session_state.historial.append({
+                    "fecha": datetime.now(),
+                    "monto": df_estimacion[columna_cantidad].sum() if columna_cantidad else 0,
+                    "conceptos": len(df_estimacion)
+                })
+                st.success("🎉 Estimación aprobada. Avance actualizado.")
+                
+                # Mostrar avance acumulado
+                total_acumulado = sum([h["monto"] for h in st.session_state.historial])
+                st.metric("💰 Avance Acumulado", f"${total_acumulado:,.2f}")
+                
         except Exception as e:
-            st.error(f"❌ Error al procesar la estimación: {e}")
-
+            st.error(f"❌ Error al hacer la comparativa: {e}")
+            st.write("Detalles del error:", str(e))
+            
+    except Exception as e:
+        st.error(f"❌ Error al leer la estimación: {e}")
+        
 # ---------- SECCIÓN 4: HISTORIAL ----------
 elif seccion == "📈 Historial":
     st.subheader("📈 Historial de Avance")
