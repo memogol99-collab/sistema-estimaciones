@@ -1,5 +1,6 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/RectanguloSnap ( RS ).lsp
+;;; Parches aplicados: renombrar:CC=RSC
 
 ;;; ============================================================================
 ;;; RUTINA LISP MEJORADA PARA AUTOCAD
@@ -415,7 +416,7 @@
 ;;; ============================================================================
 ;;; COMANDO: CC - Crear Cotas con 2 decimales
 ;;; ============================================================================
-(defun c:CC (/ pt1 pt2 pt3 cota-ent)
+(defun c:RSC (/ pt1 pt2 pt3 cota-ent)
   (setq *rs-old-error* *error*)
   (defun *error* (msg)
     (vl-catch-all-apply 'setvar (list "CMDECHO"  (or *rs-old-cmdecho*  1)))
@@ -588,7 +589,7 @@
 (princ "\n|          RECTANGLOSNAP v2.13 - Cargado                       |")
 (princ "\n+--------------------------------------------------------------+")
 (princ "\n|  RS       - Dibujar rectangulos con cotas + hatch            |")
-(princ "\n|  CC       - Crear cotas (2 decimales)                        |")
+(princ "\n|  RSC      - Crear cotas (2 decimales)                        |")
 (princ "\n|  AEC      - Actualizar estilo de cota                        |")
 (princ "\n|  RC2      - Redondear cotas existentes a 2 decimales         |")
 (princ "\n|  RSHATCH  - Re-aplicar hatch a polilineas existentes         |")

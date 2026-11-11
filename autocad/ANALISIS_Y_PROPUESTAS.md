@@ -8,9 +8,11 @@ Revisé los 60 archivos LISP, el `Memo.cuix`, el `acad.pgp` y el `perfil_dialog.
 |---|---|---|
 | Instalación | 58 rutas fijas a `C:\Program Files\Autodesk\AutoCAD 2024\…` y `…2026\…` dentro del CUIX; 10 de esas rutas ya no existen | Se copia **una carpeta** (o se ejecuta `INSTALAR.bat`) y funciona en cualquier versión de AutoCAD (2015 a 2026), sin `APPLOAD` ni `CUILOAD` |
 | Carga | Se cargan todos los archivos al abrir **cada** dibujo | **Un solo cargador**: cada archivo se carga la primera vez que se usa su comando |
-| Menú | Menú desplegable de texto, sin iconos, 7 botones que llaman a comandos que no existen | **3 fichas** en la cinta (Estimaciones, Topografía, Dibujo), 17 paneles y 117 botones con icono y descripción, más el menú desplegable `MEMO` con 138 comandos |
+| Menú | Menú desplegable de texto, sin iconos, 7 botones que llaman a comandos que no existen | **3 fichas** en la cinta (Estimaciones, Topografía, Dibujo), 17 paneles y 124 botones con icono y descripción, más el menú desplegable `MEMO` con 143 comandos |
 | Conflictos | 11 comandos y 10 funciones internas definidos en varios archivos con código distinto | 0 conflictos (el script de construcción los revisa) |
-| Archivos | 60 `.lsp` con espacios y paréntesis en el nombre | 54 `.lsp` con nombres limpios, ordenados en 10 carpetas; 7 obsoletos o duplicados se dejaron fuera |
+| Archivos | 60 `.lsp` con espacios y paréntesis en el nombre, con codificaciones mezcladas | 54 `.lsp` con nombres limpios en 10 carpetas, todos en ANSI (Windows-1252) con fin de línea de Windows; 7 obsoletos o duplicados se dejaron fuera |
+| Tablas COP/ASI/CSSA | Había que pegar con Ctrl+V y Enter 2 veces | **Leen el portapapeles directamente** |
+| Atajos del acad.pgp | 10 comandos LISP anulaban alias tuyos (MP dejaba de ser EMPALME) | Renombrados; tus alias vuelven a funcionar |
 
 ---
 
@@ -99,7 +101,7 @@ Como todo se cargaba al abrir cada dibujo:
 
 Con la carga bajo demanda, nada de esto pasa hasta que realmente usas el comando.
 
-### 2.7 Conflictos con tu `acad.pgp`
+### 2.7 Conflictos con tu `acad.pgp` (resuelto en 2.1)
 
 Estos comandos LISP tienen el mismo nombre que un alias de tu `acad.pgp`. El comando LISP tiene prioridad, así que **el alias deja de funcionar**:
 
@@ -155,7 +157,7 @@ MEMO_SISTEMA.bundle/
 
 ### 3.2 Carga bajo demanda
 
-`MEMO_Cargador.lsp` define los 139 comandos como “esqueletos”. La primera vez que escribes `COP`, el cargador carga `COP_ConceptosObrasPublicas.lsp` y ejecuta el comando; las siguientes veces ya va directo. Así:
+`MEMO_Cargador.lsp` define los 142 comandos como “esqueletos”. La primera vez que escribes `COP`, el cargador carga `COP_ConceptosObrasPublicas.lsp` y ejecuta el comando; las siguientes veces ya va directo. Así:
 * El dibujo abre igual de rápido que sin el sistema.
 * Un archivo con error no impide que los demás funcionen.
 * Los archivos no se pisan entre sí, porque normalmente sólo se cargan los que usas.
@@ -215,43 +217,85 @@ Si escribiste un comando nuevo y olvidaste describirlo, el script te avisa.
 
 ---
 
-## 4. Propuestas de mejora a futuro
+## 4. Propuestas de mejora (implementadas en la versión 2.1)
 
-Están ordenadas de mayor a menor impacto en el trabajo diario.
+| # | Propuesta | Estado | Cómo quedó |
+|---|---|---|---|
+| 4.1 | Unificar tablas ASI, COP y CSSA | Hecho (ver nota) | Comando **`MTABLA`** + lectura del **portapapeles** + anchos configurables |
+| 4.2 | Unificar la familia de áreas | Hecho | Comando **`MAREA`** |
+| 4.3 | Flujo único de bacheo | Hecho | Comando **`MBACHEO`** + espesor configurable |
+| 4.4 | Biblioteca común | Hecho | `Sistema/MEMO_Lib.lsp` (prefijo `memo:`) |
+| 4.5 | Configuración en un solo lugar | Hecho | Comando **`MEMO_CONFIG`** (17 valores) |
+| 4.6 | Resolver choques con el acad.pgp | Hecho | 9 comandos renombrados y `MP` eliminado |
+| 4.7 | Compilar | Hecho | Comando **`MEMO_COMPILAR`** |
+| 4.8 | Una sola codificación | Hecho | Todo en ANSI (Windows-1252) |
+| 4.9 | Pruebas | Hecho | Comando **`MEMO_VERIFICAR`** + [LISTA_DE_PRUEBAS.md](LISTA_DE_PRUEBAS.md) |
 
-### 4.1 Unificar las tres tablas de conceptos (ASI, COP, CSSA): **ahorro alto**
-Los tres archivos (unas 1,750 líneas en total) hacen lo mismo: leer filas pegadas de Excel, separarlas, crear estilos, dibujar encabezados y celdas. Sólo cambian el número de columnas, los anchos y si llevan total o recuadros. Propuesta: un solo comando `TABLA` con un diálogo donde eliges el formato (*Obras Públicas*, *Asipona*, *SSA* o uno nuevo). Cada formato sería sólo una lista de columnas `(nombre ancho alineación)`. Agregar un cliente nuevo sería agregar una línea, no copiar 600 líneas.
+### 4.1 Tablas: `MTABLA` y portapapeles
+* **COP, ASI y CSSA leen el portapapeles.** Copias las filas en Excel, ejecutas `COP` y eliges el punto. El comando muestra cuántas filas y columnas encontró, enseña la primera fila y pregunta *¿Usar los datos del portapapeles? [Si/No] <Si>*: con Enter se usan.
+  * Si el portapapeles está vacío o respondes *No*, puedes pegar a mano como antes.
+  * Las celdas de Excel con saltos de línea internos, que Excel copia entre comillas, se unen en una sola línea.
+  * Con `MEMO_CONFIG` → *Tablas: usar portapapeles* puedes elegir `SI` (sin preguntar), `NO` (como antes) o `PREGUNTAR` (el valor por defecto).
+* **`MTABLA`** es la entrada única. Lee el portapapeles, propone el formato según el número de columnas (5 → Obras Públicas, 7 → Asipona, 4 → SSA) y ejecuta el comando correspondiente sin volver a preguntar.
+* **Los anchos de columna** de COP (5), ASI (7) y CSSA (ancho total) se cambian en `MEMO_CONFIG`, sin tocar el código.
+* **Nota:** el dibujo de cada formato (posiciones, desplazamientos, `$`, código en dos líneas, totales, recuadros, vistas) **sigue siendo el de tus rutinas originales**. Reescribir los tres motores en uno solo sin poder compararlos dentro de AutoCAD arriesgaría cambiar tablas que ya entregas. Cuando confirmes con la lista de pruebas que todo sale igual, el siguiente paso es convertir cada formato en una lista de columnas dentro de un único motor.
 
-### 4.2 Unificar la familia de áreas (HA, HA2, AM2, AH, AH2, AC, EA, CAS, QA, AS): **ahorro alto**
-Son 10 comandos que toman un área (de hatch, de contorno o de 3 puntos) y la escriben en un texto con un prefijo. Propuesta: un comando `AREA` con opciones `[Hatch/Contorno/3Puntos]`, el prefijo recordado y la opción de exportar a Excel (lo que hoy hace EA). Los nombres actuales se pueden conservar como atajos.
+### 4.2 Áreas: `MAREA`
+Un solo comando con las opciones *Prefijo (HA2), Rapido (HA), M2 (AM2), Hatch (AH), Contorno (AC), Tres puntos (AS), Detalle (CAS), Valores (QA) y Exportar (EA)*. Recuerda la última opción usada, así que en el uso diario basta con `MAREA` + Enter. Los comandos cortos siguen funcionando igual.
 
-### 4.3 Flujo único de bacheo
-RS, RV, COTB, EXR, HR y BTR comparten la variable `*rectangulos-lista*` y el XDATA. Propuesta: un comando `BACHEO` con pasos (Dibujar → Numerar → Cotar → Exportar), donde el XDATA de cada rectángulo sea la única fuente de datos (sin la lista en memoria, que se pierde al cerrar el dibujo).
+### 4.3 Bacheo: `MBACHEO`
+Flujo guiado: *Dibujar (RS) → Numerar (RNB) → Cotar (COTB) → Exportar (EXR)*, con *Hatch, Limpiar y Config* disponibles en cualquier momento. Después de cada paso propone el siguiente, así que normalmente sólo presionas Enter.
+* El **espesor** que usa EXR para calcular el volumen (antes 0.10 fijo en el código) ahora es configurable.
+* Sobre el XDATA: al revisar el código confirmé que **EXR ya reconstruye la lista desde el XDATA** de los rectángulos que seleccionas. La lista en memoria sólo funciona como caché, así que no hizo falta cambiar la lógica.
 
-### 4.4 Biblioteca común `memo-lib.lsp`
-Hoy hay 5 copias de `split-string`, 3 de `crearEstilosTexto` y 33 manejadores `*error*` escritos a mano. Propuesta: una biblioteca con prefijo `memo:`:
-* `memo:split`, `memo:estilo-texto`, `memo:capa`
-* `memo:inicio` / `memo:fin`: guardan y restauran variables y hacen la marca de *deshacer*
-* `memo:error`: manejador de errores estándar
+### 4.4 Biblioteca común `MEMO_Lib.lsp`
+Se carga al abrir cada dibujo (es pequeña) y la usan el código nuevo y la entrada de datos de las tablas:
+* **Configuración:** `memo:cfg`, `memo:cfg-num`, `memo:cfg-set`.
+* **Portapapeles:** `memo:portapapeles`. Usa el objeto COM `htmlfile` y, si no existe en el equipo, PowerShell.
+* **Texto de Excel:** `memo:tsv-normalizar` y `memo:leer-datos-tabla`.
+* **Utilidades:** `memo:split`, `memo:opcion`, `memo:llamar`, `memo:recortar`.
 
-Cada comando nuevo quedaría en 20–50 líneas.
+Las funciones repetidas *dentro* de las rutinas antiguas (`split-string`, etc.) se quedaron en cada archivo con su prefijo (`asi:`, `cop:`…) para no tocar lógica que ya funciona. Todo comando nuevo debe usar la biblioteca.
 
-### 4.5 Configuración en un solo lugar
-Alturas de texto (0.15, 0.20…), nombres de capas (CONCEPTOS, Hatch_Bache, GEOMETRIA_RECTANGULOS…), estilos y escalas están escritos dentro del código, repartidos en decenas de lugares. Propuesta: un `MEMO_Config.lsp` (o un `.ini`) con esos valores y un comando `MEMO_CONFIG` para editarlos.
+### 4.5 `MEMO_CONFIG`
+Muestra una lista numerada con el valor actual de cada opción y el valor por defecto cuando lo cambiaste. Escribes el número, el valor nuevo y listo; con `R` se restablece todo.
+* Los valores se guardan en tu perfil de AutoCAD (registro de Windows), así que **no se pierden al actualizar o reinstalar** el sistema.
+* Los números se validan, y las opciones sólo aceptan los valores permitidos.
 
-### 4.6 Resolver los choques con el acad.pgp
-Ver 2.7. Hay que decidir caso por caso qué comando conservar y renombrar el otro. Si quieres, el `acad.pgp` también puede formar parte del instalador, para que tus alias viajen junto con el sistema.
+### 4.6 Comandos renombrados
 
-### 4.7 Compilar a VLX
-Cuando un módulo esté estable, puedes compilarlo con `MAKELISPAPP` (AutoCAD 2021+) o el IDE de VLISP. Así queda en **un solo archivo**, carga más rápido y el código queda protegido si lo compartes. El cargador ya prefiere `.vlx`/`.fas` sobre `.lsp` con el mismo nombre.
+| Antes | Ahora | Tu alias que vuelve a funcionar |
+|---|---|---|
+| `MP` (malla) | *(eliminado, usa `MLL` o `MALLA-PUNTOS`)* | EMPALME |
+| `EL` (elevación T.N.) | **`ELTN`** | ELIPSE |
+| `RV` (renumerar rectángulos) | **`RNB`** (también `RENUMERARVECINO`) | REVOLUCION |
+| `CC` (cotas de RS) | **`RSC`** | CERRARCINTA |
+| `PV` (bloque PV) | **`IBPV`** | PTOVISTA |
+| `TM` (bloque poste TM) | **`IBTM`** | TILEMODE |
+| `CL` (clonar layout) | **`CLO`** | LINEACENTRO |
+| `LC` (limpiar conceptos) | **`LCO`** | LINEACENTRO |
+| `CT` (CT-Toolbox) | **`CTB`** | TXTC / CTABLESTYLE |
+| `CTT` (cambia texto) | **`CTX`** | ADMATRB |
 
-### 4.8 Una sola codificación
-Conviene guardar todos los `.lsp` en el mismo formato. Lo más seguro para que los acentos se vean bien en AutoCAD 2021+ es UTF-8 con BOM, o bien dejar los mensajes sin acentos.
+Las fichas, `MEMO_AYUDA` y los mensajes de carga ya usan los nombres nuevos. Ninguno de los nombres nuevos aparece en tu `acad.pgp`.
 
-### 4.9 Lista de pruebas
-`Ejercicio COMANDOS NUEVOS.dwg` puede servir como dibujo de prueba: una lista de 1–2 pasos por comando para revisar después de cada cambio.
+### 4.7 `MEMO_COMPILAR`
+Compila los 56 archivos (incluida la biblioteca) a `.fas` en `%APPDATA%\MEMO_SISTEMA\FAS`. Usa esa carpeta porque `Program Files` no permite escribir sin permisos de administrador.
+* Desde el siguiente dibujo, el cargador usa los `.fas`. `MEMO_INFO` indica si están activos.
+* Al instalar una **versión nueva** del sistema, los `.fas` viejos se ignoran solos (se comparan por número de versión) hasta que vuelvas a compilar.
+* Usa `vlisp-compile` de AutoCAD. Si tu versión no lo trae, el comando lo avisa y todo sigue con los `.lsp`.
 
----
+### 4.8 Codificación
+Todos los `.lsp` del bundle están ahora en **ANSI (Windows-1252)**, la codificación en la que ya estaban casi todos tus archivos y que funcionaba en tu AutoCAD. Los dos que venían en UTF-8 (EXR y PERFIL) se convirtieron; antes podían mostrar acentos raros. Además, todos usan fin de línea de Windows (CRLF).
+
+### 4.9 Pruebas
+* **`MEMO_VERIFICAR`**: en un dibujo nuevo, carga los 55 archivos y comprueba que cada uno de los 140+ comandos quede definido. Muestra un resumen con *ERROR AL CARGAR* o *NO DEFINIDO* si algo falla. Tarda segundos y conviene correrlo después de cada actualización.
+* **[LISTA_DE_PRUEBAS.md](LISTA_DE_PRUEBAS.md)**: pasos manuales cortos por comando para comparar contra el comportamiento anterior, empezando por lo que cambió en 2.1. Puedes usar `Ejercicio COMANDOS NUEVOS.dwg`.
+
+### 4.10 Lo que sigue (cuando confirmes las pruebas)
+1. Un solo motor de tablas basado en listas de columnas, sustituyendo los tres motores actuales.
+2. Pasar las alturas de texto y los nombres de capas de cada rutina a `MEMO_CONFIG`.
+3. Mover a la biblioteca las funciones repetidas de las rutinas antiguas, una por una y probando cada cambio.
 
 ## 5. Tabla de equivalencias de archivos
 
@@ -260,16 +304,16 @@ Conviene guardar todos los `.lsp` en el mismo formato. Lo más seguro para que l
 | LISP_Estimaciones/Conceptos Obras Publicas ( COP ) | Estimaciones/COP_ConceptosObrasPublicas | COP, LIMPIARTABLA |
 | LISP_Estimaciones/Conceptos Asipona ( ASI ) | Estimaciones/ASI_ConceptosAsipona | ASI |
 | LISP_Estimaciones/Conceptos SSA ( CSSA ) | Estimaciones/CSSA_ConceptosSSA | CSSA, LIMPIARCSSA |
-| LISP_Estimaciones/Limpiar Conceptos ( LC ) | Estimaciones/LC_LimpiarConceptos | LC |
+| LISP_Estimaciones/Limpiar Conceptos ( LC ) | Estimaciones/LC_LimpiarConceptos | **LCO** (antes LC) |
 | LISP_Estimaciones/Comp_Area_Secc ( CAS ) | Estimaciones/CAS_CompAreaSecc | CAS, QA |
 | LISP_Estimaciones/CAD a JPG ( IJPG ) | Estimaciones/IJPG_CadAJpg | IJPG, IJPG-EMF, IJPG-PC3 |
-| LISP_Estimaciones/RectanguloSnap ( RS ) | Bacheo/RS_RectanguloSnap | RS, CC, AEC, RC2, RSHATCH, RS-CONFIG |
-| LISP_Estimaciones/RenumerarRectangulos ( RV ) | Bacheo/RV_RenumerarRectangulos | RV, RENUMERARVECINO |
+| LISP_Estimaciones/RectanguloSnap ( RS ) | Bacheo/RS_RectanguloSnap | RS, **RSC** (antes CC), AEC, RC2, RSHATCH, RS-CONFIG |
+| LISP_Estimaciones/RenumerarRectangulos ( RV ) | Bacheo/RV_RenumerarRectangulos | **RNB** (antes RV), RENUMERARVECINO |
 | LISP_Estimaciones/COTAR_BACHES (COTB ) | Bacheo/COTB_CotarBaches | COTB |
 | LISP_Estimaciones/ExportaRectangulos ( EXR ) | Bacheo/EXR_ExportaRectangulos | EXR, VERLISTA, VERXDATA, AXD |
 | LISP_Estimaciones/HatchRectangulos | Bacheo/HR_HatchRectangulos | HR |
 | LISP_Estimaciones/BorrarTextoEnRect | Bacheo/BTR_BorrarTextoEnRect | BTR |
-| LISP_Secciones/Elevacion ( EL ) | Secciones/EL_Elevacion | EL |
+| LISP_Secciones/Elevacion ( EL ) | Secciones/EL_Elevacion | **ELTN** (antes EL) |
 | LISP_Secciones/Cambia Numeros x 00.00 ( R00 ) | Secciones/R00_CambiaNumeros | R00 |
 | LISP_Secciones/Area_m2 ( AM2 ) | Secciones/AM2_AreaM2 | AM2 |
 | LISP_Secciones/Area Pref Guard ( HA ) | Secciones/HA_AreaPrefijo | HA, HA2, HAPREF, HARESET, HAINFO |
@@ -277,8 +321,8 @@ Conviene guardar todos los `.lsp` en el mismo formato. Lo más seguro para que l
 | LISP_Secciones/Extraer Area de Cont ( AC ) | Secciones/AC_AreaContorno | AC |
 | LISP_Secciones/Extraer Area de Hatch ( AH ) | Secciones/AH_AreaHatch | AH, AH2, AHINFO |
 | LISP_Secciones/Exp_Est-Area ( EA ) | Secciones/EA_ExportarEstArea | EA, HAEA, HAEA-EXPORT, **EA-HA** (antes HA) |
-| LISP_Textos/CT-Toolbox | Textos/CT_Toolbox | CT, CTE, CTP, IPT, CTN, STV |
-| LISP_Textos/Cambia Texto ( CTT ) | Textos/CTT_CambiaTexto | CTT |
+| LISP_Textos/CT-Toolbox | Textos/CT_Toolbox | **CTB** (antes CT), CTE, CTP, IPT, CTN, STV |
+| LISP_Textos/Cambia Texto ( CTT ) | Textos/CTT_CambiaTexto | **CTX** (antes CTT) |
 | LISP_Textos/Alinear Texto ( ALIT ) | Textos/ALIT_AlinearTexto | ALIT |
 | LISP_Textos/Pendiente ( PTE ) | Textos/PTE_Pendiente | PTE |
 | LISP_Textos/MayMin ( UL ) | Textos/UL_MayMin | UL |
@@ -292,13 +336,13 @@ Conviene guardar todos los `.lsp` en el mismo formato. Lo más seguro para que l
 | LISP_VistasLayout/Crear Vistas ( CV ) | VistasLayout/CV_CrearVistas | CV |
 | LISP_VistasLayout/Restaurar Vistas ( AV ) | VistasLayout/AV_GuardarRestaurarVistas | AV, GV |
 | LISP_VistasLayout/Borrar Vistas ( BV ) | VistasLayout/BV_BorrarVistas | BV |
-| LISP_VistasLayout/ClonLayout ( CL ) | VistasLayout/CL_ClonarLayout | CL |
+| LISP_VistasLayout/ClonLayout ( CL ) | VistasLayout/CL_ClonarLayout | **CLO** (antes CL) |
 | LISP_VistasLayout/Configurar Layouts ( CFTL ) | VistasLayout/CFTL_ConfigurarLayouts | CFTL |
 | LISP_VistasLayout/SuprimirLayouts ( SL ) | VistasLayout/SL_SuprimirLayouts | SL |
 | LISP_Topografia/Importar PUNTOS ( ICE ) | Topografia/ICE_ImportarPuntos | ICE |
 | LISP_Topografia/Ptos Civil a Capas ( PCC ) | Topografia/PCC_PuntosCivilACapas | PCC |
 | LISP_Topografia/UnirPuntosPol ( UPP ) | Topografia/UPP_UnirPuntosPol | UPP, UPPA |
-| LISP_Topografia/Malla_PUNTOS ( MALLA ) | Topografia/MP_MallaPuntos | MALLA-PUNTOS, MP, MLL, EXPORTAR-PUNTOS, EXP |
+| LISP_Topografia/Malla_PUNTOS ( MALLA ) | Topografia/MP_MallaPuntos | MALLA-PUNTOS, MLL, EXPORTAR-PUNTOS, EXP (MP eliminado) |
 | LISP_Topografia/Exportar_Coord_POL ( X-Y ) | Topografia/XY_ExportarCoordPol | X-Y |
 | LISP_Topografia/ColorearPorElevacion | Topografia/CPEC_ColorearPorElevacion | CPEC |
 | LISP_Topografia/Curvas_Nivel ( CCN ) | Topografia/CCN_CurvasNivel | CCN, CCNT, CCNAYUDA |
@@ -309,17 +353,16 @@ Conviene guardar todos los `.lsp` en el mismo formato. Lo más seguro para que l
 | LISP_NubePuntos/PTO-INS-TEXTO ( PIT ) | Batimetria/PIT_PuntoInsTexto | PIT |
 | LISP_NubePuntos/perfil_transversal | Batimetria/PERFIL_Transversal | PERFIL |
 | LISP_Bloques/Insertar Bloques en Capa ( IBC ) | Bloques/IBC_BloquesEnCapa | IBC |
-| LISP_Bloques/Insertar Bloques en Capa ( IBCZ ) | Bloques/IBCZ_BloquesEnCapaEscala | IBCZ, ARBOLES, RAP, DES, PV, TM, CFE, VERBLOQUES, VERCAPAS, CONFIGESCALAS |
+| LISP_Bloques/Insertar Bloques en Capa ( IBCZ ) | Bloques/IBCZ_BloquesEnCapaEscala | IBCZ, ARBOLES, RAP, DES, **IBPV**, **IBTM**, CFE, VERBLOQUES, VERCAPAS, CONFIGESCALAS |
 | LISP_Bloques/Insetar Bloques Multiples ( IBM ) | Bloques/IBM_BloquesMultiples | IBM |
+| *(nuevo)* fuente/MEMO_Unificados | Sistema/MEMO_Unificados | MTABLA, MAREA, MBACHEO, MEMO_CONFIG |
+| *(nuevo)* fuente/MEMO_Lib | Sistema/MEMO_Lib | biblioteca (sin comandos) |
 
 ---
 
 ## 6. Pendiente de verificar en AutoCAD
 
-Todo se generó y se validó fuera de AutoCAD: XML válido, paréntesis balanceados, cero colisiones y comandos de los botones comprobados contra los archivos. **No se pudo abrir AutoCAD en este entorno**, así que la primera vez conviene revisar:
-
-1. Al abrir AutoCAD aparecen las 3 fichas **MEMO**. Si no aparecen: clic derecho en la cinta → *Mostrar fichas*, o `CUILOAD` → `Contents\MEMO_SISTEMA.cuix`.
-2. `MEMO_INFO` muestra la carpeta del bundle y “Menú MEMO_SISTEMA: cargado”.
-3. Probar un comando de cada ficha, por ejemplo `COP`, `RS`, `ICE` y `CT`. La primera vez aparece el mensaje de carga del archivo.
-4. Los iconos se ven en los botones. Si alguno sale en blanco, AutoCAD los toma igualmente de `Contents\Iconos`, que está en las rutas de soporte.
-5. Probar `ASI` y `BV`, que ahora usan sus funciones internas correctas, y `BPOL` con un `ESC` a la mitad: AutoCAD debe quedar normal.
+Todo se generó y se validó fuera de AutoCAD: XML válido, paréntesis balanceados, cero colisiones y comandos de los botones comprobados contra los archivos. **No pude ejecutar AutoCAD en este entorno.** La primera vez:
+1. En un dibujo nuevo, ejecuta **`MEMO_VERIFICAR`**: debe decir *Todo correcto*.
+2. Sigue la sección **"Lo nuevo en 2.1"** de [LISTA_DE_PRUEBAS.md](LISTA_DE_PRUEBAS.md), sobre todo **COP con el portapapeles**.
+3. Si las fichas no aparecen: clic derecho en la cinta → *Mostrar fichas*, o `CUILOAD` → `Contents\MEMO_SISTEMA.cuix`.

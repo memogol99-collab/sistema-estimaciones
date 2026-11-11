@@ -1,5 +1,6 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Textos/CT-Toolbox.lsp
+;;; Parches aplicados: renombrar:CT=CTB
 
 ;;; ======================================================================
 ;;;  CT-Toolbox.lsp
@@ -508,7 +509,7 @@
 ;;; ==================================================================
 
 ;;; Comando principal: abre el cuadro de dialogo (CT por defecto)
-(defun c:CT ( / modo)
+(defun c:CTB ( / modo)
   (setq modo (ct:dialogo))
   (cond
     ((not modo)     (princ "\nOperación cancelada."))
@@ -529,5 +530,5 @@
 (defun c:CTN () (ct:r-numerar) (princ))
 (defun c:STV () (ct:r-sumar)   (princ))
 
-(princ "\nCT-Toolbox cargado.  Comando: CT (diálogo, CT por defecto)  |  Atajos: CTE, CTP, IPT, CTN, STV.")
+(princ "\nCT-Toolbox cargado.  Comando: CTB (diálogo, CT por defecto)  |  Atajos: CTE, CTP, IPT, CTN, STV.")
 (princ)

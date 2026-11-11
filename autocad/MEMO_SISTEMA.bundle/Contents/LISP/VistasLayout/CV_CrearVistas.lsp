@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_VistasLayout/Crear Vistas ( CV ).lsp
 
 (defun c:CV (/ pt1 num_vistas ancho alto base_x base_y i y_offset nombre_vista p1 p2 old_osmode old_clayer)

@@ -1,6 +1,6 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/Conceptos Asipona ( ASI ).lsp
-;;; Parches aplicados: prefijo:asi
+;;; Parches aplicados: prefijo:asi, portapapeles, cfg-asi
 
 ;; ============================================================
 ;; SISTEMA ASI - TABLAS DE 7 COLUMNAS
@@ -10,13 +10,13 @@
 ;; ============================================================
 
 ;; Variables globales configurables
-(setq *mp-ancho-no* 0.9841)
-(setq *mp-ancho-codigo* 1.7887)          ;; Ancho de columna CODIGO (AMPLIADO +0.7113)
-(setq *mp-ancho-descripcion* 14.8620)    ;; Ancho de columna DESCRIPCION (AMPLIADO +0.6000)
-(setq *mp-ancho-unidad* 1.1700)          ;; Ancho de columna UNIDAD (REDUCIDO -0.7113)
-(setq *mp-ancho-pu* 1.7250)
-(setq *mp-ancho-cantidad* 1.6997)
-(setq *mp-ancho-importe* 1.9849)         ;; Ancho de columna IMPORTE (REDUCIDO -0.6000)
+(setq *mp-ancho-no* (memo:cfg-num "ASI_ANCHO_NO"))
+(setq *mp-ancho-codigo* (memo:cfg-num "ASI_ANCHO_CODIGO"))          ;; Ancho de columna CODIGO (AMPLIADO +0.7113)
+(setq *mp-ancho-descripcion* (memo:cfg-num "ASI_ANCHO_DESCRIPCION"))    ;; Ancho de columna DESCRIPCION (AMPLIADO +0.6000)
+(setq *mp-ancho-unidad* (memo:cfg-num "ASI_ANCHO_UNIDAD"))          ;; Ancho de columna UNIDAD (REDUCIDO -0.7113)
+(setq *mp-ancho-pu* (memo:cfg-num "ASI_ANCHO_PU"))
+(setq *mp-ancho-cantidad* (memo:cfg-num "ASI_ANCHO_CANTIDAD"))
+(setq *mp-ancho-importe* (memo:cfg-num "ASI_ANCHO_IMPORTE"))         ;; Ancho de columna IMPORTE (REDUCIDO -0.6000)
 (setq *mp-alto-fila* 1.00)
 
 ;; FUNCIÓN PARA CREAR ESTILOS DE TEXTO
@@ -129,13 +129,13 @@
       )
       
       ;; DEFINIR ANCHOS (7 COLUMNAS)
-      (setq ancho_no *mp-ancho-no*)
-      (setq ancho_codigo *mp-ancho-codigo*)
-      (setq ancho_descripcion *mp-ancho-descripcion*)
-      (setq ancho_unidad *mp-ancho-unidad*)
-      (setq ancho_pu *mp-ancho-pu*)
-      (setq ancho_cantidad *mp-ancho-cantidad*)
-      (setq ancho_importe *mp-ancho-importe*)
+      (setq ancho_no (setq *mp-ancho-no* (memo:cfg-num "ASI_ANCHO_NO")))
+      (setq ancho_codigo (setq *mp-ancho-codigo* (memo:cfg-num "ASI_ANCHO_CODIGO")))
+      (setq ancho_descripcion (setq *mp-ancho-descripcion* (memo:cfg-num "ASI_ANCHO_DESCRIPCION")))
+      (setq ancho_unidad (setq *mp-ancho-unidad* (memo:cfg-num "ASI_ANCHO_UNIDAD")))
+      (setq ancho_pu (setq *mp-ancho-pu* (memo:cfg-num "ASI_ANCHO_PU")))
+      (setq ancho_cantidad (setq *mp-ancho-cantidad* (memo:cfg-num "ASI_ANCHO_CANTIDAD")))
+      (setq ancho_importe (setq *mp-ancho-importe* (memo:cfg-num "ASI_ANCHO_IMPORTE")))
       (setq alto *mp-alto-fila*)
       (setq total_ancho (+ ancho_no ancho_codigo ancho_descripcion ancho_unidad ancho_pu ancho_cantidad ancho_importe))
       
@@ -235,15 +235,9 @@
       )
       
       ;; OBTENER DATOS
-      (princ "\nPega los datos (Ctrl+V) y presiona Enter 2 veces:")
-      (princ "\nFORMATO: No. Codigo Descripcion Unidad P.U. Cantidad Importe")
-      (setq entradaCompleta "")
-      (setq linea (getstring T "\n>>> "))
       
-      (while (and linea (/= linea ""))
-        (setq entradaCompleta (strcat entradaCompleta linea "\n"))
-        (setq linea (getstring T ""))
-      )
+      (princ "\nFORMATO: No. Codigo Descripcion Unidad P.U. Cantidad Importe")
+      (setq entradaCompleta (memo:leer-datos-tabla))
       
       (if (/= entradaCompleta "")
         (progn
@@ -402,7 +396,7 @@
   (setq y2 (cadadr coord))
   (setq centroX (/ (+ x1 x2) 2.0))
   (setq centroY (- (/ (+ y1 y2) 2.0) (* numFila 1.0)))
-  (setq ancho_codigo *mp-ancho-codigo*)
+  (setq ancho_codigo (setq *mp-ancho-codigo* (memo:cfg-num "ASI_ANCHO_CODIGO")))
   
   (cond
     ((or (= colIndex 0) (= colIndex 1) (= colIndex 3))

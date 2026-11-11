@@ -1,9 +1,10 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Textos/Cambia Texto ( CTT ).lsp
+;;; Parches aplicados: renombrar:CTT=CTX
 
 ; Cambia el texto seleccionado por un texto tecleado
 
-(defun c:CTT (/ ss i ent obj texto_nuevo contador)
+(defun c:CTX (/ ss i ent obj texto_nuevo contador)
   (vl-load-com)
   
   (setq texto_nuevo (getstring T "\nNuevo texto: "))

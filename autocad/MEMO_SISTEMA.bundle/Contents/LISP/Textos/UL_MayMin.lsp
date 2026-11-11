@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Textos/MayMin ( UL ).lsp
 
 ;;CADALYST 01/04 Tip1923: ULCASE.LSP  Uppercase

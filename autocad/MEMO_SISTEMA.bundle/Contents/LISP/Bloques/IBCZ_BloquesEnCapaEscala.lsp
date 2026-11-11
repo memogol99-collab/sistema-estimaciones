@@ -1,5 +1,6 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Bloques/Insertar Bloques en Capa ( IBCZ ).lsp
+;;; Parches aplicados: renombrar:PV=IBPV, renombrar:TM=IBTM
 
 (defun c:IBCZ ( / *error* old_cmd old_osmode blk_list blk_name layer_filter final_layer escala_x escala_y angulo ss pt_count i pt_ent pt found)
   
@@ -180,7 +181,7 @@
   (princ)
 )
 
-(defun c:PV ( / old_cmd old_osmode)
+(defun c:IBPV ( / old_cmd old_osmode)
   (setq old_cmd (getvar "CMDECHO")
         old_osmode (getvar "OSMODE"))
   (setvar "CMDECHO" 0)
@@ -193,7 +194,7 @@
   (princ)
 )
 
-(defun c:TM ( / old_cmd old_osmode)
+(defun c:IBTM ( / old_cmd old_osmode)
   (setq old_cmd (getvar "CMDECHO")
         old_osmode (getvar "OSMODE"))
   (setvar "CMDECHO" 0)
@@ -287,7 +288,7 @@
 (princ "\n  ARBOLES       - Inserta 'Arbol' en escala 760.32")
 (princ "\n  RAP           - Inserta 'RAP' en escala 1.0")
 (princ "\n  DES           - Inserta 'Descarga' en escala 1.0")
-(princ "\n  PV            - Inserta 'PV Existente' en escala 1.0")
-(princ "\n  TM            - Inserta 'Poste de TM' en escala 1.0")
+(princ "\n  IBPV          - Inserta 'PV Existente' en escala 1.0")
+(princ "\n  IBTM          - Inserta 'Poste de TM' en escala 1.0")
 (princ "\n  CFE           - Inserta 'Poste de CFE' en escala 1.0")
 (princ)

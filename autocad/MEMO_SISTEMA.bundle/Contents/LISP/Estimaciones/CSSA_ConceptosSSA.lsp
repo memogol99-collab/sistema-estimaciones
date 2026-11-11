@@ -1,6 +1,6 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/Conceptos SSA ( CSSA ).lsp
-;;; Parches aplicados: prefijo:cssa
+;;; Parches aplicados: prefijo:cssa, portapapeles, cfg-cssa
 
 ;; ============================================================
 ;; SISTEMA CSSA - VERSIÓN COMPLETA CON RECUADROS BLANCOS
@@ -379,7 +379,7 @@
       
       (setvar "CLAYER" "DATOS_NUMEROS")
       
-      (setq ancho_total 24.0964)
+      (setq ancho_total (memo:cfg-num "CSSA_ANCHO_TOTAL"))
       (setq alto_total 0.4226)
       (setq ancho_columna (/ ancho_total 3.0))
       (setq alto_fila alto_total)
@@ -393,15 +393,9 @@
       (princ "\n1. Ingresando datos...")
       (princ "\nFormato: No. | Concepto | Unidad | Cantidad")
       (princ "\nEjemplo: CONC1 Concepto detallado M3 150.00")
-      (princ "\n(Pega los datos y presiona Enter 2 veces):")
       
-      (setq entradaCompleta "")
-      (setq linea (getstring T "\n>>> "))
       
-      (while (and linea (/= linea ""))
-        (setq entradaCompleta (strcat entradaCompleta linea "\n"))
-        (setq linea (getstring T ">>> "))
-      )
+      (setq entradaCompleta (memo:leer-datos-tabla))
       
       (if (and entradaCompleta (> (strlen entradaCompleta) 0))
         (progn

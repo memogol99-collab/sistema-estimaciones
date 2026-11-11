@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/CAD a JPG  ( IJPG ).LSP
 
 ;;; ============================================================================

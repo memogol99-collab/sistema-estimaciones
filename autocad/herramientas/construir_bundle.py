@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import catalogo as cat  # noqa: E402
 import iconos  # noqa: E402
 
-VERSION = "2.0.0"
+VERSION = "2.1.0"
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(AQUI)                       # autocad/
 ORIG = os.path.join(BASE, "originales", "MEMO_SISTEMA")
@@ -145,38 +145,126 @@ def aplicar_parches(texto, parches, nombre, bitacora):
             if not n:
                 raise SystemExit("Parche getfiled-c fallido en " + nombre)
             bitacora.append('  - getfiled abre en la carpeta del dibujo en lugar de "C:/"')
+        elif p == "portapapeles":
+            patron = (r'\(setq entradaCompleta ""\)\s*\(setq linea \(getstring T "\\n>>> "\)\)\s*'
+                      r'\(while \(and linea \(/= linea ""\)\)\s*'
+                      r'\(setq entradaCompleta \(strcat entradaCompleta linea "\\n"\)\)\s*'
+                      r'\(setq linea \(getstring T "[^"]*"\)\)\s*\)')
+            texto, n = re.subn(patron, '(setq entradaCompleta (memo:leer-datos-tabla))', texto)
+            if n != 1:
+                raise SystemExit("Parche portapapeles fallido en %s (%d)" % (nombre, n))
+            texto, n = re.subn(r'\(princ "\\n\(?Pega los datos[^"]*"\)', '', texto)
+            if n < 1:
+                raise SystemExit("Parche portapapeles (mensaje) fallido en " + nombre)
+            bitacora.append("  - lee los datos del PORTAPAPELES (si no hay, se pegan a mano como antes)")
+        elif p in CFG_PARCHES:
+            for viejo, nuevo_ in CFG_PARCHES[p]:
+                texto = reemplazar(texto, viejo, nuevo_, nombre)
+            bitacora.append("  - valores configurables con MEMO_CONFIG (%s)" % p)
+        elif p.startswith("renombrar:"):
+            viejo, nuevo_ = p.split(":", 1)[1].split("=")
+            texto, n = renombrar_simbolo(texto, "c:" + viejo, "c:" + nuevo_)
+            if n < 1:
+                raise SystemExit("Parche %s fallido en %s" % (p, nombre))
+            bitacora.append("  - comando %s renombrado a %s (chocaba con tu acad.pgp)" % (viejo, nuevo_))
+        elif p == "quitar-mp":
+            texto = reemplazar(texto, "(defun c:MP  () (c:MALLA-PUNTOS))", ";; MP eliminado: chocaba con EMPALME (acad.pgp). Use MLL.", nombre)
+            bitacora.append("  - alias MP eliminado (era EMPALME en tu acad.pgp); queda MLL")
         else:
             raise SystemExit("Parche desconocido: " + p)
+    for viejo, nuevo_ in cat.MENSAJES.get(nombre, []):
+        texto = reemplazar(texto, viejo, nuevo_, nombre)
     return texto
+
+
+def _cfg(clave):
+    return '(memo:cfg-num "%s")' % clave
+
+
+CFG_PARCHES = {
+    "cfg-cop": [
+        ("(setq ancho_no 0.5)", "(setq ancho_no %s)" % _cfg("COP_ANCHO_NO")),
+        ("(setq ancho_codigo_original 4.6641)", "(setq ancho_codigo_original %s)" % _cfg("COP_ANCHO_CODIGO")),
+        ("(setq ancho_concepto 21.1083)", "(setq ancho_concepto %s)" % _cfg("COP_ANCHO_CONCEPTO")),
+        ("(setq ancho_unidad 2.0596)", "(setq ancho_unidad %s)" % _cfg("COP_ANCHO_UNIDAD")),
+        ("(setq ancho_precio 2.0596)", "(setq ancho_precio %s)" % _cfg("COP_ANCHO_PRECIO")),
+    ],
+    "cfg-asi": [
+        (a, b) for k, v, g in [
+            ("NO", "0.9841", "no"), ("CODIGO", "1.7887", "codigo"), ("DESCRIPCION", "14.8620", "descripcion"),
+            ("UNIDAD", "1.1700", "unidad"), ("PU", "1.7250", "pu"), ("CANTIDAD", "1.6997", "cantidad"),
+            ("IMPORTE", "1.9849", "importe")]
+        for a, b in [
+            ("(setq *mp-ancho-%s* %s)" % (g, v), "(setq *mp-ancho-%s* %s)" % (g, _cfg("ASI_ANCHO_" + k))),
+            ("(setq ancho_%s *mp-ancho-%s*)" % (g, g),
+             "(setq ancho_%s (setq *mp-ancho-%s* %s))" % (g, g, _cfg("ASI_ANCHO_" + k))),
+        ]
+    ],
+    "cfg-cssa": [("(setq ancho_total 24.0964)", "(setq ancho_total %s)" % _cfg("CSSA_ANCHO_TOTAL"))],
+    "cfg-espesor": [("(* area 0.10)", "(* area %s)" % _cfg("BACHEO_ESPESOR"))],
+}
 
 
 # ---------------------------------------------------------------------------
 # 1. LISP
 # ---------------------------------------------------------------------------
+FUENTE = os.path.join(BASE, "fuente")
+
+
+def leer_fuente(origen):
+    """Devuelve el texto (bytes Windows-1252 vistos como latin-1) con CRLF.
+    Los archivos UTF-8 se convierten a Windows-1252 (ANSI): así TODOS los
+    LISP quedan en la misma codificación, la que ya funcionaba en AutoCAD."""
+    ruta = os.path.join(FUENTE, origen[8:]) if origen.startswith("@fuente/") else os.path.join(ORIG, origen)
+    crudo = open(ruta, "rb").read()
+    convertido = False
+    if any(b > 127 for b in crudo):
+        try:
+            crudo = crudo.decode("utf-8").encode("cp1252")
+            convertido = True
+        except UnicodeDecodeError:
+            pass   # ya es ANSI
+    texto = crudo.decode("latin-1").replace("\r\n", "\n").replace("\n", "\r\n")
+    return texto, convertido
+
+
+def escribir_lisp(destino, texto, origen, parches):
+    nl = "\r\n"
+    cab = (";;; MEMO SISTEMA %s - archivo generado por construir_bundle.py%s"
+           ";;; Origen: %s%s" % (VERSION, nl, origen.encode("ascii", "replace").decode(), nl))
+    if parches:
+        cab += ";;; Parches aplicados: %s%s" % (", ".join(parches), nl)
+    texto = cab + nl + texto
+    salida = os.path.join(CONT, "LISP", destino)
+    os.makedirs(os.path.dirname(salida), exist_ok=True)
+    open(salida, "wb").write(texto.encode("latin-1"))
+    return texto
+
+
 def construir_lisp():
-    destino_lisp = os.path.join(CONT, "LISP")
     mapa = []          # (destino, [comandos])
     bitacora = []
     dueño = {}
+    bases = set()
+    origen, destino = cat.BIBLIOTECA
+    texto, _ = leer_fuente(origen)
+    if not parentesis_balanceados(texto):
+        raise SystemExit("Paréntesis desbalanceados en " + destino)
+    escribir_lisp(destino, texto, origen, [])
     for origen, destino, parches in cat.ARCHIVOS:
-        ruta = os.path.join(ORIG, origen)
-        crudo = open(ruta, "rb").read()
-        # latin-1 permite ida y vuelta sin perder ningún byte (ANSI o UTF-8)
-        texto = crudo.decode("latin-1")
-        if parches:
+        base = os.path.splitext(os.path.basename(destino))[0].lower()
+        if base in bases:
+            raise SystemExit("Nombre de archivo repetido: " + destino)
+        bases.add(base)
+        texto, convertido = leer_fuente(origen)
+        if convertido:
+            bitacora.append("%s: convertido de UTF-8 a ANSI (Windows-1252)" % destino)
+        if parches or destino in cat.MENSAJES:
             bitacora.append("%s:" % destino)
             texto = aplicar_parches(texto, parches, destino, bitacora)
         if not parentesis_balanceados(texto):
             raise SystemExit("Paréntesis desbalanceados en " + destino)
-        nl = "\r\n" if "\r\n" in texto else "\n"
-        cab = (";;; MEMO SISTEMA %s - archivo generado por construir_bundle.py%s"
-               ";;; Origen: %s%s" % (VERSION, nl, origen.encode("ascii", "replace").decode(), nl))
-        if parches:
-            cab += ";;; Parches aplicados: %s%s" % (", ".join(parches), nl)
-        texto = cab + nl + texto
-        salida = os.path.join(destino_lisp, destino)
-        os.makedirs(os.path.dirname(salida), exist_ok=True)
-        open(salida, "wb").write(texto.encode("latin-1"))
+        texto = escribir_lisp(destino, texto, origen, parches)
 
         cmds = comandos_definidos(texto)
         propios = []
@@ -193,6 +281,9 @@ def construir_lisp():
             dueño[c] = destino
             propios.append(c)
         mapa.append((destino, propios))
+    for viejo, (nuevo_, _alias) in cat.RENOMBRADOS.items():
+        if viejo in dueño:
+            raise SystemExit("El comando %s debía renombrarse pero sigue definido en %s" % (viejo, dueño[viejo]))
     return mapa, dueño, bitacora
 
 
@@ -204,120 +295,224 @@ def lisp_str(s):
 
 
 def ascii_lisp(s):
-    """Texto ASCII seguro para un .lsp (evita problemas ANSI/UTF-8)."""
-    import unicodedata
-    s = s.replace("²", "2").replace("ñ", "n").replace("Ñ", "N")
-    return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
+    """Antes se quitaban acentos; ahora todo el sistema está en Windows-1252."""
+    return s
+
+
+CARGADOR = r""";;; =====================================================================
+;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA @VERSION@
+;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
+;;;
+;;;  Un solo cargador para todos los LISP. NO carga los @NARCH@ archivos al
+;;;  abrir cada dibujo: define cada comando como "stub" y el archivo real
+;;;  se carga la primera vez que se usa el comando (carga bajo demanda).
+;;;  Si existen versiones compiladas (MEMO_COMPILAR) de esta misma versión,
+;;;  carga los .fas en lugar de los .lsp.
+;;; =====================================================================
+(vl-load-com)
+
+(if (not memo:cargado)
+  (progn
+    (setq memo:version "@VERSION@")
+    (setq memo:raiz (findfile "MEMO_Cargador.lsp"))
+    (if memo:raiz
+      (setq memo:raiz (vl-string-translate "\\" "/" (vl-filename-directory memo:raiz))))
+    (setq memo:archivos-cargados nil memo:num-comandos 0 memo:*mapa* nil memo:*stubs* nil)
+    (setq memo:dir-fas (strcat (vl-string-translate "\\" "/" (getenv "APPDATA")) "/MEMO_SISTEMA/FAS/"))
+
+    ;; Valores configurables: (CLAVE "defecto" "descripción" "NUM|TXT" "opciones")
+    (setq memo:*cfg-def* '(
+@CFG@
+    ))
+
+    ;; ¿Hay FAS compilados para ESTA versión?
+    (defun memo:fas-vigente-p (/ f v)
+      (if (and (setq f (findfile (strcat memo:dir-fas "version.txt")))
+               (setq f (open f "r")))
+        (progn (setq v (read-line f)) (close f) (= v memo:version))))
+    (setq memo:usar-fas (memo:fas-vigente-p))
+
+    ;; Ruta real a cargar (.fas compilado o .lsp)
+    (defun memo:ruta (rel / fas)
+      (setq fas (strcat memo:dir-fas (vl-filename-base rel) ".fas"))
+      (if (and memo:usar-fas (findfile fas))
+        fas
+        (strcat memo:raiz "/LISP/" rel ".lsp")))
+
+    ;; Carga el archivo real y ejecuta el comando solicitado
+    (defun memo:cargar (rel cmd / ruta res)
+      (setq ruta (memo:ruta rel))
+      (cond
+        ((member rel memo:archivos-cargados)
+         (princ (strcat "\nMEMO: " rel " se cargó pero no define el comando " cmd)))
+        ((not (findfile ruta))
+         (princ (strcat "\nMEMO: no se encuentra " ruta)))
+        (T
+         (setq memo:archivos-cargados (cons rel memo:archivos-cargados))
+         (setq res (vl-catch-all-apply 'load (list ruta)))
+         (if (vl-catch-all-error-p res)
+           (princ (strcat "\nMEMO: error al cargar " rel ": " (vl-catch-all-error-message res)))
+           (eval (list (read (strcat "C:" cmd)))))))
+      (princ))
+
+    ;; Define los comandos de un archivo como stubs que lo cargan al primer uso
+    (defun memo:al (rel cmds / sym)
+      (setq memo:*mapa* (cons (list rel cmds) memo:*mapa*))
+      (foreach cmd cmds
+        (setq sym (read (strcat "C:" cmd)))
+        (if (not (eval sym))
+          (progn
+            (eval (list 'defun sym nil (list 'memo:cargar rel cmd)))
+            (setq memo:*stubs* (cons (cons cmd (vl-princ-to-string (eval sym))) memo:*stubs*))
+            (setq memo:num-comandos (1+ memo:num-comandos))))))
+
+    ;; T si el comando todavía es el stub (su archivo no lo definió)
+    (defun memo:es-stub-p (cmd / s)
+      (and (setq s (assoc cmd memo:*stubs*))
+           (= (cdr s) (vl-princ-to-string (eval (read (strcat "C:" cmd)))))))
+
+    (if memo:raiz
+      (progn
+        ;; Biblioteca común (siempre)
+        (if (vl-catch-all-error-p (vl-catch-all-apply 'load (list (memo:ruta "@LIB@"))))
+          (princ "\nMEMO: no se pudo cargar la biblioteca MEMO_Lib."))
+@AUTOLOADS@
+        (setq memo:*mapa* (reverse memo:*mapa*))
+        (setq memo:cargado T)
+        (princ (strcat "\nMEMO SISTEMA " memo:version " listo: " (itoa memo:num-comandos)
+                       " comandos" (if memo:usar-fas " (compilados)" "")
+                       ". Escriba MEMO_AYUDA para ver la lista.")))
+      (princ "\nMEMO: no se encontró MEMO_Cargador.lsp en las rutas de soporte."))))
+
+;;; ---------------------------------------------------------------------
+;;; Comandos propios del sistema
+;;; ---------------------------------------------------------------------
+(defun c:MEMO_AYUDA ()
+  (textscr)
+  (princ (strcat "\n========== MEMO SISTEMA " memo:version " =========="))
+@AYUDA@
+  (princ "\n\nComandos renombrados por chocar con tu acad.pgp:")
+@RENOMBRES@
+  (princ "\n\nTip: pase el cursor sobre los botones de las fichas MEMO para ver la descripción.")
+  (princ))
+
+(defun c:MEMO_INFO ()
+  (princ (strcat "\nMEMO SISTEMA " memo:version))
+  (princ (strcat "\nCarpeta: " (if memo:raiz memo:raiz "(no encontrada)")))
+  (princ (strcat "\nComandos registrados: " (itoa memo:num-comandos)))
+  (princ (strcat "\nCompilados (FAS): " (if memo:usar-fas (strcat "SÍ, en " memo:dir-fas) "no (se usan los .lsp)")))
+  (princ (strcat "\nBiblioteca MEMO_Lib: " (if memo:portapapeles "cargada" "NO cargada")))
+  (princ "\nArchivos ya cargados en este dibujo:")
+  (if memo:archivos-cargados
+    (foreach a (reverse memo:archivos-cargados) (princ (strcat "\n  " a)))
+    (princ "\n  (ninguno todavía: se cargan al usar cada comando)"))
+  (princ (strcat "\nMenú @MENU@: " (if (menugroup "@MENU@") "cargado" "NO cargado")))
+  (princ))
+
+(defun c:MEMO_QUITAR_ANTERIOR (/ old)
+  ;; Descarga el menú viejo 'MEMO' (Memo.cuix con rutas fijas a AutoCAD 2024/2026)
+  (if (menugroup "MEMO")
+    (progn
+      (setq old (getvar "CMDECHO"))
+      (setvar "CMDECHO" 0)
+      (command "_.CUIUNLOAD" "MEMO")
+      (setvar "CMDECHO" old)
+      (princ "\nMenú anterior MEMO descargado. Sus LISP ya no se cargarán al abrir dibujos."))
+    (princ "\nEl menú anterior MEMO no está cargado. Nada que hacer."))
+  (princ))
+
+;;; Carga TODOS los archivos y comprueba que cada comando quede definido.
+(defun c:MEMO_VERIFICAR (/ ok n res err faltan)
+  (princ "\nMEMO_VERIFICAR carga TODOS los archivos en este dibujo")
+  (princ "\n(algunos crean estilos o capas al cargarse): úselo en un dibujo nuevo.")
+  (initget "Si No")
+  (if (/= (getkword "\n¿Continuar? [Si/No] <Si>: ") "No")
+    (progn
+      (setq ok 0 n 0)
+      (foreach par memo:*mapa*
+        (setq res nil)
+        (if (not (member (car par) memo:archivos-cargados))
+          (progn
+            (setq res (vl-catch-all-apply 'load (list (memo:ruta (car par)))))
+            (setq memo:archivos-cargados (cons (car par) memo:archivos-cargados))))
+        (if (vl-catch-all-error-p res)
+          (setq err (cons (strcat (car par) " -> " (vl-catch-all-error-message res)) err))
+          (foreach c (cadr par)
+            (setq n (1+ n))
+            (if (memo:es-stub-p c)
+              (setq faltan (cons (strcat c "  (" (car par) ")") faltan))
+              (setq ok (1+ ok))))))
+      (textscr)
+      (princ "\n\n=========== RESULTADO MEMO_VERIFICAR ===========")
+      (princ (strcat "\nArchivos: " (itoa (length memo:*mapa*))
+                     "    Comandos correctos: " (itoa ok) " de " (itoa n)))
+      (princ (strcat "\nBiblioteca MEMO_Lib: " (if memo:portapapeles "OK" "NO CARGADA")))
+      (foreach e (reverse err) (princ (strcat "\n  ERROR AL CARGAR: " e)))
+      (foreach f (reverse faltan) (princ (strcat "\n  NO DEFINIDO:     " f)))
+      (if (and (not err) (not faltan)) (princ "\n  Todo correcto."))
+      (princ "\n================================================")))
+  (princ))
+
+;;; Compila todos los LISP a FAS (carga más rápida, código protegido).
+(defun c:MEMO_COMPILAR (/ base ok mal res f lista)
+  (if (not vlisp-compile)
+    (princ "\nEsta versión de AutoCAD no tiene vlisp-compile; se siguen usando los .lsp.")
+    (progn
+      (setq base (strcat (vl-string-translate "\\" "/" (getenv "APPDATA")) "/MEMO_SISTEMA"))
+      (vl-mkdir base)
+      (vl-mkdir (strcat base "/FAS"))
+      (setq ok 0 lista (cons "@LIB@" (mapcar 'car memo:*mapa*)))
+      (foreach rel lista
+        (princ (strcat "\nCompilando " rel "..."))
+        (setq res (vl-catch-all-apply 'vlisp-compile
+                    (list 'st (strcat memo:raiz "/LISP/" rel ".lsp")
+                              (strcat memo:dir-fas (vl-filename-base rel) ".fas"))))
+        (if (and res (not (vl-catch-all-error-p res)))
+          (setq ok (1+ ok))
+          (setq mal (cons rel mal))))
+      (if (and (> ok 0) (setq f (open (strcat memo:dir-fas "version.txt") "w")))
+        (progn (write-line memo:version f) (close f)))
+      (textscr)
+      (princ (strcat "\n\nCompilados: " (itoa ok) " de " (itoa (length lista)) " en " memo:dir-fas))
+      (foreach m (reverse mal) (princ (strcat "\n  No se compiló (se usará el .lsp): " m)))
+      (princ "\nLos FAS se usan desde el próximo dibujo que abras.")
+      (princ "\nPara volver a los .lsp, borre la carpeta FAS. Al actualizar el sistema se ignoran solos.")))
+  (princ))
+
+(princ)
+"""
 
 
 def construir_cargador(mapa):
-    L = []
-    w = L.append
-    w(";;; =====================================================================")
-    w(";;;  MEMO_Cargador.lsp  -  MEMO SISTEMA %s" % VERSION)
-    w(";;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py")
-    w(";;;")
-    w(";;;  Un solo cargador para todos los LISP. NO carga los %d archivos al" % len(mapa))
-    w(";;;  abrir cada dibujo: define cada comando como \"stub\" y el archivo")
-    w(";;;  real se carga la primera vez que se usa el comando (carga bajo")
-    w(";;;  demanda). Arranque mas rapido y sin choques entre archivos.")
-    w(";;; =====================================================================")
-    w("(vl-load-com)")
-    w("")
-    w("(if (not memo:cargado)")
-    w("  (progn")
-    w("    (setq memo:version %s)" % lisp_str(VERSION))
-    w("    (setq memo:raiz (findfile \"MEMO_Cargador.lsp\"))")
-    w("    (if memo:raiz")
-    w("      (setq memo:raiz (vl-string-translate \"\\\\\" \"/\" (vl-filename-directory memo:raiz))))")
-    w("    (setq memo:archivos-cargados nil memo:num-comandos 0)")
-    w("")
-    w("    ;; Carga el archivo real y ejecuta el comando solicitado")
-    w("    (defun memo:cargar (rel cmd / ruta res)")
-    w("      (setq ruta (strcat memo:raiz \"/LISP/\" rel))")
-    w("      (cond")
-    w("        ((member rel memo:archivos-cargados)")
-    w("         (princ (strcat \"\\nMEMO: \" rel \" se cargo pero no define el comando \" cmd)))")
-    w("        ((not (or (findfile (strcat ruta \".lsp\")) (findfile (strcat ruta \".fas\")) (findfile (strcat ruta \".vlx\"))))")
-    w("         (princ (strcat \"\\nMEMO: no se encuentra \" ruta \".lsp\")))")
-    w("        (T")
-    w("         (setq memo:archivos-cargados (cons rel memo:archivos-cargados))")
-    w("         (setq res (vl-catch-all-apply 'load (list ruta)))")
-    w("         (if (vl-catch-all-error-p res)")
-    w("           (princ (strcat \"\\nMEMO: error al cargar \" rel \": \" (vl-catch-all-error-message res)))")
-    w("           (eval (list (read (strcat \"C:\" cmd)))))))")
-    w("      (princ))")
-    w("")
-    w("    ;; Define un comando que carga su archivo al primer uso")
-    w("    (defun memo:al (rel cmds)")
-    w("      (foreach cmd cmds")
-    w("        (if (not (eval (read (strcat \"C:\" cmd))))")
-    w("          (progn")
-    w("            (eval (list 'defun (read (strcat \"C:\" cmd)) nil (list 'memo:cargar rel cmd)))")
-    w("            (setq memo:num-comandos (1+ memo:num-comandos))))))")
-    w("")
-    w("    (if memo:raiz")
-    w("      (progn")
+    autoloads = []
     for destino, cmds in mapa:
-        if not cmds:
-            continue
-        w("        (memo:al %s '(%s))" % (lisp_str(destino[:-4]), " ".join(lisp_str(c) for c in cmds)))
-    w("        (setq memo:cargado T)")
-    w("        (princ (strcat \"\\nMEMO SISTEMA \" memo:version \" listo: \" (itoa memo:num-comandos)")
-    w("                       \" comandos. Escriba MEMO_AYUDA para ver la lista.\")))")
-    w("      (princ \"\\nMEMO: no se encontro MEMO_Cargador.lsp en las rutas de soporte.\"))))")
-    w("")
-    # Ayuda
-    w(";;; ---------------------------------------------------------------------")
-    w(";;; Comandos propios del sistema")
-    w(";;; ---------------------------------------------------------------------")
-    w("(defun c:MEMO_AYUDA ()")
-    w("  (textscr)")
-    w("  (princ (strcat \"\\n========== MEMO SISTEMA \" memo:version \" ==========\"))")
+        if cmds:
+            autoloads.append("        (memo:al %s '(%s))" % (lisp_str(destino[:-4]), " ".join(lisp_str(c) for c in cmds)))
+    cfg = ["      (%s)" % " ".join(lisp_str(x) for x in e) for e in cat.CONFIG]
+    ayuda = []
     for tab, _kt, paneles in cat.FICHAS:
-        w("  (princ %s)" % lisp_str("\n\n### " + ascii_lisp(tab).upper()))
+        ayuda.append("  (princ %s)" % lisp_str("\n\n### " + tab.upper()))
         for panel, items in paneles:
-            w("  (princ %s)" % lisp_str("\n  -- " + ascii_lisp(panel)))
+            ayuda.append("  (princ %s)" % lisp_str("\n  -- " + panel))
             for it in items:
                 for c in (it if isinstance(it, list) else [it]):
-                    et, desc, _g, _c = cat.COMANDOS[c]
-                    w("  (princ %s)" % lisp_str("\n   %-16s %s" % (c, ascii_lisp(desc))))
-    w("  (princ \"\\n\\nTip: pase el cursor sobre los botones de las fichas MEMO para ver la descripcion.\")")
-    w("  (princ))")
-    w("")
-    w("(defun c:MEMO_INFO ()")
-    w("  (princ (strcat \"\\nMEMO SISTEMA \" memo:version))")
-    w("  (princ (strcat \"\\nCarpeta: \" (if memo:raiz memo:raiz \"(no encontrada)\")))")
-    w("  (princ (strcat \"\\nComandos registrados: \" (itoa memo:num-comandos)))")
-    w("  (princ \"\\nArchivos ya cargados en este dibujo:\")")
-    w("  (if memo:archivos-cargados")
-    w("    (foreach a (reverse memo:archivos-cargados) (princ (strcat \"\\n  \" a)))")
-    w("    (princ \"\\n  (ninguno todavia: se cargan al usar cada comando)\"))")
-    w("  (princ (strcat \"\\nMenu \" %s \": \" (if (menugroup %s) \"cargado\" \"NO cargado\")))" % (lisp_str(MENU), lisp_str(MENU)))
-    w("  (princ))")
-    w("")
-    w("(defun c:MEMO_QUITAR_ANTERIOR (/ old)")
-    w("  ;; Descarga el menu viejo 'MEMO' (Memo.cuix con rutas fijas a AutoCAD 2024/2026)")
-    w("  (if (menugroup \"MEMO\")")
-    w("    (progn")
-    w("      (setq old (getvar \"CMDECHO\"))")
-    w("      (setvar \"CMDECHO\" 0)")
-    w("      (command \"_.CUIUNLOAD\" \"MEMO\")")
-    w("      (setvar \"CMDECHO\" old)")
-    w("      (princ \"\\nMenu anterior MEMO descargado. Sus LISP ya no se cargaran al abrir dibujos.\"))")
-    w("    (princ \"\\nEl menu anterior MEMO no esta cargado. Nada que hacer.\"))")
-    w("  (princ))")
-    w("")
-    w("(princ)")
-    texto = "\r\n".join(L) + "\r\n"
-    open(os.path.join(CONT, "MEMO_Cargador.lsp"), "wb").write(texto.encode("ascii"))
+                    desc = cat.COMANDOS[c][1]
+                    ayuda.append("  (princ %s)" % lisp_str("\n   %-16s %s" % (c, desc)))
+    ren = ["  (princ %s)" % lisp_str("\n   %-5s -> %-22s (tu alias %s)" % (v, n, a))
+           for v, (n, a) in cat.RENOMBRADOS.items()]
+    texto = (CARGADOR.replace("@VERSION@", VERSION).replace("@NARCH@", str(len(mapa)))
+             .replace("@CFG@", "\n".join(cfg)).replace("@AUTOLOADS@", "\n".join(autoloads))
+             .replace("@AYUDA@", "\n".join(ayuda)).replace("@RENOMBRES@", "\n".join(ren))
+             .replace("@LIB@", cat.BIBLIOTECA[1][:-4]).replace("@MENU@", MENU))
+    if not parentesis_balanceados(texto):
+        raise SystemExit("Cargador desbalanceado")
+    texto = texto.replace("\r\n", "\n").replace("\n", "\r\n")
+    open(os.path.join(CONT, "MEMO_Cargador.lsp"), "wb").write(texto.encode("cp1252"))
 
     mnl = (";;; MEMO_SISTEMA.mnl - AutoCAD lo carga junto con MEMO_SISTEMA.cuix\r\n"
            "(if (and (not memo:cargado) (findfile \"MEMO_Cargador.lsp\"))\r\n"
            "  (load (findfile \"MEMO_Cargador.lsp\")))\r\n(princ)\r\n")
     open(os.path.join(CONT, MENU + ".mnl"), "wb").write(mnl.encode("ascii"))
-    if not parentesis_balanceados(texto):
-        raise SystemExit("Cargador desbalanceado")
 
 
 # ---------------------------------------------------------------------------
@@ -571,6 +766,59 @@ def construir_leeme(mapa):
     open(os.path.join(CONT, "LEEME.txt"), "wb").write("\r\n".join(t).encode("utf-8-sig"))
 
 
+PRUEBAS_CABECERA = """# Lista de pruebas - MEMO SISTEMA @VERSION@
+
+> Archivo generado por `herramientas/construir_bundle.py`, a partir de `catalogo.py`.
+> Imprime esta lista o cópiala a Excel y marca cada prueba.
+
+## 0. Prueba automática (2 minutos)
+
+1. Abre un **dibujo nuevo** (con plantilla vacía).
+2. Escribe `MEMO_INFO`: debe mostrar la carpeta del bundle, *Biblioteca MEMO_Lib: cargada* y *Menú MEMO_SISTEMA: cargado*.
+3. Escribe `MEMO_VERIFICAR` y presiona Enter: al final debe decir **Todo correcto**.
+   Si aparece *ERROR AL CARGAR* o *NO DEFINIDO*, copia ese texto y envíamelo.
+
+## 1. Lo nuevo en 2.1 (probar primero)
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| 1 | En Excel copia 3 filas de 5 columnas (No., Código, Concepto, Unidad, Precio). En AutoCAD: `COP`, elige el punto | Dice *Portapapeles: 3 fila(s), 5 columna(s)*, muestra la 1a fila y pregunta *¿Usar los datos del portapapeles?*; con Enter dibuja la tabla **igual que antes** | |
+| 2 | Igual que la 1, pero una celda del Concepto tiene un salto de línea (Alt+Enter en Excel) | La fila sale completa, con el concepto en una sola línea | |
+| 3 | `COP` con el portapapeles vacío (o responde *No*) | Pide pegar los datos a mano, como antes | |
+| 4 | Copia 7 columnas y ejecuta `MTABLA` | Propone *Asipona*; con Enter ejecuta ASI **sin volver a preguntar** por el portapapeles | |
+| 5 | Copia 4 columnas y ejecuta `MTABLA` | Propone *Ssa* y ejecuta CSSA | |
+| 6 | Compara una tabla ASI con una hecha con la versión anterior | Mismos anchos, estilos y encabezados (antes ASI tomaba funciones de COP y CSSA) | |
+| 7 | `MEMO_CONFIG` → cambia *COP: ancho Concepto* a 25 → `COP` | La columna Concepto sale más ancha. Restablece con `R` | |
+| 8 | `MEMO_CONFIG` → *Tablas: usar portapapeles* = `SI` → `COP` | Ya no pregunta, usa directamente lo copiado | |
+| 9 | `MAREA` → Enter | Ejecuta la opción por defecto (*Prefijo* = HA2); la segunda vez propone la última usada | |
+| 10 | `MBACHEO` | Propone *Dibujar*; después de cada paso propone el siguiente (Numerar, Cotar, Exportar, Salir) | |
+| 11 | `MEMO_CONFIG` → *Bacheo: espesor* = 0.15 → `EXR` | El volumen del CSV = área × 0.15 | |
+| 12 | `MP` | Ahora es **EMPALME** (tu alias). La malla es `MLL` | |
+| 13 | `EL`, `RV`, `PV`, `TM`, `CL`, `LC`, `CT`, `CTT`, `CC` | Hacen lo que dice tu acad.pgp (ELIPSE, REVOLUCION, etc.) | |
+| 14 | `ELTN`, `RNB`, `IBPV`, `IBTM`, `CLO`, `LCO`, `CTB`, `CTX`, `RSC` | Hacen lo que antes hacían los nombres viejos | |
+| 15 | `BPOL` y presiona ESC a la mitad; después otro comando con error o ESC | AutoCAD queda normal (sin "UCS previo" raro) | |
+| 16 | `MEMO_COMPILAR` → abre otro dibujo → `MEMO_INFO` | Dice *Compilados (FAS): SÍ* y los comandos funcionan igual | |
+| 17 | Mensajes con acentos de `EXR` y `PERFIL` | Se ven bien (antes podían salir con caracteres raros) | |
+
+## 2. Todos los comandos
+
+Una prueba rápida por comando: ejecútalo en `Ejercicio COMANDOS NUEVOS.dwg` y compara con lo que hacía antes.
+"""
+
+
+def construir_pruebas():
+    t = [PRUEBAS_CABECERA.replace("@VERSION@", VERSION)]
+    for tab, _k, paneles in cat.FICHAS:
+        t.append("\n### %s\n" % tab)
+        t.append("| Panel | Comando | Qué debe hacer | OK |")
+        t.append("|---|---|---|---|")
+        for panel, items in paneles:
+            for it in items:
+                for c in (it if isinstance(it, list) else [it]):
+                    t.append("| %s | `%s` | %s | |" % (panel, c, cat.COMANDOS[c][1].replace("|", "\\|")))
+    open(os.path.join(BASE, "LISTA_DE_PRUEBAS.md"), "w", encoding="utf-8").write("\n".join(t) + "\n")
+
+
 def construir_zip():
     ruta = os.path.join(BASE, "MEMO_SISTEMA_bundle.zip")
     with zipfile.ZipFile(ruta, "w", zipfile.ZIP_DEFLATED) as z:
@@ -597,6 +845,7 @@ def main():
     en_menu = construir_cuix(dueño)
     construir_package()
     construir_leeme(mapa)
+    construir_pruebas()
     z = construir_zip()
     print("Archivos LISP: %d   Comandos: %d   En menú: %d" % (len(mapa), len(dueño) + len(cat.COMANDOS_CARGADOR), len(en_menu)))
     print("Parches:")

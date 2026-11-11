@@ -1,5 +1,6 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Topografia/Malla_PUNTOS  ( MALLA ).lsp
+;;; Parches aplicados: quitar-mp
 
 (vl-load-com)
 
@@ -1543,7 +1544,7 @@
 )
 
 ;; Alias seguros (evitando nombres de comandos nativos de AutoCAD)
-(defun c:MP  () (c:MALLA-PUNTOS))
+;; MP eliminado: chocaba con EMPALME (acad.pgp). Use MLL.
 (defun c:MLL () (c:MALLA-PUNTOS))
 (defun c:EXP () (c:EXPORTAR-PUNTOS))
 
@@ -1555,14 +1556,14 @@
 (princ "      MALLA-PUNTOS v4.7 (DCL integrado + Poligono recorte)\n")
 (princ "      Comandos disponibles:\n")
 (princ "      - MALLA-PUNTOS     : Generar malla de puntos (comando principal)\n")
-(princ "      - MP / MLL         : Alias de MALLA-PUNTOS\n")
+(princ "      - MLL              : Alias de MALLA-PUNTOS\n")
 (princ "      - EXPORTAR-PUNTOS  : Exportar puntos a CSV\n")
 (princ "      - EXP              : Alias de EXPORTAR-PUNTOS\n")
 (princ "============================================================\n")
 (princ "\n   DCL integrado: no requiere archivo externo\n")
 (princ "\n   Nota: se elimino el alias MALLA porque AutoCAD lo\n")
 (princ "   intercepta con el comando nativo MALLA (MESH).\n")
-(princ "   Use MALLA-PUNTOS, MP o MLL en su lugar.\n")
+(princ "   Use MALLA-PUNTOS o MLL en su lugar.\n")
 (princ "\n   Puntos estilo circulo con punto en el centro\n")
 (princ "   (PDMODE=35, PDSIZE=-0.3 en unidades absolutas).\n")
 (princ "\n   Compatible con AutoCAD en espanol e ingles.\n")

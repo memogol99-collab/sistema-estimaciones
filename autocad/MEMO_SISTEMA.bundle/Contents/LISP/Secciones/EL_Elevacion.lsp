@@ -1,7 +1,8 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Secciones/Elevacion ( EL ).lsp
+;;; Parches aplicados: renombrar:EL=ELTN
 
-(defun c:EL (/ *error* punto_base elev_base punto_nuevo elev_nueva delta_y y_base y_nuevo 
+(defun c:ELTN (/ *error* punto_base elev_base punto_nuevo elev_nueva delta_y y_base y_nuevo 
               old_osmode old_cmdecho altura_texto estilo_texto ent data layer_creada count
               punto_desplazado escala factor_escala text_content)
     ;; --- Función de manejo de errores mejorada ---
@@ -210,6 +211,6 @@
     (princ)
 )
 
-(princ "\nComando EL cargado - Colocador de Elevaciones mejorado")
+(princ "\nComando ELTN cargado - Colocador de Elevaciones mejorado")
 (princ "\n(Al seleccionar escala, presiona Enter para 1:1000 por defecto)")
 (princ)

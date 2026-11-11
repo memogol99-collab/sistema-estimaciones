@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Textos/Suma Valores Textos ( ST ).lsp
 
 (defun c:ST (/ ss textos num_list suma pt altura_texto ent texto_original str num i h)

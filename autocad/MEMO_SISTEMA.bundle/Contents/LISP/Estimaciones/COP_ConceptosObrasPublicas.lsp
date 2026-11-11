@@ -1,6 +1,6 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/Conceptos Obras Publicas ( COP ).lsp
-;;; Parches aplicados: prefijo:cop
+;;; Parches aplicados: prefijo:cop, portapapeles, cfg-cop
 
 ;; ============================================================
 ;; SISTEMA COP5 - TABLAS DE 5 COLUMNAS (con Arial)
@@ -77,12 +77,12 @@
       (setvar "CLAYER" "CONCEPTOS")
       
       ;; DEFINIR ANCHOS
-      (setq ancho_no 0.5)                              ; Ancho de la columna No.
-      (setq ancho_codigo_original 4.6641)              ; Ancho original del código
+      (setq ancho_no (memo:cfg-num "COP_ANCHO_NO"))                              ; Ancho de la columna No.
+      (setq ancho_codigo_original (memo:cfg-num "COP_ANCHO_CODIGO"))              ; Ancho original del código
       (setq ancho_codigo_nuevo (- ancho_codigo_original ancho_no)) ; Se reduce en 0.5
-      (setq ancho_concepto 21.1083)
-      (setq ancho_unidad 2.0596)
-      (setq ancho_precio 2.0596)
+      (setq ancho_concepto (memo:cfg-num "COP_ANCHO_CONCEPTO"))
+      (setq ancho_unidad (memo:cfg-num "COP_ANCHO_UNIDAD"))
+      (setq ancho_precio (memo:cfg-num "COP_ANCHO_PRECIO"))
       (setq alto 1.00)
       (setq total_ancho (+ ancho_codigo_original ancho_concepto ancho_unidad ancho_precio))
       
@@ -118,14 +118,8 @@
       )
       
       ;; OBTENER DATOS
-      (princ "\nPega los datos (Ctrl+V) con 5 columnas y presiona Enter 2 veces:")
-      (setq entradaCompleta "")
-      (setq linea (getstring T "\n>>> "))
       
-      (while (and linea (/= linea ""))
-        (setq entradaCompleta (strcat entradaCompleta linea "\n"))
-        (setq linea (getstring T ""))
-      )
+      (setq entradaCompleta (memo:leer-datos-tabla))
       
       (if (/= entradaCompleta "")
         (progn

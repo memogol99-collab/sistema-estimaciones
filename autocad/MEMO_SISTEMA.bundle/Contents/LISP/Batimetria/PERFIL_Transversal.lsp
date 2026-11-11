@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_NubePuntos/perfil_transversal.lsp
 ;;; Parches aplicados: getfiled-c
 
@@ -661,7 +661,7 @@
 
   ;; ========================================================
   ;; RECOPILAR Y ORDENAR SECCIONES POR ESTACION
-  ;; Solo se almacena (sort_key idx nombre) â€” los puntos se
+  ;; Solo se almacena (sort_key idx nombre) — los puntos se
   ;; re-extraen del selection set al procesar para evitar
   ;; corruption por vl-sort (que es destructivo).
   ;; ========================================================

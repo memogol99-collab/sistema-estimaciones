@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/BorrarTextoEnRect.lsp
 
 (defun c:BTR (/ ss_rect i ent_rect ent_data pts pt z j ent_text del_list)

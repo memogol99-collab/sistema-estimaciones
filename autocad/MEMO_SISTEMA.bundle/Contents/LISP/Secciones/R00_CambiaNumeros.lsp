@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Secciones/Cambia Numeros x 00.00 ( R00 ).LSP
 
 ; Versión simple - conserva "M2" al final del texto

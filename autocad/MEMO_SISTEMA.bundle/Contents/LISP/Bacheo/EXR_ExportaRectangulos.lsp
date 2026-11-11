@@ -1,5 +1,6 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/ExportaRectangulos ( EXR ).lsp
+;;; Parches aplicados: cfg-espesor
 
 ;;; ============================================================================
 ;;; EXPORTARECTANGULOS.LSP - v5.0 SIN PYTHON
@@ -16,7 +17,7 @@
 (setq *rectangulos-lista* '())
 
 ;;; ============================================================================
-;;; FUNCIÃ“N: numero-a-string
+;;; FUNCIÓN: numero-a-string
 ;;; Convierte numero a string con PUNTO decimal y 2 decimales
 ;;; ============================================================================
 (defun numero-a-string (num / entero decimal str-ent str-dec)
@@ -48,14 +49,14 @@
 )
 
 ;;; ============================================================================
-;;; FUNCIÃ“N: redondear-2-decimales
+;;; FUNCIÓN: redondear-2-decimales
 ;;; ============================================================================
 (defun redondear-2-decimales (numero)
   (* (atoi (rtos (* numero 100) 2 0)) 0.01)
 )
 
 ;;; ============================================================================
-;;; FUNCIÃ“N: obtener-datos-rectangulo
+;;; FUNCIÓN: obtener-datos-rectangulo
 ;;; Extrae XDATA: retorna (numero largo ancho area perimetro)
 ;;; ============================================================================
 (defun obtener-datos-rectangulo (ent / xdata datos num largo ancho area perimetro)
@@ -78,7 +79,7 @@
 )
 
 ;;; ============================================================================
-;;; FUNCIÃ“N: obtener-rectangulos-seleccion
+;;; FUNCIÓN: obtener-rectangulos-seleccion
 ;;; ============================================================================
 (defun obtener-rectangulos-seleccion (/ ss)
   (princ "\n+--------------------------------------------------------------+")
@@ -91,7 +92,7 @@
 )
 
 ;;; ============================================================================
-;;; FUNCIÃ“N: reconstruir-lista-desde-seleccion
+;;; FUNCIÓN: reconstruir-lista-desde-seleccion
 ;;; ============================================================================
 (defun reconstruir-lista-desde-seleccion (ss / i ent datos contador)
   (setq *rectangulos-lista* '())
@@ -122,7 +123,7 @@
 )
 
 ;;; ============================================================================
-;;; FUNCIÃ“N: exr-lista-a-csv
+;;; FUNCIÓN: exr-lista-a-csv
 ;;; Convierte una lista de campos (strings o nil) a una linea CSV
 ;;; nil se convierte en campo vacio
 ;;; ============================================================================
@@ -143,7 +144,7 @@
 )
 
 ;;; ============================================================================
-;;; FUNCIÃ“N: exr-generar-csv
+;;; FUNCIÓN: exr-generar-csv
 ;;; Genera CSV con:
 ;;;   - 6 columnas por grupo: Numero,Largo,Ancho,Area,Volumen,Acumulado
 ;;;   - 1 columna vacia separadora entre grupos
@@ -175,7 +176,7 @@
     (setq largo (cadr  rect))
     (setq ancho (caddr rect))
     (setq area  (redondear-2-decimales (* largo ancho)))
-    (setq volumen (redondear-2-decimales (* area 0.10)))
+    (setq volumen (redondear-2-decimales (* area (memo:cfg-num "BACHEO_ESPESOR"))))
     (setq acumulado (redondear-2-decimales (+ acumulado volumen)))
     (setq datos-procesados 
           (append datos-procesados 

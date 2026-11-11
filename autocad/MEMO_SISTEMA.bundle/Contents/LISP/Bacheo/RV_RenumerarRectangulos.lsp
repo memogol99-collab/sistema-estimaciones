@@ -1,5 +1,6 @@
-;;; MEMO SISTEMA 2.0.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/RenumerarRectangulos ( RV ).lsp
+;;; Parches aplicados: renombrar:RV=RNB
 
 ;;; ============================================================================
 ;;; RENUMERARVECINO.LSP - Versión MEJORADA v3.1
@@ -602,7 +603,7 @@
 ;;; ============================================================================
 ;;; COMANDO CORTO: RV
 ;;; ============================================================================
-(defun c:RV ()
+(defun c:RNB ()
   (c:RENUMERARVECINO)
 )
 
@@ -614,7 +615,7 @@
 (princ "\n¦       RENUMERARVECINO v3.1 - Cargado                         ¦")
 (princ "\n¦--------------------------------------------------------------¦")
 (princ "\n¦  Comandos disponibles:                                       ¦")
-(princ "\n¦  RENUMERARVECINO (o RV) - Renumerar por vecino más cercano  ¦")
+(princ "\n¦  RENUMERARVECINO (o RNB)- Renumerar por vecino más cercano  ¦")
 (princ "\n¦--------------------------------------------------------------¦")
 (princ "\n¦  • Elimina SOLO los números de los rectángulos SELECCIONADOS ¦")
 (princ "\n¦  • Los otros rectángulos del dibujo NO se modifican          ¦")

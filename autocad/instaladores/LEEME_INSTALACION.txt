@@ -18,5 +18,6 @@ y reinicie AutoCAD. Funciona igual en AutoCAD 2015 a 2026 (y Civil 3D / Map).
 Si las fichas no aparecen: clic derecho sobre la cinta > Mostrar fichas > MEMO...
 o escriba CUILOAD y cargue Contents\MEMO_SISTEMA.cuix del bundle.
 
-Actualizar: vuelva a ejecutar INSTALAR.bat con la nueva version.
+Verificar: en un dibujo nuevo escriba MEMO_VERIFICAR (debe decir "Todo correcto").
+Actualizar: vuelva a ejecutar INSTALAR.bat con la nueva version (su configuracion se conserva).
 Desinstalar: DESINSTALAR.bat
