@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MEMO SISTEMA 2.1.1 - Autoloader de AutoCAD.
+     Copie la carpeta MEMO_SISTEMA.bundle a:
+       %ProgramFiles%\Autodesk\ApplicationPlugins   (recomendado, ubicación de confianza)
+       o %APPDATA%\Autodesk\ApplicationPlugins       (sin permisos de administrador)
+     y reinicie AutoCAD. No hace falta APPLOAD, CUILOAD ni Startup Suite. -->
+<ApplicationPackage SchemaVersion="1.0" AutodeskProduct="AutoCAD" ProductType="Application"
+    Name="MEMO SISTEMA" AppVersion="2.1.1" Author="MEMO"
+    Description="Rutinas LISP para estimaciones, secciones, topografía y batimetría con menú de fichas."
+    AppNameSpace="memo.sistema" HelpFile="./Contents/LEEME.txt"
+    ProductCode="{0F9D4740-EE68-5C57-B6CF-F5FED4906741}" UpgradeCode="{1108B24C-377B-5478-ACEA-A4874BA12CC7}">
+  <CompanyDetails Name="MEMO" />
+  <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R20.0"
+      SupportPath="./Contents;./Contents/Iconos" />
+  <Components Description="MEMO SISTEMA">
+    <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R20.0" />
+    <ComponentEntry AppName="MEMO_Menu" Version="2.1.1" ModuleName="./Contents/MEMO_SISTEMA.cuix"
+        AppDescription="Menú MEMO con fichas e iconos" />
+    <ComponentEntry AppName="MEMO_Cargador" Version="2.1.1" ModuleName="./Contents/MEMO_Cargador.lsp"
+        AppDescription="Cargador bajo demanda de los comandos MEMO" LoadOnAutoCADStartup="True" PerDocument="True" />
+  </Components>
+</ApplicationPackage>
