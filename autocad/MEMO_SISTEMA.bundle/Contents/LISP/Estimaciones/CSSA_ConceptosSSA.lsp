@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/Conceptos SSA ( CSSA ).lsp
 ;;; Parches aplicados: prefijo:cssa, portapapeles, cfg-cssa
 
@@ -108,7 +108,7 @@
                               ) datos)))
           (t
             (setq partes (cssa:split-string-multiple linea_limpia))
-            (setq datos_linea (cssa:procesarLineaConEspaciosNuevo partes))
+            (setq datos_linea (cssa:procesarLineaConEspacio_4cc partes))
             (if datos_linea
               (setq datos (cons datos_linea datos))
             )
@@ -124,7 +124,7 @@
   )
 )
 
-(defun cssa:procesarLineaConEspaciosNuevo (partes / numero concepto unidad cantidad i)
+(defun cssa:procesarLineaConEspacio_4cc (partes / numero concepto unidad cantidad i)
   (cond
     ((= (length partes) 4)
       (list 
@@ -229,7 +229,7 @@
   )
 )
 
-(defun cssa:insertar-dato-centrado-ajustado (x y texto capa altura)
+(defun cssa:insertar-dato-centrado-_435 (x y texto capa altura)
   (entmakex
     (list
       '(0 . "TEXT")
@@ -442,21 +442,21 @@
                 
                 (princ (strcat "Datos Y=" (rtos y_pos_datos 2 2) " "))
                 
-                (cssa:insertar-dato-centrado-ajustado 
+                (cssa:insertar-dato-centrado-_435 
                   (+ x_base offset_x (/ ancho_columna 2.0)) 
                   y_pos_datos 
                   numero 
                   "DATOS_NUMEROS" 
                   0.20)
                 
-                (cssa:insertar-dato-centrado-ajustado 
+                (cssa:insertar-dato-centrado-_435 
                   (+ x_base offset_x ancho_columna (/ ancho_columna 2.0)) 
                   y_pos_datos 
                   cantidad 
                   "DATOS_NUMEROS" 
                   0.20)
                 
-                (cssa:insertar-dato-centrado-ajustado 
+                (cssa:insertar-dato-centrado-_435 
                   (+ x_base offset_x (* 2 ancho_columna) (/ ancho_columna 2.0)) 
                   y_pos_datos 
                   (strcase unidad)

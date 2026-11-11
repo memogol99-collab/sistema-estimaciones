@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Textos/Texto_Alto_Ancho.lsp
 
 (defun c:CTAF ( / *error* oldcmdecho oldregen altura factor ss i ent data starttime endtime segundos)

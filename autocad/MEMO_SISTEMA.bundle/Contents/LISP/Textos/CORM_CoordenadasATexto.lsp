@@ -1,5 +1,6 @@
-;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Textos/Coordenadas_a_texto ( CORM ).lsp
+;;; Parches aplicados: corm-princ
 
 ;;
 ;; ACTUALIZAR COORDENADAS EN TEXTOS - VERSIÓN MEJORADA
@@ -217,12 +218,12 @@
 )
 
 ; Mensaje de carga mejorado
-(princ "\n"
+(princ (strcat "\n"
   "\n?? COMANDOS DE COORDENADAS CARGADOS:" 
   "\n------------------------------------"
   "\nCOR  - Versión completa con opciones"
   "\nCOR2 - Versión rápida predeterminada" 
   "\nCORM - Múltiples coordenadas en secuencia"
   "\n------------------------------------"
-)
+))
 (princ)

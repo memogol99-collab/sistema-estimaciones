@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/RectanguloSnap ( RS ).lsp
 ;;; Parches aplicados: renombrar:CC=RSC
 

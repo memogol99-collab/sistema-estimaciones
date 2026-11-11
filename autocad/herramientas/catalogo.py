@@ -51,7 +51,7 @@ ARCHIVOS = [
     ("LISP_Textos/Rot-Text ( RTT ).lsp",                       "Textos/RTT_RotarTexto.lsp",                  []),
     ("LISP_Textos/Suma Valores Textos ( ST ).lsp",             "Textos/ST_SumaTextos.lsp",                   []),
     ("LISP_Textos/Texto_Alto_Ancho.lsp",                       "Textos/CTAF_TextoAltoAncho.lsp",             []),
-    ("LISP_Textos/Coordenadas_a_texto ( CORM ).lsp",           "Textos/CORM_CoordenadasATexto.lsp",          []),
+    ("LISP_Textos/Coordenadas_a_texto ( CORM ).lsp",           "Textos/CORM_CoordenadasATexto.lsp",          ["corm-princ"]),
     # --- Hatch -------------------------------------------------------------
     ("LISP_Hatch/SeparaHatch ( SPH ).lsp",                     "Hatch/SPH_SeparaFusionaHatch.lsp",           []),
     ("LISP_Hatch/Crear Hatch Similar ( CHS ).lsp",             "Hatch/CHS_HatchSimilar.lsp",                 []),

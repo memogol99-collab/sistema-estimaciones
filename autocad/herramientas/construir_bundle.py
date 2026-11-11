@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import catalogo as cat  # noqa: E402
 import iconos  # noqa: E402
 
-VERSION = "2.1.0"
+VERSION = "2.1.1"
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(AQUI)                       # autocad/
 ORIG = os.path.join(BASE, "originales", "MEMO_SISTEMA")
@@ -38,6 +38,7 @@ BUNDLE = os.path.join(BASE, "MEMO_SISTEMA.bundle")
 CONT = os.path.join(BUNDLE, "Contents")
 MENU = "MEMO_SISTEMA"
 
+MAX_SIMBOLO = 32
 SIMB = r"[\w\-*:!?.$&]"   # caracteres válidos en un símbolo AutoLISP
 
 
@@ -124,9 +125,18 @@ def aplicar_parches(texto, parches, nombre, bitacora):
     for p in parches:
         if p.startswith("prefijo:"):
             pref = p.split(":", 1)[1] + ":"
+            usados = set()
             for f in funciones_auxiliares(texto):
-                texto, n = renombrar_simbolo(texto, f, pref + f)
-                bitacora.append("  - función interna %s -> %s%s (%d usos)" % (f, pref, f, n))
+                nuevo_ = pref + f
+                if len(nuevo_) > MAX_SIMBOLO:
+                    # nombres largos: AutoLISP dio "error de sintaxis" con 37 caracteres
+                    h = hashlib.md5(f.lower().encode()).hexdigest()[:3]
+                    nuevo_ = pref + f[:MAX_SIMBOLO - len(pref) - 4] + "_" + h
+                if nuevo_.lower() in usados:
+                    raise SystemExit("Nombre repetido al acortar: " + nuevo_)
+                usados.add(nuevo_.lower())
+                texto, n = renombrar_simbolo(texto, f, nuevo_)
+                bitacora.append("  - función interna %s -> %s (%d usos)" % (f, nuevo_, n))
         elif p == "bpol-error":
             texto = reemplazar(texto, "(defun *error* (msg)", "(defun bpol:*error* (msg)", nombre)
             texto = reemplazar(texto, "(setq old_error *error*)",
@@ -167,6 +177,12 @@ def aplicar_parches(texto, parches, nombre, bitacora):
             if n < 1:
                 raise SystemExit("Parche %s fallido en %s" % (p, nombre))
             bitacora.append("  - comando %s renombrado a %s (chocaba con tu acad.pgp)" % (viejo, nuevo_))
+        elif p == "corm-princ":
+            texto, n = re.subn(r'\(princ "\\n"(\s*\r?\n(?:\s*"(?:[^"\\]|\\.)*"\s*\r?\n)+)\)',
+                               r'(princ (strcat "\\n"\1))', texto)
+            if n != 1:
+                raise SystemExit("Parche corm-princ fallido")
+            bitacora.append("  - mensaje de carga: princ con varios textos (error al cargar) -> princ + strcat")
         elif p == "quitar-mp":
             texto = reemplazar(texto, "(defun c:MP  () (c:MALLA-PUNTOS))", ";; MP eliminado: chocaba con EMPALME (acad.pgp). Use MLL.", nombre)
             bitacora.append("  - alias MP eliminado (era EMPALME en tu acad.pgp); queda MLL")
@@ -317,7 +333,7 @@ CARGADOR = r""";;; =============================================================
     (setq memo:raiz (findfile "MEMO_Cargador.lsp"))
     (if memo:raiz
       (setq memo:raiz (vl-string-translate "\\" "/" (vl-filename-directory memo:raiz))))
-    (setq memo:archivos-cargados nil memo:num-comandos 0 memo:*mapa* nil memo:*stubs* nil)
+    (setq memo:archivos-cargados nil memo:num-comandos 0 memo:*mapa* nil memo:*stubs* nil memo:*ya-definidos* nil)
     (setq memo:dir-fas (strcat (vl-string-translate "\\" "/" (getenv "APPDATA")) "/MEMO_SISTEMA/FAS/"))
 
     ;; Valores configurables: (CLAVE "defecto" "descripción" "NUM|TXT" "opciones")
@@ -360,11 +376,12 @@ CARGADOR = r""";;; =============================================================
       (setq memo:*mapa* (cons (list rel cmds) memo:*mapa*))
       (foreach cmd cmds
         (setq sym (read (strcat "C:" cmd)))
-        (if (not (eval sym))
-          (progn
-            (eval (list 'defun sym nil (list 'memo:cargar rel cmd)))
-            (setq memo:*stubs* (cons (cons cmd (vl-princ-to-string (eval sym))) memo:*stubs*))
-            (setq memo:num-comandos (1+ memo:num-comandos))))))
+        ;; Si otro LISP cargado antes ya definía el comando, se reemplaza por
+        ;; la versión MEMO (la que esperan los botones) y se avisa.
+        (if (eval sym) (setq memo:*ya-definidos* (cons cmd memo:*ya-definidos*)))
+        (eval (list 'defun sym nil (list 'memo:cargar rel cmd)))
+        (setq memo:*stubs* (cons (cons cmd (vl-princ-to-string (eval sym))) memo:*stubs*))
+        (setq memo:num-comandos (1+ memo:num-comandos))))
 
     ;; T si el comando todavía es el stub (su archivo no lo definió)
     (defun memo:es-stub-p (cmd / s)
@@ -378,6 +395,12 @@ CARGADOR = r""";;; =============================================================
           (princ "\nMEMO: no se pudo cargar la biblioteca MEMO_Lib."))
 @AUTOLOADS@
         (setq memo:*mapa* (reverse memo:*mapa*))
+        (if memo:*ya-definidos*
+          (progn
+            (princ "\nMEMO: otro LISP cargado antes ya definía estos comandos; se usa la versión MEMO:")
+            (princ "\n      ")
+            (foreach c (reverse memo:*ya-definidos*) (princ (strcat c " ")))
+            (princ "\n      (revise APPLOAD > Conjunto de inicio y quite los LISP viejos)")))
         (setq memo:cargado T)
         (princ (strcat "\nMEMO SISTEMA " memo:version " listo: " (itoa memo:num-comandos)
                        " comandos" (if memo:usar-fas " (compilados)" "")
@@ -400,6 +423,10 @@ CARGADOR = r""";;; =============================================================
   (princ (strcat "\nMEMO SISTEMA " memo:version))
   (princ (strcat "\nCarpeta: " (if memo:raiz memo:raiz "(no encontrada)")))
   (princ (strcat "\nComandos registrados: " (itoa memo:num-comandos)))
+  (if memo:*ya-definidos*
+    (progn
+      (princ "\nYa los definía otro LISP (ahora usan la versión MEMO):")
+      (foreach c (reverse memo:*ya-definidos*) (princ (strcat " " c)))))
   (princ (strcat "\nCompilados (FAS): " (if memo:usar-fas (strcat "SÍ, en " memo:dir-fas) "no (se usan los .lsp)")))
   (princ (strcat "\nBiblioteca MEMO_Lib: " (if memo:portapapeles "cargada" "NO cargada")))
   (princ "\nArchivos ya cargados en este dibujo:")

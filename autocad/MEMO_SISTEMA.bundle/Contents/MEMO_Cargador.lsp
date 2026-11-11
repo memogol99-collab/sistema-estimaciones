@@ -1,5 +1,5 @@
 ;;; =====================================================================
-;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.1.0
+;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.1.1
 ;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
 ;;;
 ;;;  Un solo cargador para todos los LISP. NO carga los 55 archivos al
@@ -12,11 +12,11 @@
 
 (if (not memo:cargado)
   (progn
-    (setq memo:version "2.1.0")
+    (setq memo:version "2.1.1")
     (setq memo:raiz (findfile "MEMO_Cargador.lsp"))
     (if memo:raiz
       (setq memo:raiz (vl-string-translate "\\" "/" (vl-filename-directory memo:raiz))))
-    (setq memo:archivos-cargados nil memo:num-comandos 0 memo:*mapa* nil memo:*stubs* nil)
+    (setq memo:archivos-cargados nil memo:num-comandos 0 memo:*mapa* nil memo:*stubs* nil memo:*ya-definidos* nil)
     (setq memo:dir-fas (strcat (vl-string-translate "\\" "/" (getenv "APPDATA")) "/MEMO_SISTEMA/FAS/"))
 
     ;; Valores configurables: (CLAVE "defecto" "descripción" "NUM|TXT" "opciones")
@@ -75,11 +75,12 @@
       (setq memo:*mapa* (cons (list rel cmds) memo:*mapa*))
       (foreach cmd cmds
         (setq sym (read (strcat "C:" cmd)))
-        (if (not (eval sym))
-          (progn
-            (eval (list 'defun sym nil (list 'memo:cargar rel cmd)))
-            (setq memo:*stubs* (cons (cons cmd (vl-princ-to-string (eval sym))) memo:*stubs*))
-            (setq memo:num-comandos (1+ memo:num-comandos))))))
+        ;; Si otro LISP cargado antes ya definía el comando, se reemplaza por
+        ;; la versión MEMO (la que esperan los botones) y se avisa.
+        (if (eval sym) (setq memo:*ya-definidos* (cons cmd memo:*ya-definidos*)))
+        (eval (list 'defun sym nil (list 'memo:cargar rel cmd)))
+        (setq memo:*stubs* (cons (cons cmd (vl-princ-to-string (eval sym))) memo:*stubs*))
+        (setq memo:num-comandos (1+ memo:num-comandos))))
 
     ;; T si el comando todavía es el stub (su archivo no lo definió)
     (defun memo:es-stub-p (cmd / s)
@@ -147,6 +148,12 @@
         (memo:al "Bloques/IBM_BloquesMultiples" '("IBM"))
         (memo:al "Sistema/MEMO_Unificados" '("MTABLA" "MAREA" "MBACHEO" "MEMO_CONFIG"))
         (setq memo:*mapa* (reverse memo:*mapa*))
+        (if memo:*ya-definidos*
+          (progn
+            (princ "\nMEMO: otro LISP cargado antes ya definía estos comandos; se usa la versión MEMO:")
+            (princ "\n      ")
+            (foreach c (reverse memo:*ya-definidos*) (princ (strcat c " ")))
+            (princ "\n      (revise APPLOAD > Conjunto de inicio y quite los LISP viejos)")))
         (setq memo:cargado T)
         (princ (strcat "\nMEMO SISTEMA " memo:version " listo: " (itoa memo:num-comandos)
                        " comandos" (if memo:usar-fas " (compilados)" "")
@@ -320,6 +327,10 @@
   (princ (strcat "\nMEMO SISTEMA " memo:version))
   (princ (strcat "\nCarpeta: " (if memo:raiz memo:raiz "(no encontrada)")))
   (princ (strcat "\nComandos registrados: " (itoa memo:num-comandos)))
+  (if memo:*ya-definidos*
+    (progn
+      (princ "\nYa los definía otro LISP (ahora usan la versión MEMO):")
+      (foreach c (reverse memo:*ya-definidos*) (princ (strcat " " c)))))
   (princ (strcat "\nCompilados (FAS): " (if memo:usar-fas (strcat "SÍ, en " memo:dir-fas) "no (se usan los .lsp)")))
   (princ (strcat "\nBiblioteca MEMO_Lib: " (if memo:portapapeles "cargada" "NO cargada")))
   (princ "\nArchivos ya cargados en este dibujo:")

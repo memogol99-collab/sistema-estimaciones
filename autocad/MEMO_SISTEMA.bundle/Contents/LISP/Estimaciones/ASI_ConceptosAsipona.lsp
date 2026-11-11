@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.1.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/Conceptos Asipona ( ASI ).lsp
 ;;; Parches aplicados: prefijo:asi, portapapeles, cfg-asi
 
@@ -258,13 +258,13 @@
               (setq filaActual 0)
               
               (foreach fila datos
-                (asi:insertarTextoEnCelda7Columnas (nth 0 coords_datos) (nth 0 fila) filaActual 0)
-                (asi:insertarTextoEnCelda7Columnas (nth 1 coords_datos) (asi:dividirCodigo (nth 1 fila)) filaActual 1)
-                (asi:insertarMTextoEnCelda7Columnas (nth 2 coords_datos) (nth 2 fila) filaActual 2)
-                (asi:insertarTextoEnCelda7Columnas (nth 3 coords_datos) (nth 3 fila) filaActual 3)
-                (asi:insertarTextoEnCelda7Columnas (nth 4 coords_datos) (nth 4 fila) filaActual 4)
-                (asi:insertarTextoEnCelda7Columnas (nth 5 coords_datos) (nth 5 fila) filaActual 5)
-                (asi:insertarTextoEnCelda7Columnas (nth 6 coords_datos) (nth 6 fila) filaActual 6)
+                (asi:insertarTextoEnCelda7Col_2e1 (nth 0 coords_datos) (nth 0 fila) filaActual 0)
+                (asi:insertarTextoEnCelda7Col_2e1 (nth 1 coords_datos) (asi:dividirCodigo (nth 1 fila)) filaActual 1)
+                (asi:insertarMTextoEnCelda7Co_ca0 (nth 2 coords_datos) (nth 2 fila) filaActual 2)
+                (asi:insertarTextoEnCelda7Col_2e1 (nth 3 coords_datos) (nth 3 fila) filaActual 3)
+                (asi:insertarTextoEnCelda7Col_2e1 (nth 4 coords_datos) (nth 4 fila) filaActual 4)
+                (asi:insertarTextoEnCelda7Col_2e1 (nth 5 coords_datos) (nth 5 fila) filaActual 5)
+                (asi:insertarTextoEnCelda7Col_2e1 (nth 6 coords_datos) (nth 6 fila) filaActual 6)
                 (setq filaActual (1+ filaActual))
               )
               
@@ -389,7 +389,7 @@
 ;; ============================================================
 ;; FUNCIÓN MODIFICADA: CODIGO COMO MTEXT + P.U. e IMPORTE COMO MTEXT CON ESPACIOS
 ;; ============================================================
-(defun asi:insertarTextoEnCelda7Columnas (coord contenido numFila colIndex / x1 y1 x2 y2 centroX centroY puntoInsercion justificacionH justificacionV ancho_codigo)
+(defun asi:insertarTextoEnCelda7Col_2e1 (coord contenido numFila colIndex / x1 y1 x2 y2 centroX centroY puntoInsercion justificacionH justificacionV ancho_codigo)
   (setq x1 (caar coord))
   (setq y1 (cadar coord))
   (setq x2 (caadr coord))
@@ -487,7 +487,7 @@
   )
 )
 
-(defun asi:insertarMTextoEnCelda7Columnas (coord contenido numFila colIndex / x1 y1 x2 y2 puntoInsercion ancho_mtext)
+(defun asi:insertarMTextoEnCelda7Co_ca0 (coord contenido numFila colIndex / x1 y1 x2 y2 puntoInsercion ancho_mtext)
   (setq x1 (caar coord))
   (setq y1 (cadar coord))
   (setq x2 (caadr coord))
@@ -560,12 +560,12 @@
     )
     (t
       (setq partes (asi:split-string-multiple linea))
-      (asi:procesarLineaConEspacios7Columnas partes)
+      (asi:procesarLineaConEspacios_838 partes)
     )
   )
 )
 
-(defun asi:procesarLineaConEspacios7Columnas (partes / no codigo descripcion unidad pu cantidad importe i)
+(defun asi:procesarLineaConEspacios_838 (partes / no codigo descripcion unidad pu cantidad importe i)
   (cond
     ((= (length partes) 7)
       (list (nth 0 partes) (nth 1 partes) (nth 2 partes) (nth 3 partes) (nth 4 partes) (nth 5 partes) (nth 6 partes))
@@ -626,8 +626,8 @@
 
 (defun asi:insertarFilaTotal (base_x base_y total_ancho num_filas total_importe coords_datos / y_pos)
   (asi:crearLineaSeparadora base_x base_y num_filas total_ancho)
-  (asi:insertarTextoEnCelda7Columnas (nth 2 coords_datos) "T O T A L" num_filas 2)
-  (asi:insertarTextoEnCelda7Columnas (nth 6 coords_datos) (strcat "$  " (rtos total_importe 2 2)) num_filas 6)
+  (asi:insertarTextoEnCelda7Col_2e1 (nth 2 coords_datos) "T O T A L" num_filas 2)
+  (asi:insertarTextoEnCelda7Col_2e1 (nth 6 coords_datos) (strcat "$  " (rtos total_importe 2 2)) num_filas 6)
 )
 
 (defun asi:crearLineaSeparadora (x_base y_base num_fila ancho_total / y_pos)
