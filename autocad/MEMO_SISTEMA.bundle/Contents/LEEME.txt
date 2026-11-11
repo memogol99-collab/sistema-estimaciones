@@ -1,0 +1,62 @@
+﻿MEMO SISTEMA 2.0.0
+========================================
+
+Escriba MEMO_AYUDA en AutoCAD para ver todos los comandos.
+Escriba MEMO_INFO para ver la carpeta y los archivos cargados.
+
+Archivos LISP incluidos y sus comandos:
+
+  Estimaciones/COP_ConceptosObrasPublicas.lsp   COP LIMPIARTABLA
+  Estimaciones/ASI_ConceptosAsipona.lsp         ASI
+  Estimaciones/CSSA_ConceptosSSA.lsp            LIMPIARCSSA CSSA
+  Estimaciones/LC_LimpiarConceptos.lsp          LC
+  Estimaciones/CAS_CompAreaSecc.lsp             CAS QA
+  Estimaciones/IJPG_CadAJpg.lsp                 IJPG IJPG-EMF IJPG-PC3
+  Bacheo/RS_RectanguloSnap.lsp                  RS CC AEC RC2 RSHATCH RS-CONFIG
+  Bacheo/RV_RenumerarRectangulos.lsp            RENUMERARVECINO RV
+  Bacheo/COTB_CotarBaches.lsp                   COTB
+  Bacheo/EXR_ExportaRectangulos.lsp             EXR VERLISTA VERXDATA AXD
+  Bacheo/HR_HatchRectangulos.lsp                HR
+  Bacheo/BTR_BorrarTextoEnRect.lsp              BTR
+  Secciones/EL_Elevacion.lsp                    EL
+  Secciones/R00_CambiaNumeros.lsp               R00
+  Secciones/AM2_AreaM2.lsp                      AM2
+  Secciones/HA_AreaPrefijo.lsp                  HA2 HA HAPREF HARESET HAINFO
+  Secciones/AS_AreaSecc3P.lsp                   AS
+  Secciones/AC_AreaContorno.lsp                 AC
+  Secciones/AH_AreaHatch.lsp                    AH2 AH AHINFO
+  Secciones/EA_ExportarEstArea.lsp              EA HAEA-EXPORT EA-HA HAEA
+  Textos/CT_Toolbox.lsp                         CT CTE CTP IPT CTN STV
+  Textos/CTT_CambiaTexto.lsp                    CTT
+  Textos/ALIT_AlinearTexto.lsp                  ALIT
+  Textos/PTE_Pendiente.lsp                      PTE
+  Textos/UL_MayMin.lsp                          UL
+  Textos/PS_PrefijoSufijo.lsp                   PS PREFSUFIND VERPREFSUF LIMPIARPREFSUF SETPREFSUF
+  Textos/RTT_RotarTexto.lsp                     RTT
+  Textos/ST_SumaTextos.lsp                      ST ST-TEST
+  Textos/CTAF_TextoAltoAncho.lsp                CTAF CTF CTAF2
+  Textos/CORM_CoordenadasATexto.lsp             COR COR2 CORM
+  Hatch/SPH_SeparaFusionaHatch.lsp              SEPARAHATCH SPH FUSIONHATCH FH
+  Hatch/CHS_HatchSimilar.lsp                    CHS
+  VistasLayout/CV_CrearVistas.lsp               CV
+  VistasLayout/AV_GuardarRestaurarVistas.lsp    AV GV
+  VistasLayout/BV_BorrarVistas.lsp              BV
+  VistasLayout/CL_ClonarLayout.lsp              CL
+  VistasLayout/CFTL_ConfigurarLayouts.lsp       CFTL
+  VistasLayout/SL_SuprimirLayouts.lsp           SL
+  Topografia/ICE_ImportarPuntos.lsp             ICE
+  Topografia/PCC_PuntosCivilACapas.lsp          PCC
+  Topografia/UPP_UnirPuntosPol.lsp              UPP UPPA
+  Topografia/MP_MallaPuntos.lsp                 MALLA-PUNTOS EXPORTAR-PUNTOS MP MLL EXP
+  Topografia/XY_ExportarCoordPol.lsp            X-Y
+  Topografia/CPEC_ColorearPorElevacion.lsp      CPEC
+  Topografia/CCN_CurvasNivel.lsp                CCN CCNT CCNAYUDA CCNTEST
+  Topografia/ECN_ElevacionCurvas.lsp            ECN-DUPLICADOS ECN-P ECN-M ECN-ETIQ ECN-ETIQM ECN-QUITAR ECN-RECOLOR ECN-LIMPIA ECN-DESHACER ECN-LISTA ECN-CONFIG ETM ECN
+  Topografia/BPOL_BorraPol.lsp                  BPOL
+  Topografia/CLIPIT.lsp                         CLIPIT
+  Batimetria/XYZ_Tools.lsp                      XYZRESTAURAR XYZAYUDA XYZLOTES XYZBORRAR XYZ IXYZ PZ XYZUNIR P-Z IZ OZ ZM XYZU EXYZ XYZEXPORTAR XYZTEST
+  Batimetria/PIT_PuntoInsTexto.lsp              PIT
+  Batimetria/PERFIL_Transversal.lsp             PERFIL
+  Bloques/IBC_BloquesEnCapa.lsp                 IBC
+  Bloques/IBCZ_BloquesEnCapaEscala.lsp          IBCZ ARBOLES RAP DES PV TM CFE VERBLOQUES VERCAPAS CONFIGESCALAS
+  Bloques/IBM_BloquesMultiples.lsp              IBM

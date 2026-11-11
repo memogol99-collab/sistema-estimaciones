@@ -1,0 +1,4 @@
+;;; MEMO_SISTEMA.mnl - AutoCAD lo carga junto con MEMO_SISTEMA.cuix
+(if (and (not memo:cargado) (findfile "MEMO_Cargador.lsp"))
+  (load (findfile "MEMO_Cargador.lsp")))
+(princ)

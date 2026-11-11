@@ -1,0 +1,22 @@
+MEMO SISTEMA - Instalacion rapida
+=================================
+
+1. Descomprima todo el ZIP en cualquier carpeta.
+2. Cierre AutoCAD.
+3. Clic derecho en INSTALAR.bat > "Ejecutar como administrador" (recomendado).
+   (Tambien funciona con doble clic, sin administrador.)
+4. Abra AutoCAD: apareceran las fichas
+      MEMO Estimaciones | MEMO Topografia | MEMO Dibujo
+5. Solo la primera vez, si tenia el menu anterior (Memo.cuix), escriba:
+      MEMO_QUITAR_ANTERIOR
+   y quite los LISP viejos del "Conjunto de inicio" de APPLOAD.
+
+Instalacion manual (sin .bat): copie la carpeta MEMO_SISTEMA.bundle a
+   C:\Program Files\Autodesk\ApplicationPlugins\
+y reinicie AutoCAD. Funciona igual en AutoCAD 2015 a 2026 (y Civil 3D / Map).
+
+Si las fichas no aparecen: clic derecho sobre la cinta > Mostrar fichas > MEMO...
+o escriba CUILOAD y cargue Contents\MEMO_SISTEMA.cuix del bundle.
+
+Actualizar: vuelva a ejecutar INSTALAR.bat con la nueva version.
+Desinstalar: DESINSTALAR.bat
