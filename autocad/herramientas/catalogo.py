@@ -351,6 +351,7 @@ COMANDOS = {
     "MBACHEO":      ("Flujo bacheo",     "Bacheo paso a paso: Dibujar > Numerar > Cotar > Hatch > Exportar.", "rect", "bacheo"),
     # MEMO (definidos en el cargador)
     "MEMO_AYUDA":   ("Ayuda",            "Lista todos los comandos del MEMO SISTEMA por categoría.", "ayuda", "memo"),
+    "MEMO_MENU":    ("Mostrar menú",     "Carga el menú MEMO si no está cargado y explica cómo mostrar las fichas.", "ayuda", "memo"),
     "MEMO_INFO":    ("Info",             "Muestra versión, carpeta y archivos cargados del MEMO SISTEMA.", "info", "memo"),
     "MEMO_QUITAR_ANTERIOR": ("Quitar menú viejo", "Descarga el menú anterior 'MEMO' (Memo.cuix) para que no se duplique.", "limpiar", "memo"),
     "MEMO_CONFIG":  ("Configurar",       "Anchos de tablas, espesor de bacheo, uso del portapapeles, etc.", "engrane", "memo"),
@@ -361,7 +362,7 @@ COMANDOS = {
 }
 
 # Comandos que define el propio cargador (no vienen de un archivo).
-COMANDOS_CARGADOR = ["MEMO_AYUDA", "MEMO_INFO", "MEMO_QUITAR_ANTERIOR", "MEMO_VERIFICAR", "MEMO_COMPILAR"]
+COMANDOS_CARGADOR = ["MEMO_AYUDA", "MEMO_MENU", "MEMO_INFO", "MEMO_QUITAR_ANTERIOR", "MEMO_VERIFICAR", "MEMO_COMPILAR"]
 
 # ---------------------------------------------------------------------------
 # Fichas (Ribbon).  Cada panel es una lista de elementos:
@@ -395,6 +396,6 @@ FICHAS = [
         ("Hatch", ["FH", "SPH", "CHS"]),
         ("Vistas", ["CV", "GV", "AV", "BV"]),
         ("Layouts", ["CLO", "CFTL", "SL"]),
-        ("MEMO", ["MEMO_AYUDA", "MEMO_CONFIG", ["MEMO_INFO", "MEMO_VERIFICAR", "MEMO_COMPILAR"], ["MEMO_QUITAR_ANTERIOR"]]),
+        ("MEMO", ["MEMO_AYUDA", "MEMO_CONFIG", ["MEMO_INFO", "MEMO_VERIFICAR", "MEMO_COMPILAR"], ["MEMO_QUITAR_ANTERIOR", "MEMO_MENU"]]),
     ]),
 ]

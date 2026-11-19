@@ -1,4 +1,4 @@
-# Lista de pruebas - MEMO SISTEMA 2.3.0
+# Lista de pruebas - MEMO SISTEMA 2.3.1
 
 > Archivo generado por `herramientas/construir_bundle.py`, a partir de `catalogo.py`.
 > Imprime esta lista o cópiala a Excel y marca cada prueba.
@@ -195,3 +195,4 @@ Una prueba rápida por comando: ejecútalo en `Ejercicio COMANDOS NUEVOS.dwg` y 
 | MEMO | `MEMO_VERIFICAR` | Carga todos los archivos y comprueba que cada comando exista (usar en un dibujo nuevo). | |
 | MEMO | `MEMO_COMPILAR` | Compila los LISP a FAS en %APPDATA%\MEMO_SISTEMA\FAS para cargar más rápido. | |
 | MEMO | `MEMO_QUITAR_ANTERIOR` | Descarga el menú anterior 'MEMO' (Memo.cuix) para que no se duplique. | |
+| MEMO | `MEMO_MENU` | Carga el menú MEMO si no está cargado y explica cómo mostrar las fichas. | |

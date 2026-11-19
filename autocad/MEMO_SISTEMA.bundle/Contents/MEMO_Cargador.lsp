@@ -1,5 +1,5 @@
 ;;; =====================================================================
-;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.3.0
+;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.3.1
 ;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
 ;;;
 ;;;  Un solo cargador para todos los LISP. NO carga los 55 archivos al
@@ -12,7 +12,7 @@
 
 (if (not memo:cargado)
   (progn
-    (setq memo:version "2.3.0")
+    (setq memo:version "2.3.1")
     (setq memo:raiz (findfile "MEMO_Cargador.lsp"))
     (if memo:raiz
       (setq memo:raiz (vl-string-translate "\\" "/" (vl-filename-directory memo:raiz))))
@@ -316,6 +316,7 @@
   (princ "\n   MEMO_VERIFICAR   Carga todos los archivos y comprueba que cada comando exista (usar en un dibujo nuevo).")
   (princ "\n   MEMO_COMPILAR    Compila los LISP a FAS en %APPDATA%\\MEMO_SISTEMA\\FAS para cargar más rápido.")
   (princ "\n   MEMO_QUITAR_ANTERIOR Descarga el menú anterior 'MEMO' (Memo.cuix) para que no se duplique.")
+  (princ "\n   MEMO_MENU        Carga el menú MEMO si no está cargado y explica cómo mostrar las fichas.")
   (princ "\n\nComandos renombrados por chocar con tu acad.pgp:")
   (princ "\n   EL    -> ELTN                   (tu alias ELIPSE)")
   (princ "\n   RV    -> RNB                    (tu alias REVOLUCION)")
@@ -360,6 +361,38 @@
       (setvar "CMDECHO" old)
       (princ "\nMenú anterior MEMO descargado. Sus LISP ya no se cargarán al abrir dibujos."))
     (princ "\nEl menú anterior MEMO no está cargado. Nada que hacer."))
+  (princ))
+
+;;; Carga y muestra el menú MEMO (fichas y menú desplegable)
+(defun c:MEMO_MENU (/ cuix old r)
+  (setq cuix (strcat memo:raiz "/MEMO_SISTEMA.cuix"))
+  (princ "\n=== MEMO_MENU ===")
+  (if (not (menugroup "MEMO_SISTEMA"))
+    (progn
+      (princ (strcat "\nEl menú MEMO_SISTEMA no está cargado. Cargando " cuix " ..."))
+      (if (not (findfile cuix))
+        (princ "\nNO se encuentra el archivo del menú. Reinstale con INSTALAR.bat.")
+        (progn
+          (setq old (getvar "FILEDIA"))
+          (setvar "FILEDIA" 0)
+          (setq r (vl-catch-all-apply 'command (list "_.CUILOAD" (vl-string-translate "/" "\\" cuix))))
+          (setvar "FILEDIA" old)
+          (if (menugroup "MEMO_SISTEMA")
+            (princ "\nMenú cargado correctamente.")
+            (progn
+              (princ "\n*** AutoCAD NO pudo cargar el menú. ***")
+              (princ "\nCopie el mensaje de error que aparece arriba (o en la ventana) y envíelo.")))))))
+  (if (menugroup "MEMO_SISTEMA")
+    (progn
+      (initget "Si No")
+      (if (/= (getkword "\n¿Mostrar también la barra de menús clásica con el menú MEMO? [Si/No] <Si>: ") "No")
+        (setvar "MENUBAR" 1))
+      (vl-catch-all-apply 'command (list "_.RIBBON"))
+      (princ "\nSi las fichas MEMO no aparecen en la cinta:")
+      (princ "\n  1. Clic derecho sobre la cinta > Mostrar fichas > marque MEMO Estimaciones, MEMO Topografía y MEMO Dibujo.")
+      (princ "\n  2. Si no están en esa lista: escriba IUP (o CUI) > arriba a la izquierda, 'Espacios de trabajo' >")
+      (princ "\n     su espacio actual > 'Personalizar espacio de trabajo' > abajo, en Archivos parciales,")
+      (princ "\n     MEMO_SISTEMA > Fichas de cinta > marque las 3 fichas MEMO > Hecho > Aceptar.")))
   (princ))
 
 ;;; Carga TODOS los archivos y comprueba que cada comando quede definido.

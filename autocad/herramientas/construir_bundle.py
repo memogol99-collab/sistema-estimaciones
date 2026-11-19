@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import catalogo as cat  # noqa: E402
 import iconos  # noqa: E402
 
-VERSION = "2.3.0"
+VERSION = "2.3.1"
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(AQUI)                       # autocad/
 ORIG = os.path.join(BASE, "originales", "MEMO_SISTEMA")
@@ -482,6 +482,38 @@ CARGADOR = r""";;; =============================================================
     (princ "\nEl menú anterior MEMO no está cargado. Nada que hacer."))
   (princ))
 
+;;; Carga y muestra el menú MEMO (fichas y menú desplegable)
+(defun c:MEMO_MENU (/ cuix old r)
+  (setq cuix (strcat memo:raiz "/@MENU@.cuix"))
+  (princ "\n=== MEMO_MENU ===")
+  (if (not (menugroup "@MENU@"))
+    (progn
+      (princ (strcat "\nEl menú @MENU@ no está cargado. Cargando " cuix " ..."))
+      (if (not (findfile cuix))
+        (princ "\nNO se encuentra el archivo del menú. Reinstale con INSTALAR.bat.")
+        (progn
+          (setq old (getvar "FILEDIA"))
+          (setvar "FILEDIA" 0)
+          (setq r (vl-catch-all-apply 'command (list "_.CUILOAD" (vl-string-translate "/" "\\" cuix))))
+          (setvar "FILEDIA" old)
+          (if (menugroup "@MENU@")
+            (princ "\nMenú cargado correctamente.")
+            (progn
+              (princ "\n*** AutoCAD NO pudo cargar el menú. ***")
+              (princ "\nCopie el mensaje de error que aparece arriba (o en la ventana) y envíelo.")))))))
+  (if (menugroup "@MENU@")
+    (progn
+      (initget "Si No")
+      (if (/= (getkword "\n¿Mostrar también la barra de menús clásica con el menú MEMO? [Si/No] <Si>: ") "No")
+        (setvar "MENUBAR" 1))
+      (vl-catch-all-apply 'command (list "_.RIBBON"))
+      (princ "\nSi las fichas MEMO no aparecen en la cinta:")
+      (princ "\n  1. Clic derecho sobre la cinta > Mostrar fichas > marque MEMO Estimaciones, MEMO Topografía y MEMO Dibujo.")
+      (princ "\n  2. Si no están en esa lista: escriba IUP (o CUI) > arriba a la izquierda, 'Espacios de trabajo' >")
+      (princ "\n     su espacio actual > 'Personalizar espacio de trabajo' > abajo, en Archivos parciales,")
+      (princ "\n     @MENU@ > Fichas de cinta > marque las 3 fichas MEMO > Hecho > Aceptar.")))
+  (princ))
+
 ;;; Carga TODOS los archivos y comprueba que cada comando quede definido.
 (defun c:MEMO_VERIFICAR (/ ok n res err faltan)
   (princ "\nMEMO_VERIFICAR carga TODOS los archivos en este dibujo")
@@ -759,7 +791,6 @@ def construir_cuix(dueño):
     bom = "\ufeff"
     ctypes = (bom + '<?xml version="1.0" encoding="utf-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
               '<Default Extension="cui" ContentType="text/xml" /><Default Extension="xml" ContentType="text/xml" />'
-              '<Default Extension="png" ContentType="image/png" />'
               '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml" /></Types>')
     rels = bom + '<?xml version="1.0" encoding="utf-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
     for n, _x in partes:
@@ -776,10 +807,8 @@ def construir_cuix(dueño):
             z.writestr(n, x.encode("utf-8"))
         z.writestr("Menu_Package_Info.xml", "\n".join(info).encode("utf-8"))
         z.writestr("_rels/.rels", rels.encode("utf-8"))
-        # Iconos incrustados (AutoCAD también los busca en Contents/Iconos)
-        for c in todos:
-            for t in (16, 32):
-                z.write(os.path.join(CONT, "Iconos", nombre_icono(c, t)), nombre_icono(c, t))
+        # Los iconos NO se incrustan: AutoCAD los toma de Contents/Iconos (ruta
+        # de soporte del bundle). Así el CUIX tiene sólo las partes estándar.
         z.writestr("[Content_Types].xml", ctypes.encode("utf-8"))
     return todos
 
