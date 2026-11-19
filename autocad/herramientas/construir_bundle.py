@@ -482,6 +482,31 @@ CARGADOR = r""";;; =============================================================
     (princ "\nEl menú anterior MEMO no está cargado. Nada que hacer."))
   (princ))
 
+;;; Menú desplegable MEMO creado con ActiveX (no necesita el CUIX)
+(setq memo:*menu-def* '(
+@MENUDEF@
+))
+
+(defun memo:menu-activex (/ acad menus menu sub r)
+  (setq r (vl-catch-all-apply
+    '(lambda ()
+       (setq acad (vlax-get-acad-object)
+             menus (vla-get-Menus (vla-Item (vla-get-MenuGroups acad) 0)))
+       (if (vl-catch-all-error-p (setq menu (vl-catch-all-apply 'vla-Item (list menus "MEMO"))))
+         (progn
+           (setq menu (vla-Add menus "MEMO"))
+           (foreach sec memo:*menu-def*
+             (setq sub (vla-AddSubMenu menu (vla-get-Count menu) (car sec)))
+             (foreach it (cdr sec)
+               (vla-AddMenuItem sub (vla-get-Count sub) (car it) (strcat "^C^C" (cadr it) " "))))))
+       (if (= (vla-get-OnMenuBar menu) :vlax-false)
+         (vla-InsertInMenuBar menu (vla-get-Count (vla-get-MenuBar acad))))
+       (setvar "MENUBAR" 1))))
+  (if (vl-catch-all-error-p r)
+    (princ (strcat "\nNo se pudo crear el menú desplegable: " (vl-catch-all-error-message r)))
+    (princ "\nMenú desplegable MEMO creado en la barra de menús (arriba)."))
+  (princ))
+
 ;;; Carga y muestra el menú MEMO (fichas y menú desplegable)
 (defun c:MEMO_MENU (/ cuix old r)
   (setq cuix (strcat memo:raiz "/@MENU@.cuix"))
@@ -499,8 +524,10 @@ CARGADOR = r""";;; =============================================================
           (if (menugroup "@MENU@")
             (princ "\nMenú cargado correctamente.")
             (progn
-              (princ "\n*** AutoCAD NO pudo cargar el menú. ***")
-              (princ "\nCopie el mensaje de error que aparece arriba (o en la ventana) y envíelo.")))))))
+              (princ "\n*** AutoCAD NO pudo cargar el archivo del menú. ***")
+              (princ "\nCopie el mensaje de error que aparece arriba y envíelo.")
+              (princ "\nMientras tanto se crea el menú desplegable MEMO en la barra de menús:")
+              (memo:menu-activex)))))))
   (if (menugroup "@MENU@")
     (progn
       (initget "Si No")
@@ -594,7 +621,13 @@ def construir_cargador(mapa):
                     ayuda.append("  (princ %s)" % lisp_str("\n   %-16s %s" % (c, desc)))
     ren = ["  (princ %s)" % lisp_str("\n   %-5s -> %-22s (tu alias %s)" % (v, n, a))
            for v, (n, a) in cat.RENOMBRADOS.items()]
-    texto = (CARGADOR.replace("@VERSION@", VERSION).replace("@NARCH@", str(len(mapa)))
+    menudef = []
+    for tab, _k, paneles in cat.FICHAS:
+        for panel, items in paneles:
+            cmds = [c for it in items for c in (it if isinstance(it, list) else [it])]
+            menudef.append("  (%s %s)" % (lisp_str(panel), " ".join(
+                "(%s %s)" % (lisp_str("%s (%s)" % (cat.COMANDOS[c][0], c)), lisp_str(c)) for c in cmds)))
+    texto = (CARGADOR.replace("@VERSION@", VERSION).replace("@MENUDEF@", "\n".join(menudef)).replace("@NARCH@", str(len(mapa)))
              .replace("@CFG@", "\n".join(cfg)).replace("@AUTOLOADS@", "\n".join(autoloads))
              .replace("@AYUDA@", "\n".join(ayuda)).replace("@RENOMBRES@", "\n".join(ren))
              .replace("@LIB@", cat.BIBLIOTECA[1][:-4]).replace("@MENU@", MENU))
@@ -622,13 +655,27 @@ NS = 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://ww
 REV = '<ModifiedRev MajorVersion="24" MinorVersion="3" UserVersion="1" />'
 
 
+_UIDS = {}
+
+
 def uid(prefijo, clave):
-    return "%s_900_%s" % (prefijo, hashlib.md5(clave.encode("utf-8")).hexdigest()[:8].upper())
+    """UID con el formato que usa AutoCAD (PREFIJO_900_XXXXX), estable y único."""
+    k = (prefijo, clave)
+    if k in _UIDS:
+        return _UIDS[k]
+    sal = 0
+    while True:
+        h = hashlib.md5(("%s|%s|%d" % (prefijo, clave, sal)).encode("utf-8")).hexdigest()[:5].upper()
+        v = "%s_900_%s" % (prefijo, h)
+        if v not in _UIDS.values():
+            _UIDS[k] = v
+            return v
+        sal += 1
 
 
 def nombre_icono(cmd, tam):
     limpio = re.sub(r"[^A-Za-z0-9]", "_", cmd)
-    return "MEMO_%s_%d.png" % (limpio, tam)
+    return "MEMO_%s_%d.bmp" % (limpio, tam)
 
 
 def raiz_vacia(nombre):
@@ -673,40 +720,51 @@ def construir_cuix(dueño):
     mg.append("  </MacroGroup>")
     mg.append("</MenuGroup>")
 
-    # --- Ribbon ---
-    rb = [AVISO, "<RibbonRoot %s>" % NS, "  <RibbonPanelSourceCollection>"]
+    # --- Ribbon (mismo formato que un RibbonRoot.cui guardado por AutoCAD) ---
+    rb = [AVISO, "<RibbonRoot>", "  <RibbonPanelSourceCollection %s>" % NS]
     tabs = ["  <RibbonTabSourceCollection>"]
 
     def boton(c, estilo, ind):
         et = cat.COMANDOS[c][0]
-        return '%s<RibbonCommandButton UID="%s" Text=%s ButtonStyle="%s" MenuMacroID="%s" KeyTip=%s />' % (
-            ind, uid("RBN", "b" + c + estilo), quoteattr(et), estilo, uid("MMU", c), quoteattr(re.sub(r"[^A-Z0-9]", "", c)[:3]))
+        return ['%s<RibbonCommandButton UID="%s" Id="AcRibbonCommandButton" Text=%s ButtonStyle="%s" MenuMacroID="%s" KeyTip="">'
+                % (ind, uid("RBNU", "b" + c + estilo), quoteattr(et), estilo, uid("MMU", c)),
+                '%s  <TooltipTitle xlate="true" UID="%s">%s</TooltipTitle>' % (ind, uid("XLS", "tt" + c + estilo), escape(et)),
+                "%s  %s" % (ind, REV),
+                "%s</RibbonCommandButton>" % ind]
 
     for tab, keytip, paneles in cat.FICHAS:
-        tid = uid("RBN", "tab" + tab)
-        tabs.append('    <RibbonTabSource UID="%s" Text=%s KeyTip="%s">' % (tid, quoteattr(tab), keytip))
+        tid = uid("RBNU", "tab" + tab)
+        tabs.append('    <RibbonTabSource Text=%s UID="%s">' % (quoteattr(tab), tid))
+        tabs.append("      " + REV)
         tabs.append('      <Name xlate="true" UID="%s">%s</Name>' % (uid("XLS", "tab" + tab), escape(tab)))
-        tabs.append("      <Aliases><Alias>ID_MEMO_%s</Alias></Aliases>" % keytip)
         for panel, items in paneles:
-            pid = uid("RBN", "pan" + tab + panel)
-            rb.append('    <RibbonPanelSource UID="%s" Text=%s>' % (pid, quoteattr(panel)))
+            pid = uid("RBNU", "pan" + tab + panel)
+            rb.append('    <RibbonPanelSource UID="%s" Text=%s HiddenInEditor="false">' % (pid, quoteattr(panel)))
+            rb.append("      " + REV)
             rb.append('      <Name xlate="true" UID="%s">%s</Name>' % (uid("XLS", "pan" + tab + panel), escape(panel)))
-            rb.append("      <Aliases><Alias>ID_MEMO_%s</Alias></Aliases>" % re.sub(r"\W", "", uid("P", tab + panel)))
-            rb.append('      <RibbonRow UID="%s">' % uid("RBN", "row" + tab + panel))
+            rb.append('      <RibbonRow UID="%s">' % uid("RBNU", "row" + tab + panel))
+            rb.append("        " + REV)
             for k, it in enumerate(items):
                 if isinstance(it, list):
-                    rp = uid("RBN", "rp%s%s%d" % (tab, panel, k))
-                    rb.append('        <RibbonRowPanel UID="%s">' % rp)
+                    rp = uid("RBNU", "rp%s%s%d" % (tab, panel, k))
+                    rb.append('        <RibbonRowPanel UID="%s" ResizeStyle="None" ResizePriority="100" TopJustify="True">' % rp)
+                    rb.append("          " + REV)
                     for j, c in enumerate(it):
-                        rb.append('          <RibbonRow UID="%s">' % uid("RBN", "rr%s%d" % (rp, j)))
-                        rb.append(boton(c, "SmallWithText", "            "))
+                        rb.append('          <RibbonRow UID="%s">' % uid("RBNU", "rr%s%d" % (rp, j)))
+                        rb.append("            " + REV)
+                        rb += boton(c, "SmallWithText", "            ")
                         rb.append("          </RibbonRow>")
                     rb.append("        </RibbonRowPanel>")
                 else:
-                    rb.append(boton(it, "LargeWithText", "        "))
+                    rb += boton(it, "LargeWithText", "        ")
             rb.append("      </RibbonRow>")
+            rb.append('      <RibbonPanelBreak UID="%s" Id="AcRibbonPanelBreak">' % uid("RBNU", "brk" + tab + panel))
+            rb.append("        " + REV)
+            rb.append("      </RibbonPanelBreak>")
             rb.append("    </RibbonPanelSource>")
-            tabs.append('      <RibbonPanelSourceReference UID="%s" PanelId="%s" />' % (uid("RBN", "ref" + tab + panel), pid))
+            tabs.append('      <RibbonPanelSourceReference UID="%s" PanelId="%s" ResizeStyle="Default">' % (uid("RBNU", "ref" + tab + panel), pid))
+            tabs.append("        " + REV)
+            tabs.append("      </RibbonPanelSourceReference>")
         tabs.append("    </RibbonTabSource>")
     rb.append("  </RibbonPanelSourceCollection>")
     tabs.append("  </RibbonTabSourceCollection>")
@@ -791,13 +849,21 @@ def construir_cuix(dueño):
     bom = "\ufeff"
     ctypes = (bom + '<?xml version="1.0" encoding="utf-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
               '<Default Extension="cui" ContentType="text/xml" /><Default Extension="xml" ContentType="text/xml" />'
-              '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml" /></Types>')
+              '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml" />'
+              '<Default Extension="bmp" ContentType="image/bmp" /></Types>')
+    imagenes = [nombre_icono(c, t) for c in todos for t in (16, 32)]
     rels = bom + '<?xml version="1.0" encoding="utf-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
     for n, _x in partes:
         rels += '<Relationship Type="CUI" Target="/%s" Id="R%s" />' % (n, hashlib.md5(n.encode()).hexdigest()[:16])
+    for n in imagenes:
+        rels += '<Relationship Type="Image" Target="/%s" Id="R%s" />' % (n, hashlib.md5(n.encode()).hexdigest()[:16])
     rels += "</Relationships>"
     info = ['<?xml version="1.0" encoding="utf-8"?>', "<MenuPackageParts>"]
     for n, _x in partes:
+        info.append('  <PartData PartData_Name="/%s" PartData_Modified="2026-11-11T12:00:00.0000000-06:00" />' % n)
+    info.append('  <PartData PartData_Name="/VirtualMNRRoot" PartData_Modified="2026-11-11T12:00:00.0000000-06:00" />')
+    info.append('  <PartData PartData_Name="/Menu_Package_Info.xml" PartData_Modified="2026-11-11T12:00:00.0000000-06:00" />')
+    for n in imagenes:
         info.append('  <PartData PartData_Name="/%s" PartData_Modified="2026-11-11T12:00:00.0000000-06:00" />' % n)
     info.append("</MenuPackageParts>")
 
@@ -807,8 +873,9 @@ def construir_cuix(dueño):
             z.writestr(n, x.encode("utf-8"))
         z.writestr("Menu_Package_Info.xml", "\n".join(info).encode("utf-8"))
         z.writestr("_rels/.rels", rels.encode("utf-8"))
-        # Los iconos NO se incrustan: AutoCAD los toma de Contents/Iconos (ruta
-        # de soporte del bundle). Así el CUIX tiene sólo las partes estándar.
+        # Iconos BMP incrustados (relación "Image", como en un CUIX real)
+        for n in imagenes:
+            z.write(os.path.join(CONT, "Iconos", n), n)
         z.writestr("[Content_Types].xml", ctypes.encode("utf-8"))
     return todos
 
@@ -834,7 +901,7 @@ def construir_package():
   <Components Description="MEMO SISTEMA">
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R20.0" />
     <ComponentEntry AppName="MEMO_Menu" Version="%(v)s" ModuleName="./Contents/%(m)s.cuix"
-        AppDescription="Menú MEMO con fichas e iconos" />
+        AppDescription="Menú MEMO con fichas e iconos" LoadOnAutoCADStartup="True" />
     <ComponentEntry AppName="MEMO_Cargador" Version="%(v)s" ModuleName="./Contents/MEMO_Cargador.lsp"
         AppDescription="Cargador bajo demanda de los comandos MEMO" LoadOnAutoCADStartup="True" PerDocument="True" />
   </Components>

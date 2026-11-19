@@ -15,7 +15,7 @@
   <Components Description="MEMO SISTEMA">
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R20.0" />
     <ComponentEntry AppName="MEMO_Menu" Version="2.4.0" ModuleName="./Contents/MEMO_SISTEMA.cuix"
-        AppDescription="Menú MEMO con fichas e iconos" />
+        AppDescription="Menú MEMO con fichas e iconos" LoadOnAutoCADStartup="True" />
     <ComponentEntry AppName="MEMO_Cargador" Version="2.4.0" ModuleName="./Contents/MEMO_Cargador.lsp"
         AppDescription="Cargador bajo demanda de los comandos MEMO" LoadOnAutoCADStartup="True" PerDocument="True" />
   </Components>

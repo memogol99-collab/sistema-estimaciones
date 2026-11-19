@@ -298,10 +298,13 @@ def g_bloque(d):
 GLIFOS = {k[2:]: v for k, v in globals().items() if k.startswith("g_")}
 
 
-def _icono(color, glifo):
+def _icono(color, glifo, radio=48):
     img = Image.new("RGBA", (G, G), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle([4, 4, G - 5, G - 5], radius=48, fill=_hex(color))
+    if radio:
+        d.rounded_rectangle([4, 4, G - 5, G - 5], radius=radio, fill=_hex(color))
+    else:
+        d.rectangle([0, 0, G - 1, G - 1], fill=_hex(color))
     capa = Image.new("RGBA", (G, G), (0, 0, 0, 0))
     dc = ImageDraw.Draw(capa)
     GLIFOS[glifo](dc)
@@ -319,15 +322,16 @@ def _icono(color, glifo):
 
 
 def generar(comandos, cat, carpeta, nombre_icono):
+    """Iconos BMP 24 bits (formato que usa AutoCAD en los CUIX), mosaico cuadrado."""
     os.makedirs(carpeta, exist_ok=True)
     for c in comandos:
         _et, _desc, glifo, categoria = cat.COMANDOS[c]
         color = cat.CATEGORIAS[categoria][1]
         if glifo not in GLIFOS:
             raise SystemExit("Glifo desconocido %s (%s)" % (glifo, c))
-        img = _icono(color, glifo)
+        img = _icono(color, glifo, radio=0)
         for t in (32, 16):
-            img.resize((t, t), Image.LANCZOS).save(os.path.join(carpeta, nombre_icono(c, t)), optimize=True)
+            img.resize((t, t), Image.LANCZOS).convert("RGB").save(os.path.join(carpeta, nombre_icono(c, t)), format="BMP")
 
 
 def hoja_muestra(cat, ruta):
