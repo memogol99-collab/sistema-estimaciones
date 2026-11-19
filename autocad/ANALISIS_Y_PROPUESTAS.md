@@ -297,6 +297,29 @@ Todos los `.lsp` del bundle están ahora en **ANSI (Windows-1252)**, la codifica
 2. Pasar las alturas de texto y los nombres de capas de cada rutina a `MEMO_CONFIG`.
 3. Mover a la biblioteca las funciones repetidas de las rutinas antiguas, una por una y probando cada cambio.
 
+## 4b. Mejoras de la versión 2.2
+
+Revisé los ~140 comandos buscando problemas comunes. Encontré dos que afectan a casi todos:
+
+| Problema | Cuántos | Efecto |
+|---|---|---|
+| No agrupan el Deshacer | 95 comandos | Después de una tabla COP, `U` borraba texto por texto en lugar de toda la tabla |
+| Cambian variables sin manejador de errores | 20 comandos (COP, ASI, CV, COTB, CHS, CTF, IJPG-EMF, los bloques IBCZ...) | Con ESC a la mitad quedaban OSMODE=0, otra capa activa, REGENMODE=0, etc. |
+
+**Solución única para todos:** cuando el cargador carga un archivo, "envuelve" cada uno de sus comandos (`memo:ejecutar` en MEMO_Lib):
+* Todo lo que hace el comando queda en **un solo paso de Deshacer**.
+* Si se cancela o falla, se restauran OSMODE, CLAYER, TEXTSTYLE, CMDECHO, SNAPMODE/SNAPUNIT, ORTHOMODE, REGENMODE, CECOLOR, FILEDIA, CMDDIA, DIMZIN, HIGHLIGHT, UCSFOLLOW, PDMODE/PDSIZE y HPNAME/HPSCALE/HPANG.
+* Si el comando termina bien, **no se toca nada**: lo que el comando cambió a propósito (por ejemplo PDMODE en la malla) se queda.
+* Los comandos que llaman a otros (MTABLA → COP, FH → FUSIONHATCH) usan un solo grupo de Deshacer.
+* Si un comando tiene su propio manejador de errores, se respeta. Si eso deja el grupo de Deshacer abierto, se cierra al empezar el siguiente comando MEMO.
+* Si algún comando se portara raro, en `MEMO_CONFIG` → *Un solo Deshacer...* = `NO` todo vuelve al comportamiento anterior.
+
+**COP / ASI / CSSA:** por defecto (`TABLA_PORTAPAPELES = SI`) usan lo copiado sin preguntar. Sólo preguntan si el número de columnas no coincide (5 / 7 / 4), para no dibujar una tabla descuadrada.
+
+**CTX:** si tienes copiada una sola línea de texto, se ofrece como valor por defecto.
+
+**Mensajes de carga corregidos:** X-Y (decía EXPORCOOR), BV (LVA), GV (AG), CLO (ClonLayout), SL (EliminarLayouts/EL), CLIPIT (CLIPIMAGE_RECT), COP (COP5), AM2 (anunciaba un HA3 que no existe) y CTX (decía CTE).
+
 ## 5. Tabla de equivalencias de archivos
 
 | Original | Nuevo (Contents/LISP/…) | Comandos |

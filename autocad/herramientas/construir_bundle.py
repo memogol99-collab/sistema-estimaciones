@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import catalogo as cat  # noqa: E402
 import iconos  # noqa: E402
 
-VERSION = "2.1.1"
+VERSION = "2.2.0"
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(AQUI)                       # autocad/
 ORIG = os.path.join(BASE, "originales", "MEMO_SISTEMA")
@@ -155,18 +155,23 @@ def aplicar_parches(texto, parches, nombre, bitacora):
             if not n:
                 raise SystemExit("Parche getfiled-c fallido en " + nombre)
             bitacora.append('  - getfiled abre en la carpeta del dibujo en lugar de "C:/"')
-        elif p == "portapapeles":
+        elif p.startswith("portapapeles:"):
+            ncols = p.split(":")[1]
             patron = (r'\(setq entradaCompleta ""\)\s*\(setq linea \(getstring T "\\n>>> "\)\)\s*'
                       r'\(while \(and linea \(/= linea ""\)\)\s*'
                       r'\(setq entradaCompleta \(strcat entradaCompleta linea "\\n"\)\)\s*'
                       r'\(setq linea \(getstring T "[^"]*"\)\)\s*\)')
-            texto, n = re.subn(patron, '(setq entradaCompleta (memo:leer-datos-tabla))', texto)
+            texto, n = re.subn(patron, '(setq entradaCompleta (memo:leer-datos-tabla %s))' % ncols, texto)
             if n != 1:
                 raise SystemExit("Parche portapapeles fallido en %s (%d)" % (nombre, n))
             texto, n = re.subn(r'\(princ "\\n\(?Pega los datos[^"]*"\)', '', texto)
             if n < 1:
                 raise SystemExit("Parche portapapeles (mensaje) fallido en " + nombre)
-            bitacora.append("  - lee los datos del PORTAPAPELES (si no hay, se pegan a mano como antes)")
+            bitacora.append("  - toma los datos del PORTAPAPELES (%s columnas); si no hay, se pegan a mano" % ncols)
+        elif p == "ctx-portapapeles":
+            texto = reemplazar(texto, '(setq texto_nuevo (getstring T "\\nNuevo texto: "))',
+                               '(setq texto_nuevo (memo:pedir-texto "\\nNuevo texto"))', nombre)
+            bitacora.append("  - propone como nuevo texto lo copiado en el portapapeles (Enter = usarlo)")
         elif p in CFG_PARCHES:
             for viejo, nuevo_ in CFG_PARCHES[p]:
                 texto = reemplazar(texto, viejo, nuevo_, nombre)
@@ -189,7 +194,9 @@ def aplicar_parches(texto, parches, nombre, bitacora):
         else:
             raise SystemExit("Parche desconocido: " + p)
     for viejo, nuevo_ in cat.MENSAJES.get(nombre, []):
-        texto = reemplazar(texto, viejo, nuevo_, nombre)
+        # el texto está en bytes Windows-1252 vistos como latin-1
+        a_ = lambda t: t.encode("cp1252").decode("latin-1")
+        texto = reemplazar(texto, a_(viejo), a_(nuevo_), nombre)
     return texto
 
 
@@ -333,7 +340,8 @@ CARGADOR = r""";;; =============================================================
     (setq memo:raiz (findfile "MEMO_Cargador.lsp"))
     (if memo:raiz
       (setq memo:raiz (vl-string-translate "\\" "/" (vl-filename-directory memo:raiz))))
-    (setq memo:archivos-cargados nil memo:num-comandos 0 memo:*mapa* nil memo:*stubs* nil memo:*ya-definidos* nil)
+    (setq memo:archivos-cargados nil memo:num-comandos 0 memo:*mapa* nil memo:*stubs* nil memo:*ya-definidos* nil
+          memo:*envueltos* nil memo:*marca-abierta* nil)
     (setq memo:dir-fas (strcat (vl-string-translate "\\" "/" (getenv "APPDATA")) "/MEMO_SISTEMA/FAS/"))
 
     ;; Valores configurables: (CLAVE "defecto" "descripción" "NUM|TXT" "opciones")
@@ -368,7 +376,9 @@ CARGADOR = r""";;; =============================================================
          (setq res (vl-catch-all-apply 'load (list ruta)))
          (if (vl-catch-all-error-p res)
            (princ (strcat "\nMEMO: error al cargar " rel ": " (vl-catch-all-error-message res)))
-           (eval (list (read (strcat "C:" cmd)))))))
+           (progn
+             (memo:envolver (cadr (assoc rel memo:*mapa*)))
+             (eval (list (read (strcat "C:" cmd))))))))
       (princ))
 
     ;; Define los comandos de un archivo como stubs que lo cargan al primer uso
@@ -429,6 +439,9 @@ CARGADOR = r""";;; =============================================================
       (foreach c (reverse memo:*ya-definidos*) (princ (strcat " " c)))))
   (princ (strcat "\nCompilados (FAS): " (if memo:usar-fas (strcat "SÍ, en " memo:dir-fas) "no (se usan los .lsp)")))
   (princ (strcat "\nBiblioteca MEMO_Lib: " (if memo:portapapeles "cargada" "NO cargada")))
+  (princ (strcat "\nDeshacer agrupado y ESC seguro: "
+                 (if (= (strcase (memo:cfg "DESHACER_AGRUPADO")) "NO") "desactivado" "activo")
+                 "  |  Portapapeles en tablas: " (memo:cfg "TABLA_PORTAPAPELES")))
   (princ "\nArchivos ya cargados en este dibujo:")
   (if memo:archivos-cargados
     (foreach a (reverse memo:archivos-cargados) (princ (strcat "\n  " a)))
@@ -461,7 +474,8 @@ CARGADOR = r""";;; =============================================================
         (if (not (member (car par) memo:archivos-cargados))
           (progn
             (setq res (vl-catch-all-apply 'load (list (memo:ruta (car par)))))
-            (setq memo:archivos-cargados (cons (car par) memo:archivos-cargados))))
+            (setq memo:archivos-cargados (cons (car par) memo:archivos-cargados))
+            (if (not (vl-catch-all-error-p res)) (memo:envolver (cadr par)))))
         (if (vl-catch-all-error-p res)
           (setq err (cons (strcat (car par) " -> " (vl-catch-all-error-message res)) err))
           (foreach c (cadr par)
@@ -805,27 +819,35 @@ PRUEBAS_CABECERA = """# Lista de pruebas - MEMO SISTEMA @VERSION@
 3. Escribe `MEMO_VERIFICAR` y presiona Enter: al final debe decir **Todo correcto**.
    Si aparece *ERROR AL CARGAR* o *NO DEFINIDO*, copia ese texto y envíamelo.
 
-## 1. Lo nuevo en 2.1 (probar primero)
+## 1. Lo nuevo en 2.2 (probar primero)
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
-| 1 | En Excel copia 3 filas de 5 columnas (No., Código, Concepto, Unidad, Precio). En AutoCAD: `COP`, elige el punto | Dice *Portapapeles: 3 fila(s), 5 columna(s)*, muestra la 1a fila y pregunta *¿Usar los datos del portapapeles?*; con Enter dibuja la tabla **igual que antes** | |
-| 2 | Igual que la 1, pero una celda del Concepto tiene un salto de línea (Alt+Enter en Excel) | La fila sale completa, con el concepto en una sola línea | |
-| 3 | `COP` con el portapapeles vacío (o responde *No*) | Pide pegar los datos a mano, como antes | |
-| 4 | Copia 7 columnas y ejecuta `MTABLA` | Propone *Asipona*; con Enter ejecuta ASI **sin volver a preguntar** por el portapapeles | |
-| 5 | Copia 4 columnas y ejecuta `MTABLA` | Propone *Ssa* y ejecuta CSSA | |
-| 6 | Compara una tabla ASI con una hecha con la versión anterior | Mismos anchos, estilos y encabezados (antes ASI tomaba funciones de COP y CSSA) | |
-| 7 | `MEMO_CONFIG` → cambia *COP: ancho Concepto* a 25 → `COP` | La columna Concepto sale más ancha. Restablece con `R` | |
-| 8 | `MEMO_CONFIG` → *Tablas: usar portapapeles* = `SI` → `COP` | Ya no pregunta, usa directamente lo copiado | |
-| 9 | `MAREA` → Enter | Ejecuta la opción por defecto (*Prefijo* = HA2); la segunda vez propone la última usada | |
-| 10 | `MBACHEO` | Propone *Dibujar*; después de cada paso propone el siguiente (Numerar, Cotar, Exportar, Salir) | |
-| 11 | `MEMO_CONFIG` → *Bacheo: espesor* = 0.15 → `EXR` | El volumen del CSV = área × 0.15 | |
-| 12 | `MP` | Ahora es **EMPALME** (tu alias). La malla es `MLL` | |
-| 13 | `EL`, `RV`, `PV`, `TM`, `CL`, `LC`, `CT`, `CTT`, `CC` | Hacen lo que dice tu acad.pgp (ELIPSE, REVOLUCION, etc.) | |
-| 14 | `ELTN`, `RNB`, `IBPV`, `IBTM`, `CLO`, `LCO`, `CTB`, `CTX`, `RSC` | Hacen lo que antes hacían los nombres viejos | |
-| 15 | `BPOL` y presiona ESC a la mitad; después otro comando con error o ESC | AutoCAD queda normal (sin "UCS previo" raro) | |
-| 16 | `MEMO_COMPILAR` → abre otro dibujo → `MEMO_INFO` | Dice *Compilados (FAS): SÍ* y los comandos funcionan igual | |
-| 17 | Mensajes con acentos de `EXR` y `PERFIL` | Se ven bien (antes podían salir con caracteres raros) | |
+| 1 | En Excel copia 3 filas de 5 columnas (No., Código, Concepto, Unidad, Precio). En AutoCAD: `COP`, elige el punto | **Sin pegar nada**: dice *Datos del portapapeles: 3 fila(s), 5 columna(s)*, muestra la 1a fila y dibuja la tabla **igual que antes** | |
+| 2 | Después de la prueba 1, escribe `U` una sola vez | Desaparece **toda** la tabla (textos, rectángulos y vistas) de un solo paso | |
+| 3 | Copia 7 columnas (formato ASI) y ejecuta `COP` | Avisa *esta tabla espera 5 columnas* y pregunta si usar los datos; con Enter (No) pide pegar a mano | |
+| 4 | Una celda del Concepto con salto de línea (Alt+Enter en Excel) | La fila sale completa, con el concepto en una sola línea | |
+| 5 | `COP` con el portapapeles vacío (copia una imagen o nada) | Pide pegar los datos a mano, como antes | |
+| 6 | Copia 7 columnas y ejecuta `MTABLA` | Propone *Asipona* y con Enter dibuja la tabla ASI | |
+| 7 | `COP`, elige el punto y presiona ESC; luego revisa OSMODE y la capa actual | Quedan **igual que antes** de ejecutar COP (antes podía quedar OSMODE=0 y capa CONCEPTOS) | |
+| 8 | `CTF` (factor de ancho) y presiona ESC a la mitad | REGENMODE vuelve a 1 (antes se quedaba en 0) | |
+| 9 | Copia una palabra (ej. `PAVIMENTO`) → `CTX` → Enter → selecciona textos | Los textos cambian a `PAVIMENTO`; si escribes otro texto, usa el que escribiste | |
+| 10 | `RS` dibuja 3 rectángulos → `U` | Deshace todo lo que hizo RS en un paso | |
+| 11 | `MEMO_INFO` | Dice *Deshacer agrupado y ESC seguro: activo, Portapapeles en tablas: SI* | |
+| 12 | `MEMO_CONFIG` → *Tablas: tomar datos del portapapeles* = `PREGUNTAR` → `COP` | Vuelve a preguntar antes de usar lo copiado | |
+| 13 | `MEMO_CONFIG` → *Un solo Deshacer...* = `NO` → abre otro dibujo → `COP` → `U` | Deshace paso por paso, como antes (sirve si algún comando se comportara raro) | |
+
+## 1b. De la versión 2.1
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| 1 | `MAREA` → Enter | Ejecuta la opción por defecto (*Prefijo* = HA2); la segunda vez propone la última usada | |
+| 2 | `MBACHEO` | Propone *Dibujar*; después de cada paso propone el siguiente (Numerar, Cotar, Exportar, Salir) | |
+| 3 | `MEMO_CONFIG` → *Bacheo: espesor* = 0.15 → `EXR` | El volumen del CSV = área × 0.15 | |
+| 4 | `MP`, `EL`, `RV`, `PV`, `TM`, `CL`, `LC`, `CT`, `CTT`, `CC` | Hacen lo que dice tu acad.pgp (EMPALME, ELIPSE, REVOLUCION...) | |
+| 5 | `MLL`, `ELTN`, `RNB`, `IBPV`, `IBTM`, `CLO`, `LCO`, `CTB`, `CTX`, `RSC` | Hacen lo que antes hacían los nombres viejos | |
+| 6 | `BPOL` y ESC a la mitad; después otro comando con ESC | AutoCAD queda normal | |
+| 7 | `MEMO_COMPILAR` → otro dibujo → `MEMO_INFO` | *Compilados (FAS): SÍ* y los comandos funcionan igual | |
 
 ## 2. Todos los comandos
 

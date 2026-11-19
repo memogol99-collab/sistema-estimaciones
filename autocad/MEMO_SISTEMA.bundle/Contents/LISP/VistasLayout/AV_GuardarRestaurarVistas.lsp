@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.2.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_VistasLayout/Restaurar Vistas ( AV ).lsp
 
         ; PARA GUARDAR VISTAS RAPIDAS
@@ -40,6 +40,6 @@
 
 ; Cargar automáticamente
 (princ "\n=== COMANDOS DE VISTAS FLEXIBLES ===")
-(princ "\nAG - Guardar vista (ej: 5, V5, PLANTA1, etc.)")
+(princ "\nGV - Guardar vista (ej: 5, V5, PLANTA1, etc.)")
 (princ "\nAV - Restaurar vista (ej: 5, V5, PLANTA1, etc.)")
 (princ)

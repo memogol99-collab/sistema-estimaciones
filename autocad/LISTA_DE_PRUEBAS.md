@@ -1,4 +1,4 @@
-# Lista de pruebas - MEMO SISTEMA 2.1.1
+# Lista de pruebas - MEMO SISTEMA 2.2.0
 
 > Archivo generado por `herramientas/construir_bundle.py`, a partir de `catalogo.py`.
 > Imprime esta lista o cópiala a Excel y marca cada prueba.
@@ -10,27 +10,35 @@
 3. Escribe `MEMO_VERIFICAR` y presiona Enter: al final debe decir **Todo correcto**.
    Si aparece *ERROR AL CARGAR* o *NO DEFINIDO*, copia ese texto y envíamelo.
 
-## 1. Lo nuevo en 2.1 (probar primero)
+## 1. Lo nuevo en 2.2 (probar primero)
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
-| 1 | En Excel copia 3 filas de 5 columnas (No., Código, Concepto, Unidad, Precio). En AutoCAD: `COP`, elige el punto | Dice *Portapapeles: 3 fila(s), 5 columna(s)*, muestra la 1a fila y pregunta *¿Usar los datos del portapapeles?*; con Enter dibuja la tabla **igual que antes** | |
-| 2 | Igual que la 1, pero una celda del Concepto tiene un salto de línea (Alt+Enter en Excel) | La fila sale completa, con el concepto en una sola línea | |
-| 3 | `COP` con el portapapeles vacío (o responde *No*) | Pide pegar los datos a mano, como antes | |
-| 4 | Copia 7 columnas y ejecuta `MTABLA` | Propone *Asipona*; con Enter ejecuta ASI **sin volver a preguntar** por el portapapeles | |
-| 5 | Copia 4 columnas y ejecuta `MTABLA` | Propone *Ssa* y ejecuta CSSA | |
-| 6 | Compara una tabla ASI con una hecha con la versión anterior | Mismos anchos, estilos y encabezados (antes ASI tomaba funciones de COP y CSSA) | |
-| 7 | `MEMO_CONFIG` → cambia *COP: ancho Concepto* a 25 → `COP` | La columna Concepto sale más ancha. Restablece con `R` | |
-| 8 | `MEMO_CONFIG` → *Tablas: usar portapapeles* = `SI` → `COP` | Ya no pregunta, usa directamente lo copiado | |
-| 9 | `MAREA` → Enter | Ejecuta la opción por defecto (*Prefijo* = HA2); la segunda vez propone la última usada | |
-| 10 | `MBACHEO` | Propone *Dibujar*; después de cada paso propone el siguiente (Numerar, Cotar, Exportar, Salir) | |
-| 11 | `MEMO_CONFIG` → *Bacheo: espesor* = 0.15 → `EXR` | El volumen del CSV = área × 0.15 | |
-| 12 | `MP` | Ahora es **EMPALME** (tu alias). La malla es `MLL` | |
-| 13 | `EL`, `RV`, `PV`, `TM`, `CL`, `LC`, `CT`, `CTT`, `CC` | Hacen lo que dice tu acad.pgp (ELIPSE, REVOLUCION, etc.) | |
-| 14 | `ELTN`, `RNB`, `IBPV`, `IBTM`, `CLO`, `LCO`, `CTB`, `CTX`, `RSC` | Hacen lo que antes hacían los nombres viejos | |
-| 15 | `BPOL` y presiona ESC a la mitad; después otro comando con error o ESC | AutoCAD queda normal (sin "UCS previo" raro) | |
-| 16 | `MEMO_COMPILAR` → abre otro dibujo → `MEMO_INFO` | Dice *Compilados (FAS): SÍ* y los comandos funcionan igual | |
-| 17 | Mensajes con acentos de `EXR` y `PERFIL` | Se ven bien (antes podían salir con caracteres raros) | |
+| 1 | En Excel copia 3 filas de 5 columnas (No., Código, Concepto, Unidad, Precio). En AutoCAD: `COP`, elige el punto | **Sin pegar nada**: dice *Datos del portapapeles: 3 fila(s), 5 columna(s)*, muestra la 1a fila y dibuja la tabla **igual que antes** | |
+| 2 | Después de la prueba 1, escribe `U` una sola vez | Desaparece **toda** la tabla (textos, rectángulos y vistas) de un solo paso | |
+| 3 | Copia 7 columnas (formato ASI) y ejecuta `COP` | Avisa *esta tabla espera 5 columnas* y pregunta si usar los datos; con Enter (No) pide pegar a mano | |
+| 4 | Una celda del Concepto con salto de línea (Alt+Enter en Excel) | La fila sale completa, con el concepto en una sola línea | |
+| 5 | `COP` con el portapapeles vacío (copia una imagen o nada) | Pide pegar los datos a mano, como antes | |
+| 6 | Copia 7 columnas y ejecuta `MTABLA` | Propone *Asipona* y con Enter dibuja la tabla ASI | |
+| 7 | `COP`, elige el punto y presiona ESC; luego revisa OSMODE y la capa actual | Quedan **igual que antes** de ejecutar COP (antes podía quedar OSMODE=0 y capa CONCEPTOS) | |
+| 8 | `CTF` (factor de ancho) y presiona ESC a la mitad | REGENMODE vuelve a 1 (antes se quedaba en 0) | |
+| 9 | Copia una palabra (ej. `PAVIMENTO`) → `CTX` → Enter → selecciona textos | Los textos cambian a `PAVIMENTO`; si escribes otro texto, usa el que escribiste | |
+| 10 | `RS` dibuja 3 rectángulos → `U` | Deshace todo lo que hizo RS en un paso | |
+| 11 | `MEMO_INFO` | Dice *Deshacer agrupado y ESC seguro: activo, Portapapeles en tablas: SI* | |
+| 12 | `MEMO_CONFIG` → *Tablas: tomar datos del portapapeles* = `PREGUNTAR` → `COP` | Vuelve a preguntar antes de usar lo copiado | |
+| 13 | `MEMO_CONFIG` → *Un solo Deshacer...* = `NO` → abre otro dibujo → `COP` → `U` | Deshace paso por paso, como antes (sirve si algún comando se comportara raro) | |
+
+## 1b. De la versión 2.1
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| 1 | `MAREA` → Enter | Ejecuta la opción por defecto (*Prefijo* = HA2); la segunda vez propone la última usada | |
+| 2 | `MBACHEO` | Propone *Dibujar*; después de cada paso propone el siguiente (Numerar, Cotar, Exportar, Salir) | |
+| 3 | `MEMO_CONFIG` → *Bacheo: espesor* = 0.15 → `EXR` | El volumen del CSV = área × 0.15 | |
+| 4 | `MP`, `EL`, `RV`, `PV`, `TM`, `CL`, `LC`, `CT`, `CTT`, `CC` | Hacen lo que dice tu acad.pgp (EMPALME, ELIPSE, REVOLUCION...) | |
+| 5 | `MLL`, `ELTN`, `RNB`, `IBPV`, `IBTM`, `CLO`, `LCO`, `CTB`, `CTX`, `RSC` | Hacen lo que antes hacían los nombres viejos | |
+| 6 | `BPOL` y ESC a la mitad; después otro comando con ESC | AutoCAD queda normal | |
+| 7 | `MEMO_COMPILAR` → otro dibujo → `MEMO_INFO` | *Compilados (FAS): SÍ* y los comandos funcionan igual | |
 
 ## 2. Todos los comandos
 
@@ -145,7 +153,7 @@ Una prueba rápida por comando: ejecútalo en `Ejercicio COMANDOS NUEVOS.dwg` y 
 | Textos | `IPT` | Iguala propiedades de texto. | |
 | Textos | `CTN` | Copia texto con numeración automática (V-1, V-2, V-3...). | |
 | Textos | `STV` | Suma o resta un valor a textos numéricos. | |
-| Textos | `CTX` | Cambia los textos seleccionados por un texto tecleado. | |
+| Textos | `CTX` | Cambia los textos seleccionados por un texto tecleado (Enter = usar el texto copiado). | |
 | Textos | `ALIT` | Alinea textos (TEXT/MTEXT) en vertical u horizontal. | |
 | Textos | `RTT` | Rota textos sobre su punto medio. | |
 | Textos | `UL` | Cambia entre mayúsculas y minúsculas. | |

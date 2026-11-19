@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.2.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Secciones/Area_m2 ( AM2 ).lsp
 
 ; =============================================
@@ -65,8 +65,8 @@
 (princ "\n+----------------------------------------+")
 (princ "\nComandos disponibles:")
 (princ "\n• AM2 - Individual  (selección guiada)")
-(princ "\n• HA2 - Múltiples   (selección por ventana)") 
-(princ "\n• HA3 - Ultra-rápida(selección mixta automática)")
+(princ "\n• HA2 - Múltiples   (comando HA2, archivo HA)") 
+
 (princ "\n")
 (princ "\nFormato: A= [área] m²  (2 decimales)")
 (princ)

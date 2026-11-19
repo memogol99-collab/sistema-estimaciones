@@ -1,6 +1,6 @@
-;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.2.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/Conceptos Asipona ( ASI ).lsp
-;;; Parches aplicados: prefijo:asi, portapapeles, cfg-asi
+;;; Parches aplicados: prefijo:asi, portapapeles:7, cfg-asi
 
 ;; ============================================================
 ;; SISTEMA ASI - TABLAS DE 7 COLUMNAS
@@ -237,7 +237,7 @@
       ;; OBTENER DATOS
       
       (princ "\nFORMATO: No. Codigo Descripcion Unidad P.U. Cantidad Importe")
-      (setq entradaCompleta (memo:leer-datos-tabla))
+      (setq entradaCompleta (memo:leer-datos-tabla 7))
       
       (if (/= entradaCompleta "")
         (progn

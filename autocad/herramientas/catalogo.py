@@ -19,9 +19,9 @@ Para agregar un LISP nuevo basta con:
 # ---------------------------------------------------------------------------
 ARCHIVOS = [
     # --- Estimaciones / Conceptos -----------------------------------------
-    ("LISP_Estimaciones/Conceptos Obras Publicas ( COP ).lsp", "Estimaciones/COP_ConceptosObrasPublicas.lsp", ["prefijo:cop", "portapapeles", "cfg-cop"]),
-    ("LISP_Estimaciones/Conceptos Asipona ( ASI ).lsp",        "Estimaciones/ASI_ConceptosAsipona.lsp",      ["prefijo:asi", "portapapeles", "cfg-asi"]),
-    ("LISP_Estimaciones/Conceptos SSA ( CSSA ).lsp",           "Estimaciones/CSSA_ConceptosSSA.lsp",         ["prefijo:cssa", "portapapeles", "cfg-cssa"]),
+    ("LISP_Estimaciones/Conceptos Obras Publicas ( COP ).lsp", "Estimaciones/COP_ConceptosObrasPublicas.lsp", ["prefijo:cop", "portapapeles:5", "cfg-cop"]),
+    ("LISP_Estimaciones/Conceptos Asipona ( ASI ).lsp",        "Estimaciones/ASI_ConceptosAsipona.lsp",      ["prefijo:asi", "portapapeles:7", "cfg-asi"]),
+    ("LISP_Estimaciones/Conceptos SSA ( CSSA ).lsp",           "Estimaciones/CSSA_ConceptosSSA.lsp",         ["prefijo:cssa", "portapapeles:4", "cfg-cssa"]),
     ("LISP_Estimaciones/Limpiar Conceptos ( LC ).lsp",         "Estimaciones/LC_LimpiarConceptos.lsp",       ["renombrar:LC=LCO"]),
     ("LISP_Estimaciones/Comp_Area_Secc ( CAS ).lsp",           "Estimaciones/CAS_CompAreaSecc.lsp",          []),
     ("LISP_Estimaciones/CAD a JPG  ( IJPG ).LSP",              "Estimaciones/IJPG_CadAJpg.lsp",              []),
@@ -43,7 +43,7 @@ ARCHIVOS = [
     ("LISP_Secciones/Exp_Est-Area ( EA ).lsp",                 "Secciones/EA_ExportarEstArea.lsp",           ["ea-ha"]),
     # --- Textos ------------------------------------------------------------
     ("LISP_Textos/CT-Toolbox.lsp",                             "Textos/CT_Toolbox.lsp",                      ["renombrar:CT=CTB"]),
-    ("LISP_Textos/Cambia Texto ( CTT ).lsp",                   "Textos/CTT_CambiaTexto.lsp",                 ["renombrar:CTT=CTX"]),
+    ("LISP_Textos/Cambia Texto ( CTT ).lsp",                   "Textos/CTT_CambiaTexto.lsp",                 ["renombrar:CTT=CTX", "ctx-portapapeles"]),
     ("LISP_Textos/Alinear Texto ( ALIT ).lsp",                 "Textos/ALIT_AlinearTexto.lsp",               []),
     ("LISP_Textos/Pendiente ( PTE ).lsp",                      "Textos/PTE_Pendiente.lsp",                   []),
     ("LISP_Textos/MayMin ( UL ).lsp",                          "Textos/UL_MayMin.lsp",                       []),
@@ -105,6 +105,16 @@ MENSAJES = {
     "Textos/CT_Toolbox.lsp": [("Comando: CT (di", "Comando: CTB (di")],
     "Bloques/IBCZ_BloquesEnCapaEscala.lsp": [('"\\n  PV            - Inserta', '"\\n  IBPV          - Inserta'),
                                             ('"\\n  TM            - Inserta', '"\\n  IBTM          - Inserta')],
+    "Estimaciones/COP_ConceptosObrasPublicas.lsp": [("COP5 - Crear tabla completa", "COP  - Crear tabla completa")],
+    "Secciones/AM2_AreaM2.lsp": [('"\\n• HA2 - Múltiples   (selección por ventana)"', '"\\n• HA2 - Múltiples   (comando HA2, archivo HA)"'),
+                                 ('(princ "\\n• HA3 - Ultra-rápida(selección mixta automática)")', '')],
+    "Topografia/XY_ExportarCoordPol.lsp": [("Ejecute EXPORCOOR para comenzar", "Ejecute X-Y para comenzar")],
+    "VistasLayout/BV_BorrarVistas.lsp": [("Rutina LVA cargada. Escribe LVA para", "Comando BV cargado. Escribe BV para")],
+    "VistasLayout/CL_ClonarLayout.lsp": [("Comando ClonLayout cargado. Ejecute ClonLayout para", "Comando CLO cargado. Ejecute CLO para")],
+    "VistasLayout/AV_GuardarRestaurarVistas.lsp": [('"\\nAG - Guardar vista', '"\\nGV - Guardar vista')],
+    "VistasLayout/SL_SuprimirLayouts.lsp": [("EliminarLayouts - Escribe ELIMINARLAYOUTS o EL para", "SL - Escribe SL para")],
+    "Topografia/CLIPIT.lsp": [("Comando CLIPIMAGE_RECT cargado. Escribe CLIPIMAGE_RECT para", "Comando CLIPIT cargado. Escribe CLIPIT para")],
+    "Textos/CTT_CambiaTexto.lsp": [("Comandos cargados: CTE", "Comando CTX cargado (Enter = usar el texto copiado)")],
     "Topografia/MP_MallaPuntos.lsp": [("- MP / MLL         : Alias", "- MLL              : Alias"),
                                      ("Use MALLA-PUNTOS, MP o MLL", "Use MALLA-PUNTOS o MLL")],
 }
@@ -113,7 +123,8 @@ MENSAJES = {
 # Configuración (MEMO_CONFIG).  CLAVE: (defecto, descripción, tipo, opciones)
 # ---------------------------------------------------------------------------
 CONFIG = [
-    ("TABLA_PORTAPAPELES", "PREGUNTAR", "Tablas: usar portapapeles (SI/NO/PREGUNTAR)", "TXT", "SI,NO,PREGUNTAR"),
+    ("TABLA_PORTAPAPELES", "SI",      "Tablas: tomar datos del portapapeles (SI/NO/PREGUNTAR)", "TXT", "SI,NO,PREGUNTAR"),
+    ("DESHACER_AGRUPADO",  "SI",      "Un solo Deshacer por comando y restaurar variables con ESC", "TXT", "SI,NO"),
     ("COP_ANCHO_NO",       "0.5",     "COP: ancho columna No.", "NUM", ""),
     ("COP_ANCHO_CODIGO",   "4.6641",  "COP: ancho No.+Código", "NUM", ""),
     ("COP_ANCHO_CONCEPTO", "21.1083", "COP: ancho Concepto", "NUM", ""),
@@ -234,7 +245,7 @@ COMANDOS = {
     "IPT":          ("Igualar prop.",    "Iguala propiedades de texto.", "copiar", "textos"),
     "CTN":          ("Copia numerada",   "Copia texto con numeración automática (V-1, V-2, V-3...).", "renum", "textos"),
     "STV":          ("Sumar valor",      "Suma o resta un valor a textos numéricos.", "suma", "textos"),
-    "CTX":          ("Cambiar texto",    "Cambia los textos seleccionados por un texto tecleado.", "texto", "textos"),
+    "CTX":          ("Cambiar texto",    "Cambia los textos seleccionados por un texto tecleado (Enter = usar el texto copiado).", "texto", "textos"),
     "ALIT":         ("Alinear",          "Alinea textos (TEXT/MTEXT) en vertical u horizontal.", "alinear", "textos"),
     "RTT":          ("Rotar texto",      "Rota textos sobre su punto medio.", "rotar", "textos"),
     "UL":           ("May/Min",          "Cambia entre mayúsculas y minúsculas.", "mayus", "textos"),

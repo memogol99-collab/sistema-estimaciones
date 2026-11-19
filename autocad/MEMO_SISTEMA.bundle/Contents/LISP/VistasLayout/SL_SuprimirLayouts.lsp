@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.2.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_VistasLayout/SuprimirLayouts ( SL ).lsp
 ;;; Parches aplicados: prefijo:sl
 
@@ -156,5 +156,5 @@
 )
 
 ; Mensaje de carga
-(princ "\nComando Cargado: EliminarLayouts - Escribe ELIMINARLAYOUTS o EL para ejecutar")
+(princ "\nComando Cargado: SL - Escribe SL para ejecutar")
 (princ)

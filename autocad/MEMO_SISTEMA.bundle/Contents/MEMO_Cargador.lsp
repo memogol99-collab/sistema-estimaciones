@@ -1,5 +1,5 @@
 ;;; =====================================================================
-;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.1.1
+;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.2.0
 ;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
 ;;;
 ;;;  Un solo cargador para todos los LISP. NO carga los 55 archivos al
@@ -12,16 +12,18 @@
 
 (if (not memo:cargado)
   (progn
-    (setq memo:version "2.1.1")
+    (setq memo:version "2.2.0")
     (setq memo:raiz (findfile "MEMO_Cargador.lsp"))
     (if memo:raiz
       (setq memo:raiz (vl-string-translate "\\" "/" (vl-filename-directory memo:raiz))))
-    (setq memo:archivos-cargados nil memo:num-comandos 0 memo:*mapa* nil memo:*stubs* nil memo:*ya-definidos* nil)
+    (setq memo:archivos-cargados nil memo:num-comandos 0 memo:*mapa* nil memo:*stubs* nil memo:*ya-definidos* nil
+          memo:*envueltos* nil memo:*marca-abierta* nil)
     (setq memo:dir-fas (strcat (vl-string-translate "\\" "/" (getenv "APPDATA")) "/MEMO_SISTEMA/FAS/"))
 
     ;; Valores configurables: (CLAVE "defecto" "descripción" "NUM|TXT" "opciones")
     (setq memo:*cfg-def* '(
-      ("TABLA_PORTAPAPELES" "PREGUNTAR" "Tablas: usar portapapeles (SI/NO/PREGUNTAR)" "TXT" "SI,NO,PREGUNTAR")
+      ("TABLA_PORTAPAPELES" "SI" "Tablas: tomar datos del portapapeles (SI/NO/PREGUNTAR)" "TXT" "SI,NO,PREGUNTAR")
+      ("DESHACER_AGRUPADO" "SI" "Un solo Deshacer por comando y restaurar variables con ESC" "TXT" "SI,NO")
       ("COP_ANCHO_NO" "0.5" "COP: ancho columna No." "NUM" "")
       ("COP_ANCHO_CODIGO" "4.6641" "COP: ancho No.+Código" "NUM" "")
       ("COP_ANCHO_CONCEPTO" "21.1083" "COP: ancho Concepto" "NUM" "")
@@ -67,7 +69,9 @@
          (setq res (vl-catch-all-apply 'load (list ruta)))
          (if (vl-catch-all-error-p res)
            (princ (strcat "\nMEMO: error al cargar " rel ": " (vl-catch-all-error-message res)))
-           (eval (list (read (strcat "C:" cmd)))))))
+           (progn
+             (memo:envolver (cadr (assoc rel memo:*mapa*)))
+             (eval (list (read (strcat "C:" cmd))))))))
       (princ))
 
     ;; Define los comandos de un archivo como stubs que lo cargan al primer uso
@@ -275,7 +279,7 @@
   (princ "\n   IPT              Iguala propiedades de texto.")
   (princ "\n   CTN              Copia texto con numeración automática (V-1, V-2, V-3...).")
   (princ "\n   STV              Suma o resta un valor a textos numéricos.")
-  (princ "\n   CTX              Cambia los textos seleccionados por un texto tecleado.")
+  (princ "\n   CTX              Cambia los textos seleccionados por un texto tecleado (Enter = usar el texto copiado).")
   (princ "\n   ALIT             Alinea textos (TEXT/MTEXT) en vertical u horizontal.")
   (princ "\n   RTT              Rota textos sobre su punto medio.")
   (princ "\n   UL               Cambia entre mayúsculas y minúsculas.")
@@ -333,6 +337,9 @@
       (foreach c (reverse memo:*ya-definidos*) (princ (strcat " " c)))))
   (princ (strcat "\nCompilados (FAS): " (if memo:usar-fas (strcat "SÍ, en " memo:dir-fas) "no (se usan los .lsp)")))
   (princ (strcat "\nBiblioteca MEMO_Lib: " (if memo:portapapeles "cargada" "NO cargada")))
+  (princ (strcat "\nDeshacer agrupado y ESC seguro: "
+                 (if (= (strcase (memo:cfg "DESHACER_AGRUPADO")) "NO") "desactivado" "activo")
+                 "  |  Portapapeles en tablas: " (memo:cfg "TABLA_PORTAPAPELES")))
   (princ "\nArchivos ya cargados en este dibujo:")
   (if memo:archivos-cargados
     (foreach a (reverse memo:archivos-cargados) (princ (strcat "\n  " a)))
@@ -365,7 +372,8 @@
         (if (not (member (car par) memo:archivos-cargados))
           (progn
             (setq res (vl-catch-all-apply 'load (list (memo:ruta (car par)))))
-            (setq memo:archivos-cargados (cons (car par) memo:archivos-cargados))))
+            (setq memo:archivos-cargados (cons (car par) memo:archivos-cargados))
+            (if (not (vl-catch-all-error-p res)) (memo:envolver (cadr par)))))
         (if (vl-catch-all-error-p res)
           (setq err (cons (strcat (car par) " -> " (vl-catch-all-error-message res)) err))
           (foreach c (cadr par)

@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.2.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_VistasLayout/ClonLayout ( CL ).lsp
 ;;; Parches aplicados: renombrar:CL=CLO
 
@@ -45,5 +45,5 @@
   )
 )
 
-(princ "\nComando ClonLayout cargado. Ejecute ClonLayout para copiar el layout activo.")
+(princ "\nComando CLO cargado. Ejecute CLO para copiar el layout activo.")
 (princ)

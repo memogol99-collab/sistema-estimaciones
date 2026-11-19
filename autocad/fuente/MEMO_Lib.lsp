@@ -5,7 +5,8 @@
 ;;;
 ;;;   Configuración : memo:cfg  memo:cfg-num  memo:cfg-set
 ;;;   Portapapeles  : memo:portapapeles
-;;;   Tablas Excel  : memo:tsv-normalizar  memo:leer-datos-tabla
+;;;   Tablas Excel  : memo:tsv-normalizar  memo:leer-datos-tabla  memo:pedir-texto
+;;;   Ejecución     : memo:ejecutar  memo:envolver (Deshacer agrupado y ESC seguro)
 ;;;   Utilidades    : memo:split  memo:recortar  memo:contar-lineas
 ;;;                   memo:llamar  memo:opcion
 ;;; =====================================================================
@@ -157,11 +158,15 @@
 
 ;;; ---------------------------------------------------------------------
 ;;; DATOS PARA TABLAS (COP, ASI, CSSA y MTABLA)
-;;; Lee el portapapeles según TABLA_PORTAPAPELES (PREGUNTAR / SI / NO).
-;;; Si no hay nada copiado o el usuario dice No, vuelve al método de
-;;; siempre: pegar con Ctrl+V y Enter 2 veces.
+;;; ncols = columnas que espera la tabla (5 COP, 7 ASI, 4 CSSA).
+;;; Según TABLA_PORTAPAPELES:
+;;;   SI        -> usa lo copiado directamente (sólo pregunta si el número
+;;;                de columnas no coincide con lo que espera la tabla)
+;;;   PREGUNTAR -> muestra lo copiado y pregunta antes de usarlo
+;;;   NO        -> como antes: pegar con Ctrl+V y Enter 2 veces
+;;; Si no hay nada copiado, también se pega a mano.
 ;;; ---------------------------------------------------------------------
-(defun memo:leer-datos-tabla (/ modo txt n resp entrada linea)
+(defun memo:leer-datos-tabla (ncols / modo txt n c resp entrada linea)
   (setq modo (strcase (memo:cfg "TABLA_PORTAPAPELES")))
   (if (/= modo "NO")
     (progn
@@ -171,15 +176,18 @@
   )
   (if txt
     (progn
-      (setq n (memo:contar-lineas txt))
-      (princ (strcat "\nPortapapeles: " (itoa n) " fila(s), "
-                     (itoa (length (memo:split (car (memo:split txt "\n")) "\t")))
-                     " columna(s)."))
+      (setq n (memo:contar-lineas txt)
+            c (length (memo:split (car (memo:split txt "\n")) "\t")))
+      (princ (strcat "\nDatos del portapapeles: " (itoa n) " fila(s), " (itoa c) " columna(s)."))
       (princ (strcat "\n  1a fila: " (memo:recortar (vl-string-translate "\t" "|" (car (memo:split txt "\n"))) 75)))
-      (if (and (= modo "PREGUNTAR") (not memo:*tabla-sin-preguntar*))
-        (if (= (memo:opcion "\n¿Usar los datos del portapapeles?" "Si No" "Si") "No")
-          (setq txt nil)
-        )
+      (cond
+        ((and ncols (/= c ncols))
+         (princ (strcat "\n  ATENCIÓN: esta tabla espera " (itoa ncols) " columnas."))
+         (if (= (memo:opcion "\n¿Usar de todas formas los datos del portapapeles?" "Si No" "No") "No")
+           (setq txt nil)))
+        ((and (= modo "PREGUNTAR") (not memo:*tabla-sin-preguntar*))
+         (if (= (memo:opcion "\n¿Usar los datos del portapapeles?" "Si No" "Si") "No")
+           (setq txt nil)))
       )
     )
   )
@@ -196,6 +204,111 @@
     )
   )
   txt
+)
+
+;;; ---------------------------------------------------------------------
+;;; TEXTO CON EL PORTAPAPELES COMO VALOR POR DEFECTO (CTX y otros)
+;;; Si lo copiado es una sola línea corta, Enter la usa.
+;;; ---------------------------------------------------------------------
+(defun memo:pedir-texto (msg / clip r)
+  (setq clip (memo:portapapeles))
+  (if clip (setq clip (vl-string-trim " \t\r\n" clip)))
+  (if (and clip (/= clip "") (<= (strlen clip) 250)
+           (not (vl-string-search "\n" clip)) (not (vl-string-search "\t" clip)))
+    (progn
+      (setq r (getstring T (strcat msg " <" (memo:recortar clip 40) ">: ")))
+      (if (= r "") clip r))
+    (getstring T (strcat msg ": "))
+  )
+)
+
+;;; ---------------------------------------------------------------------
+;;; EJECUCIÓN SEGURA DE TODOS LOS COMANDOS MEMO
+;;; Cuando se carga un archivo, cada comando se "envuelve" para que:
+;;;  1) todo lo que hace quede en UN solo paso de Deshacer (U);
+;;;  2) si se cancela con ESC o hay un error, se restauren las variables
+;;;     (OSMODE, capa, estilo de texto, CMDECHO, REGENMODE, etc.).
+;;; Si el comando termina bien, no se toca nada: queda como lo dejó.
+;;; Se desactiva con MEMO_CONFIG -> DESHACER_AGRUPADO = NO.
+;;; ---------------------------------------------------------------------
+(setq memo:*vars-guardar*
+  '("CMDECHO" "OSMODE" "CLAYER" "TEXTSTYLE" "SNAPMODE" "SNAPUNIT" "ORTHOMODE"
+    "REGENMODE" "CECOLOR" "FILEDIA" "CMDDIA" "DIMZIN" "HIGHLIGHT" "UCSFOLLOW"
+    "PDMODE" "PDSIZE" "HPNAME" "HPSCALE" "HPANG"))
+
+(defun memo:doc () (vla-get-ActiveDocument (vlax-get-acad-object)))
+
+(defun memo:guardar-vars ()
+  (vl-remove nil
+    (mapcar '(lambda (v / x)
+               (setq x (vl-catch-all-apply 'getvar (list v)))
+               (if (not (vl-catch-all-error-p x)) (cons v x)))
+            memo:*vars-guardar*))
+)
+
+(defun memo:restaurar-vars (lst)
+  (foreach par lst
+    (if (not (equal (getvar (car par)) (cdr par)))
+      (vl-catch-all-apply 'setvar (list (car par) (cdr par))))
+  )
+)
+
+;; Llama a la versión original del comando
+(defun memo:llamar-orig (cmd)
+  (eval (list (read (strcat "MEMO:ORIG-" cmd))))
+)
+
+;; memo:dentro es una variable LOCAL de memo:ejecutar-externo: por el
+;; alcance dinámico de AutoLISP, un comando llamado desde otro (MTABLA ->
+;; COP, FH -> FUSIONHATCH) la ve en T y no abre un segundo grupo. Al
+;; terminar o cancelar, AutoLISP la devuelve sola a nil.
+(defun memo:ejecutar (cmd)
+  (if memo:dentro
+    (memo:llamar-orig cmd)
+    (memo:ejecutar-externo cmd)
+  )
+)
+
+(defun memo:ejecutar-externo (cmd / *error* memo:dentro vars doc res)
+  (setq memo:dentro T
+        doc (memo:doc)
+        vars (memo:guardar-vars))
+  ;; Si la vez anterior el comando terminó por su propio manejador de
+  ;; errores, el grupo de Deshacer quedó abierto: cerrarlo ahora.
+  (if memo:*marca-abierta*
+    (vl-catch-all-apply 'vla-EndUndoMark (list doc)))
+  (defun *error* (msg)
+    (memo:restaurar-vars vars)
+    (vl-catch-all-apply 'vla-EndUndoMark (list doc))
+    (setq memo:*marca-abierta* nil)
+    (if (not (wcmatch (strcase msg) "*CANCEL*,*QUIT*,*EXIT*,*BREAK*,*SALIR*,*ABORT*,*QUITAR*"))
+      (princ (strcat "\nError en " cmd ": " msg)))
+    (princ)
+  )
+  (vl-catch-all-apply 'vla-StartUndoMark (list doc))
+  (setq memo:*marca-abierta* T)
+  (setq res (memo:llamar-orig cmd))
+  (vl-catch-all-apply 'vla-EndUndoMark (list doc))
+  (setq memo:*marca-abierta* nil)
+  res
+)
+
+;; Envuelve los comandos de un archivo recién cargado (una sola vez)
+(defun memo:envolver (cmds / sym)
+  (if (/= (strcase (memo:cfg "DESHACER_AGRUPADO")) "NO")
+    (foreach cmd cmds
+      (setq sym (read (strcat "C:" cmd)))
+      (if (and (eval sym)
+               (not (member cmd memo:*envueltos*))
+               (not (and memo:es-stub-p (memo:es-stub-p cmd))))
+        (progn
+          (set (read (strcat "MEMO:ORIG-" cmd)) (eval sym))
+          (eval (list 'defun sym nil (list 'memo:ejecutar cmd)))
+          (setq memo:*envueltos* (cons cmd memo:*envueltos*))
+        )
+      )
+    )
+  )
 )
 
 (princ)

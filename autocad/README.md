@@ -17,6 +17,15 @@ Rutinas LISP para estimaciones, secciones, topografía y batimetría, con **inst
 
 Para actualizar, vuelve a ejecutar `INSTALAR.bat`; tu configuración se conserva. Funciona con AutoCAD 2015–2026, Civil 3D y Map.
 
+## Novedades 2.2
+
+* **COP, ASI y CSSA toman solos lo copiado en Excel.** Escribes `COP`, eliges el punto y la tabla se dibuja, sin Ctrl+V ni Enter. Si lo copiado no tiene las columnas que espera la tabla, te avisa antes de dibujar.
+* **Un solo `U` deshace todo lo que hizo cualquier comando MEMO**: una tabla completa, varios rectángulos RS, etc.
+* **Cancelar con ESC ya no deja AutoCAD desconfigurado**: se restauran OSMODE, capa, estilo de texto, REGENMODE y otras variables. Esto aplica a todos los comandos.
+* **`CTX`** propone como texto nuevo lo que tengas copiado (Enter = usarlo).
+* Se corrigieron mensajes de carga que anunciaban comandos que no existen (EXPORCOOR, LVA, AG, ClonLayout, CLIPIMAGE_RECT, EliminarLayouts, HA3).
+* Ambos comportamientos nuevos se pueden apagar en `MEMO_CONFIG`.
+
 ## Novedades 2.1
 
 * **Las tablas COP, ASI y CSSA leen el portapapeles**: copias en Excel, ejecutas el comando y eliges el punto. Ya no hay que pegar y presionar Enter dos veces.

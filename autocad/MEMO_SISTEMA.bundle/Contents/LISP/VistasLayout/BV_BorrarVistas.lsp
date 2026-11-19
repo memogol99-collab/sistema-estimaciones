@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.2.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_VistasLayout/Borrar Vistas ( BV ).lsp
 ;;; Parches aplicados: prefijo:bv
 
@@ -174,5 +174,5 @@
   (if (distof str) T nil)
 )
 
-(princ "\nRutina LVA cargada. Escribe LVA para listar y administrar VISTAS GUARDADAS.")
+(princ "\nComando BV cargado. Escribe BV para listar y administrar VISTAS GUARDADAS.")
 (princ)

@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.2.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Topografia/Exportar_Coord_POL ( X-Y ).lsp
 ;;; Parches aplicados: getfiled-c
 
@@ -80,5 +80,5 @@
   (princ)
 )
 
-(princ "\n=== Rutina cargada. Ejecute EXPORCOOR para comenzar. ===")
+(princ "\n=== Rutina cargada. Ejecute X-Y para comenzar. ===")
 (princ)

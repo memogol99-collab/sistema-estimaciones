@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.2.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Topografia/CLIPIT.LSP
 
 (defun C:CLIPIT ()
@@ -38,5 +38,5 @@
   (princ)
 )
 
-(princ "\nComando CLIPIMAGE_RECT cargado. Escribe CLIPIMAGE_RECT para ejecutar.")
+(princ "\nComando CLIPIT cargado. Escribe CLIPIT para ejecutar.")
 (princ)

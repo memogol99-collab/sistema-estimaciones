@@ -1,6 +1,6 @@
-;;; MEMO SISTEMA 2.1.1 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.2.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/Conceptos Obras Publicas ( COP ).lsp
-;;; Parches aplicados: prefijo:cop, portapapeles, cfg-cop
+;;; Parches aplicados: prefijo:cop, portapapeles:5, cfg-cop
 
 ;; ============================================================
 ;; SISTEMA COP5 - TABLAS DE 5 COLUMNAS (con Arial)
@@ -119,7 +119,7 @@
       
       ;; OBTENER DATOS
       
-      (setq entradaCompleta (memo:leer-datos-tabla))
+      (setq entradaCompleta (memo:leer-datos-tabla 5))
       
       (if (/= entradaCompleta "")
         (progn
@@ -450,7 +450,7 @@
 (princ "\n   Fuente Arial en todos los textos              ")
 (princ "\n==================================================")
 (princ "\nCOMANDOS:")
-(princ "\n  COP5 - Crear tabla completa (5 columnas)")
+(princ "\n  COP  - Crear tabla completa (5 columnas)")
 (princ "\n  LIMPIARTABLA - Limpiar capas")
 (princ "\n==================================================")
 (princ)
