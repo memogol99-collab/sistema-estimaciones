@@ -1,4 +1,4 @@
-# Lista de pruebas - MEMO SISTEMA 2.2.0
+# Lista de pruebas - MEMO SISTEMA 2.3.0
 
 > Archivo generado por `herramientas/construir_bundle.py`, a partir de `catalogo.py`.
 > Imprime esta lista o cópiala a Excel y marca cada prueba.
@@ -10,7 +10,20 @@
 3. Escribe `MEMO_VERIFICAR` y presiona Enter: al final debe decir **Todo correcto**.
    Si aparece *ERROR AL CARGAR* o *NO DEFINIDO*, copia ese texto y envíamelo.
 
-## 1. Lo nuevo en 2.2 (probar primero)
+## 1. Lo nuevo en 2.3: malla de puntos (probar primero)
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| 1 | En tu dibujo con curvas de nivel: `MLL` con la misma separación de siempre | Dice *Metodo: ENTRECURVAS*; la malla **cubre todo el espacio entre curvas, sin huecos**, y las Z cambian de forma pareja de una curva a la siguiente (sin escalones pegados a cada curva) | |
+| 2 | Revisa 3 o 4 puntos a la mitad entre dos curvas (ej. 100 y 101) | Su Z es ≈ 100.50; cerca de la curva de 100, ≈ 100.1 | |
+| 3 | Curvas muy separadas (más de 20 m) | Ya no quedan franjas vacías entre ellas | |
+| 4 | Cima de un cerro o fondo de una hondonada | Toma la Z de la última curva (plano), sin huecos | |
+| 5 | `MEMO_CONFIG` → *Malla de puntos* = `IDW` → `MLL` | Sale igual que antes, para comparar | |
+| 6 | Batimetría con Z negativas y etiquetas a 2 decimales | Redondea bien (−1.234 → −1.23; antes daba −1.22) | |
+| 7 | Batimetría con curva de nivel 0: `MEMO_CONFIG` → *usar curvas con elevación 0* = `SI` | La curva 0 se toma en cuenta (antes se ignoraba siempre) | |
+| 8 | Compara el tiempo con la versión anterior en el mismo dibujo | Igual o más rápido (en las pruebas fue unas 9 veces más rápido) | |
+
+## 1b. Versión 2.2
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
@@ -28,7 +41,7 @@
 | 12 | `MEMO_CONFIG` → *Tablas: tomar datos del portapapeles* = `PREGUNTAR` → `COP` | Vuelve a preguntar antes de usar lo copiado | |
 | 13 | `MEMO_CONFIG` → *Un solo Deshacer...* = `NO` → abre otro dibujo → `COP` → `U` | Deshace paso por paso, como antes (sirve si algún comando se comportara raro) | |
 
-## 1b. De la versión 2.1
+## 1c. Versión 2.1
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
@@ -97,7 +110,7 @@ Una prueba rápida por comando: ejecútalo en `Ejercicio COMANDOS NUEVOS.dwg` y 
 |---|---|---|---|
 | Puntos | `ICE` | Importa puntos desde TXT/CSV/XYZ con capas y etiquetas. | |
 | Puntos | `PCC` | Clasifica puntos y textos de CivilCAD en capas. | |
-| Puntos | `MALLA-PUNTOS` | Genera malla de puntos por IDW con coloreo y etiquetas. | |
+| Puntos | `MALLA-PUNTOS` | Genera malla de puntos interpolando entre curvas de nivel, con coloreo y etiquetas. | |
 | Puntos | `UPP` | Une puntos con una polilínea. | |
 | Puntos | `UPPA` | UPP con referencia a objetos automática (nodo, punto medio, intersección). | |
 | Puntos | `PIT` | Convierte '-18 36' en '-18.36' y crea puntos en el punto de inserción. | |

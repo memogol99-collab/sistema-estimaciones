@@ -320,6 +320,35 @@ Revisé los ~140 comandos buscando problemas comunes. Encontré dos que afectan 
 
 **Mensajes de carga corregidos:** X-Y (decía EXPORCOOR), BV (LVA), GV (AG), CLO (ClonLayout), SL (EliminarLayouts/EL), CLIPIT (CLIPIMAGE_RECT), COP (COP5), AM2 (anunciaba un HA3 que no existe) y CTX (decía CTE).
 
+## 4c. Malla de puntos (versión 2.3)
+
+**Problema reportado:** la malla no rellenaba bien entre las curvas de nivel.
+
+**Causa** (MALLA-PUNTOS v4.7): cada punto promediaba con IDW (peso 1/d²) las curvas cuyo rectángulo envolvente, ampliado 10 m, contenía el punto. Esto provocaba:
+1. **Escalones:** la curva más cercana dominaba el promedio. Entre 100 y 101 los puntos quedaban en ~100.0x hasta casi la mitad y luego saltaban.
+2. **Huecos:** con curvas separadas más de ~20 m, los puntos intermedios no tenían curva "cercana" y no se creaban. En la prueba con curvas cada 30 m quedó vacío el 27 % de la malla.
+3. **Contaminación:** curvas largas o cerradas tienen un rectángulo enorme, así que curvas de otros niveles entraban en el promedio.
+
+**Solución** (`fuente/MEMO_MallaInterp.lsp`, se agrega al archivo de la malla al construir):
+* Para cada punto se busca la **curva más cercana** (z1, d1) y la **más cercana del otro lado con otra elevación** (z2, d2). Que esté "del otro lado" se comprueba con el producto punto de las direcciones hacia cada curva.
+* Se interpola linealmente: **z = z1 + (z2 − z1) · d1 / (d1 + d2)**. En cimas, fondos y bordes, donde no hay curva del otro lado, se usa z1.
+* Se mide la distancia a los **segmentos** de las curvas, y un **índice por celdas** evita revisar todas las curvas en cada punto. El radio de búsqueda se calcula solo (3 × la separación típica entre curvas) o se fija en `MEMO_CONFIG`.
+
+**Verificación** (`python herramientas/probar_malla.py`, que ejecuta el AutoLISP real con un intérprete de prueba):
+
+| Terreno | Método nuevo: error medio / máx. | IDW anterior: error medio / máx. | Puntos sin valor (nuevo / anterior) |
+|---|---|---|---|
+| Cono, curvas cada 10 m | 0.004 / 0.009 m | 0.120 / 0.301 m | 0 / 0 |
+| Plano, curvas cada 30 m | 0.000 / 0.000 m | 0.273 / 0.500 m | 0 / **200 de 750** |
+| Ladera ondulada | 0.010 / 0.021 m | 0.127 / 0.309 m | 0 / 0 |
+| Batimetría (Z negativas) | 0.004 / 0.008 m | 0.123 / 0.292 m | 0 / 0 |
+
+En un terreno de 500 × 500 m con 4,400 vértices, el método nuevo fue además **unas 9 veces más rápido**.
+
+**También corregido:**
+* El redondeo de Z negativas: −1.234 daba −1.22.
+* Las curvas de elevación 0 se ignoraban siempre; ahora se pueden usar con `MALLA_CURVA_CERO = SI`, útil en batimetría.
+
 ## 5. Tabla de equivalencias de archivos
 
 | Original | Nuevo (Contents/LISP/…) | Comandos |

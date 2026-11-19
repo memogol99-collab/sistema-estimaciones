@@ -1,5 +1,5 @@
 ;;; =====================================================================
-;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.2.0
+;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.3.0
 ;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
 ;;;
 ;;;  Un solo cargador para todos los LISP. NO carga los 55 archivos al
@@ -12,7 +12,7 @@
 
 (if (not memo:cargado)
   (progn
-    (setq memo:version "2.2.0")
+    (setq memo:version "2.3.0")
     (setq memo:raiz (findfile "MEMO_Cargador.lsp"))
     (if memo:raiz
       (setq memo:raiz (vl-string-translate "\\" "/" (vl-filename-directory memo:raiz))))
@@ -38,6 +38,9 @@
       ("ASI_ANCHO_IMPORTE" "1.9849" "ASI: ancho Importe" "NUM" "")
       ("CSSA_ANCHO_TOTAL" "24.0964" "CSSA: ancho total de la tabla" "NUM" "")
       ("BACHEO_ESPESOR" "0.10" "Bacheo: espesor para volumen en EXR (m)" "NUM" "")
+      ("MALLA_METODO" "ENTRECURVAS" "Malla de puntos: ENTRECURVAS (nuevo) o IDW (anterior)" "TXT" "ENTRECURVAS,IDW")
+      ("MALLA_RADIO" "0" "Malla: distancia máx. de búsqueda (0 = automática)" "NUM" "")
+      ("MALLA_CURVA_CERO" "NO" "Malla: usar curvas con elevación 0 (SI para batimetría)" "TXT" "SI,NO")
       ("TABLA_ULTIMO" "Obras" "MTABLA: último formato usado" "TXT" "")
       ("AREA_ULTIMO" "Prefijo" "MAREA: última opción usada" "TXT" "")
     ))
@@ -221,7 +224,7 @@
   (princ "\n  -- Puntos")
   (princ "\n   ICE              Importa puntos desde TXT/CSV/XYZ con capas y etiquetas.")
   (princ "\n   PCC              Clasifica puntos y textos de CivilCAD en capas.")
-  (princ "\n   MALLA-PUNTOS     Genera malla de puntos por IDW con coloreo y etiquetas.")
+  (princ "\n   MALLA-PUNTOS     Genera malla de puntos interpolando entre curvas de nivel, con coloreo y etiquetas.")
   (princ "\n   UPP              Une puntos con una polilínea.")
   (princ "\n   UPPA             UPP con referencia a objetos automática (nodo, punto medio, intersección).")
   (princ "\n   PIT              Convierte '-18 36' en '-18.36' y crea puntos en el punto de inserción.")

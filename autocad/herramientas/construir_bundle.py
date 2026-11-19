@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import catalogo as cat  # noqa: E402
 import iconos  # noqa: E402
 
-VERSION = "2.2.0"
+VERSION = "2.3.0"
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(AQUI)                       # autocad/
 ORIG = os.path.join(BASE, "originales", "MEMO_SISTEMA")
@@ -188,6 +188,27 @@ def aplicar_parches(texto, parches, nombre, bitacora):
             if n != 1:
                 raise SystemExit("Parche corm-princ fallido")
             bitacora.append("  - mensaje de carga: princ con varios textos (error al cargar) -> princ + strcat")
+        elif p == "malla-entrecurvas":
+            anexo, _ = leer_fuente("@fuente/MEMO_MallaInterp.lsp")
+            texto = anexo + "\r\n" + texto
+            texto, n = re.subn(r'\(setq sum_w 0\.0 sum_we 0\.0 pt \(list gx gy\)\).*?\(setq gz \(/ sum_we sum_w\)\)',
+                               '(setq pt (list gx gy))\r\n              (setq gz (mpi:elevacion pt prepared-curves power))\r\n'
+                               '              (if gz\r\n                (progn', texto, count=1, flags=re.S)
+            if n != 1:
+                raise SystemExit("Parche malla-entrecurvas (bucle) fallido")
+            texto = reemplazar(texto, "(setq prepared-curves (mp-prepare-curves contour-data))",
+                               "(setq prepared-curves (mp-prepare-curves contour-data))\r\n"
+                               "              (princ (strcat \"\\nMetodo: \" (mpi:metodo) \" (cambiar con MEMO_CONFIG)\"))\r\n"
+                               "              (mpi:preparar contour-data)", nombre)
+            texto = reemplazar(texto, "(/= (cdr (assoc 38 edata-cont)) 0.0)",
+                               '(or (/= (cdr (assoc 38 edata-cont)) 0.0) (= (strcase (memo:cfg "MALLA_CURVA_CERO")) "SI"))', nombre)
+            texto, n = re.subn(r'\(\* \(fix \(\+ \(\* gz \(expt 10\.0 decimals\)\) 0\.5\)\)\s*\(/ 1\.0 \(expt 10\.0 decimals\)\)\)',
+                               '(/ (fix (+ (* gz (expt 10.0 decimals)) (if (< gz 0.0) -0.5 0.5))) (expt 10.0 decimals))', texto)
+            if n != 1:
+                raise SystemExit("Parche malla-entrecurvas (redondeo) fallido")
+            texto = reemplazar(texto, "MALLA DE PUNTOS POR INTERPOLACION IDW - v4.7", "MALLA DE PUNTOS v4.7 + MEMO (entre curvas)", nombre)
+            bitacora.append("  - interpolación ENTRE CURVAS (lineal entre la curva más cercana y la del otro lado) con índice espacial; IDW opcional")
+            bitacora.append("  - redondeo correcto de elevaciones negativas (batimetría)")
         elif p == "quitar-mp":
             texto = reemplazar(texto, "(defun c:MP  () (c:MALLA-PUNTOS))", ";; MP eliminado: chocaba con EMPALME (acad.pgp). Use MLL.", nombre)
             bitacora.append("  - alias MP eliminado (era EMPALME en tu acad.pgp); queda MLL")
@@ -819,7 +840,20 @@ PRUEBAS_CABECERA = """# Lista de pruebas - MEMO SISTEMA @VERSION@
 3. Escribe `MEMO_VERIFICAR` y presiona Enter: al final debe decir **Todo correcto**.
    Si aparece *ERROR AL CARGAR* o *NO DEFINIDO*, copia ese texto y envíamelo.
 
-## 1. Lo nuevo en 2.2 (probar primero)
+## 1. Lo nuevo en 2.3: malla de puntos (probar primero)
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| 1 | En tu dibujo con curvas de nivel: `MLL` con la misma separación de siempre | Dice *Metodo: ENTRECURVAS*; la malla **cubre todo el espacio entre curvas, sin huecos**, y las Z cambian de forma pareja de una curva a la siguiente (sin escalones pegados a cada curva) | |
+| 2 | Revisa 3 o 4 puntos a la mitad entre dos curvas (ej. 100 y 101) | Su Z es ≈ 100.50; cerca de la curva de 100, ≈ 100.1 | |
+| 3 | Curvas muy separadas (más de 20 m) | Ya no quedan franjas vacías entre ellas | |
+| 4 | Cima de un cerro o fondo de una hondonada | Toma la Z de la última curva (plano), sin huecos | |
+| 5 | `MEMO_CONFIG` → *Malla de puntos* = `IDW` → `MLL` | Sale igual que antes, para comparar | |
+| 6 | Batimetría con Z negativas y etiquetas a 2 decimales | Redondea bien (−1.234 → −1.23; antes daba −1.22) | |
+| 7 | Batimetría con curva de nivel 0: `MEMO_CONFIG` → *usar curvas con elevación 0* = `SI` | La curva 0 se toma en cuenta (antes se ignoraba siempre) | |
+| 8 | Compara el tiempo con la versión anterior en el mismo dibujo | Igual o más rápido (en las pruebas fue unas 9 veces más rápido) | |
+
+## 1b. Versión 2.2
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
@@ -837,7 +871,7 @@ PRUEBAS_CABECERA = """# Lista de pruebas - MEMO SISTEMA @VERSION@
 | 12 | `MEMO_CONFIG` → *Tablas: tomar datos del portapapeles* = `PREGUNTAR` → `COP` | Vuelve a preguntar antes de usar lo copiado | |
 | 13 | `MEMO_CONFIG` → *Un solo Deshacer...* = `NO` → abre otro dibujo → `COP` → `U` | Deshace paso por paso, como antes (sirve si algún comando se comportara raro) | |
 
-## 1b. De la versión 2.1
+## 1c. Versión 2.1
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
