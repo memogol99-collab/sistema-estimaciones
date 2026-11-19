@@ -1,6 +1,16 @@
 ;===============================================================
 ; EA - EXPORTADOR + ETIQUETADO + EXCEL
-; Versión 7.1 MEMO - Compatible con CivilCAD (restaura *error*)
+; Versión 7.2 MEMO - Compatible con CivilCAD (restaura *error*)
+;
+; Nuevo en 7.2 (MEMO SISTEMA):
+;  - Asignación por RECUADRO de sección: cada texto de área va al CAD
+;    que está dentro del mismo recuadro (polilínea cerrada); al
+;    etiquetar, sólo se buscan hatches dentro de ese recuadro.
+;  - Hoja RESUMEN en Excel: corte, corte x coeficiente de
+;    abundamiento, relleno, diferencia y CURVA MASA acumulada, más
+;    volumen total por tipo.
+;  - Tipos nuevos SUBBASE, TERRAPLEN y DESMONTE; patrones de texto y
+;    capa configurables (EA_TIPO_<TIPO>); SUBBASE ya no cuenta como BASE.
 ;
 ; Correcciones 7.1 (MEMO SISTEMA):
 ;  - El valor de área que va a Excel se toma DESPUÉS del "=" o ":".
@@ -61,10 +71,9 @@
 (if (not *haea_limite_dist*) (setq *haea_limite_dist* 50.0))
 (if (not *haea_cambiar_capa*) (setq *haea_cambiar_capa* T))
 (if (not *haea_textos_seleccionados*) (setq *haea_textos_seleccionados* nil))
-(if (not *haea_tipos_activos*) 
-  (setq *haea_tipos_activos* 
-    '("CARPETA" "CORTE" "EXCAVACION" "BASE" "SUBRASANTE" 
-      "ARENA" "NUCLEO" "CORAZA" "RELLENO" "AFINE")))
+(if (not *haea_tipos_activos*)
+  (setq *haea_tipos_activos* '("SUBBASE" "SUBRASANTE" "CARPETA" "EXCAVACION" "DESMONTE" "TERRAPLEN"
+                               "RELLENO" "CORAZA" "NUCLEO" "ARENA" "CORTE" "AFINE" "BASE")))
 
 (setq *haea_tipos_areas* '(
   ("CARPETA" ("*CARPETA*" "*ACA*" "*ASF*" "*ASFALTO*" "*CARP*"))
@@ -149,13 +158,95 @@
 )
 
 ;===============================================================
+; HOJA RESUMEN: CORTE / RELLENO / CURVA MASA (7.2)
+;   Lee la hoja VOLUMEN con fórmulas (si se corrige VOLUMEN, el
+;   resumen se recalcula). Clases configurables con MEMO_CONFIG:
+;   EA_TIPOS_CORTE, EA_TIPOS_RELLENO; coeficiente en la celda D2.
+;===============================================================
+
+;; "=SUM(VOLUMEN!X7,VOLUMEN!Y7)" o 0 si no hay columnas
+(defun ea:suma-cols (cols fila / f)
+  (if cols
+    (progn
+      (setq f (strcat "=SUM(VOLUMEN!" (car cols) (itoa fila)))
+      (foreach c (cdr cols) (setq f (strcat f ",VOLUMEN!" c (itoa fila))))
+      (strcat f ")"))
+    0))
+
+(defun ea:hoja-resumen (excel_wb tipos num_tipos fini ffin ftotal
+                        / ws cortes rellenos cols_c cols_r k col f r ultima fila_t)
+  (setq ws (vlax-invoke-method (vlax-get-property excel_wb 'Worksheets) 'Add))
+  (vlax-put-property ws 'Name "RESUMEN")
+  (setq cortes (ea:split (strcase (ea:cfg-txt "EA_TIPOS_CORTE" "CORTE,EXCAVACION,DESMONTE")) ",")
+        rellenos (ea:split (strcase (ea:cfg-txt "EA_TIPOS_RELLENO" "RELLENO,TERRAPLEN,NUCLEO,CORAZA,SUBRASANTE")) ",")
+        k 0)
+  ;; columnas de VOLUMEN de cada clase
+  (foreach tp tipos
+    (setq col (numero-a-letra (+ 3 (* 2 num_tipos) k)) k (1+ k))
+    (if (member tp cortes) (setq cols_c (append cols_c (list col))))
+    (if (member tp rellenos) (setq cols_r (append cols_r (list col)))))
+  (excel-set ws 1 1 "RESUMEN DE VOLÚMENES Y CURVA MASA")
+  (excel-set ws 2 1 "Coeficiente de abundamiento del corte:")
+  (excel-set ws 2 4 (ea:cfg-num "EA_COEF_ABUND" 1.0))
+  (excel-set ws 4 1 "CAD")
+  (excel-set ws 4 2 "VOL. CORTE")
+  (excel-set ws 4 3 "CORTE x COEF.")
+  (excel-set ws 4 4 "VOL. RELLENO")
+  (excel-set ws 4 5 "DIFERENCIA")
+  (excel-set ws 4 6 "CURVA MASA (acumulado)")
+  ;; una fila por CAD
+  (setq r fini f 5)
+  (while (<= r ffin)
+    (excel-set ws f 1 (strcat "=VOLUMEN!A" (itoa r)))
+    (excel-set ws f 2 (ea:suma-cols cols_c r))
+    (excel-set ws f 3 (strcat "=B" (itoa f) "*$D$2"))
+    (excel-set ws f 4 (ea:suma-cols cols_r r))
+    (excel-set ws f 5 (strcat "=C" (itoa f) "-D" (itoa f)))
+    (excel-set ws f 6 (if (= f 5) "=E5" (strcat "=F" (itoa (1- f)) "+E" (itoa f))))
+    (setq r (1+ r) f (1+ f)))
+  (setq ultima (1- f))
+  (excel-set ws f 1 "TOTAL")
+  (foreach c '("B" "C" "D" "E")
+    (excel-set ws f (1+ (- (ascii c) (ascii "A"))) (strcat "=SUM(" c "5:" c (itoa ultima) ")")))
+  (excel-formato ws 1 1 1 6 (list (list 'bold 1) (list 'size 14) (list 'color 16777215)
+                                  (list 'bg 12238897) (list 'halign -4108) (list 'merge T)))
+  (excel-formato ws 4 1 4 6 (list (list 'bold 1) (list 'color 16777215) (list 'bg 12238897) (list 'halign -4108)))
+  (excel-formato ws 4 1 f 6 (list (list 'borders 2)))
+  (excel-formato ws f 1 f 6 (list (list 'bold 1) (list 'bg 16248831)))
+  (excel-formato ws 2 4 2 4 (list (list 'bold 1) (list 'bg 10092543)))
+  ;; volumen total por tipo y su clase
+  (setq fila_t (+ f 3) k 0)
+  (excel-set ws (1- fila_t) 1 "VOLUMEN POR TIPO")
+  (excel-set ws fila_t 1 "TIPO")
+  (excel-set ws fila_t 2 "VOLUMEN")
+  (excel-set ws fila_t 3 "CLASE")
+  (foreach tp tipos
+    (setq fila_t (1+ fila_t))
+    (excel-set ws fila_t 1 tp)
+    (excel-set ws fila_t 2 (strcat "=VOLUMEN!" (numero-a-letra (+ 3 (* 2 num_tipos) k)) (itoa ftotal)))
+    (excel-set ws fila_t 3 (cond ((member tp cortes) "CORTE") ((member tp rellenos) "RELLENO") (T "-")))
+    (setq k (1+ k)))
+  (excel-formato ws (- fila_t (length tipos)) 1 (- fila_t (length tipos)) 3
+                 (list (list 'bold 1) (list 'color 16777215) (list 'bg 12238897)))
+  (excel-formato ws (- fila_t (length tipos)) 1 fila_t 3 (list (list 'borders 2)))
+  (vl-catch-all-apply
+    '(lambda ()
+       (vlax-put-property (vlax-get-property ws 'Range (strcat "B5:F" (itoa f))) 'NumberFormat "0.00")
+       (vlax-put-property (vlax-get-property ws 'Range (strcat "B" (itoa (- fila_t (length tipos))) ":B" (itoa fila_t))) 'NumberFormat "0.00")
+       (vlax-put-property (vlax-get-property ws 'Range "D2") 'NumberFormat "0.00")))
+  (excel-ancho-col ws 1 14)
+  (foreach c '(2 3 4 5) (excel-ancho-col ws c 15))
+  (excel-ancho-col ws 6 22)
+  ws)
+
+;===============================================================
 ; DCL EMBEBIDO
 ;===============================================================
-(defun escribir-dcl-embebido (/ f ruta)
+(defun escribir-dcl-embebido (/ f ruta lst)
   (setq ruta (strcat (getenv "TEMP") "\\haea_temp.dcl"))
   (setq f (open ruta "w"))
   (write-line "haea_dialog : dialog {" f)
-  (write-line "  label = \"EA v7.1 MEMO\";" f)
+  (write-line "  label = \"EA v7.2 MEMO\";" f)
   (write-line "  : boxed_radio_column {" f)
   (write-line "    label = \"Accion\";" f)
   (write-line "    key = \"accion\";" f)
@@ -171,26 +262,15 @@
   (write-line "  }" f)
   (write-line "  : boxed_column {" f)
   (write-line "    label = \"Tipo de Areas a Procesar\";" f)
-  (write-line "    : row {" f)
-  (write-line "      : toggle { label = \"Carpeta\"; key = \"tipo_CARPETA\"; value = \"1\"; }" f)
-  (write-line "      : toggle { label = \"Arena\"; key = \"tipo_ARENA\"; value = \"1\"; }" f)
-  (write-line "    }" f)
-  (write-line "    : row {" f)
-  (write-line "      : toggle { label = \"Corte\"; key = \"tipo_CORTE\"; value = \"1\"; }" f)
-  (write-line "      : toggle { label = \"Nucleo\"; key = \"tipo_NUCLEO\"; value = \"1\"; }" f)
-  (write-line "    }" f)
-  (write-line "    : row {" f)
-  (write-line "      : toggle { label = \"Excavacion\"; key = \"tipo_EXCAVACION\"; value = \"1\"; }" f)
-  (write-line "      : toggle { label = \"Coraza\"; key = \"tipo_CORAZA\"; value = \"1\"; }" f)
-  (write-line "    }" f)
-  (write-line "    : row {" f)
-  (write-line "      : toggle { label = \"Base\"; key = \"tipo_BASE\"; value = \"1\"; }" f)
-  (write-line "      : toggle { label = \"Relleno\"; key = \"tipo_RELLENO\"; value = \"1\"; }" f)
-  (write-line "    }" f)
-  (write-line "    : row {" f)
-  (write-line "      : toggle { label = \"Subrasante\"; key = \"tipo_SUBRASANTE\"; value = \"1\"; }" f)
-  (write-line "      : toggle { label = \"Afine\"; key = \"tipo_AFINE\"; value = \"1\"; }" f)
-  (write-line "    }" f)
+  (setq lst ea:*tipos*)
+  (while lst
+    (write-line "    : row {" f)
+    (foreach tp (list (car lst) (cadr lst))
+      (if tp
+        (write-line (strcat "      : toggle { label = \"" (ea:nombre-tipo tp)
+                            "\"; key = \"tipo_" tp "\"; value = \"1\"; width = 18; }") f)))
+    (write-line "    }" f)
+    (setq lst (cddr lst)))
   (write-line "  }" f)
   (write-line "  : boxed_column {" f)
   (write-line "    label = \"Opciones de Etiquetado\";" f)
@@ -228,6 +308,7 @@
     (princ)
   )
   
+  (ea:cargar-patrones)
   (setq dcl_file (escribir-dcl-embebido))
   (setq dcl_id (load_dialog dcl_file))
   
@@ -307,8 +388,7 @@
     (setq modo "Manual"))
   
   (setq tipos '())
-  (foreach tipo '("CARPETA" "CORTE" "EXCAVACION" "BASE" "SUBRASANTE" 
-                  "ARENA" "NUCLEO" "CORAZA" "RELLENO" "AFINE")
+  (foreach tipo ea:*tipos*
     (if (= (get_tile (strcat "tipo_" tipo)) "1")
       (setq tipos (cons tipo tipos))
     )
@@ -401,11 +481,155 @@
   (and *haea_usar_filtro_capas* capa
        (member (strcase capa) (mapcar 'strcase *haea_capas_ignorar*))))
 
+;; ---------------------------------------------------------------
+;; TIPOS DE ÁREA (7.2)
+;; Orden = prioridad: los más específicos primero (SUBBASE antes que
+;; BASE). Cada tipo se reconoce en el TEXTO y en la CAPA del hatch con
+;; el mismo patrón, configurable con MEMO_CONFIG (EA_TIPO_<TIPO>).
+;; ---------------------------------------------------------------
+(setq ea:*tipos-def* '(
+  ("SUBBASE"    "*SUBBASE*,*SUB-BASE*,*SUB BASE*")
+  ("SUBRASANTE" "*SUBRASANTE*,*SUB-RASANTE*")
+  ("CARPETA"    "*CARPETA*")
+  ("EXCAVACION" "*EXCAVACION*,*EXCAVACIÓN*")
+  ("DESMONTE"   "*DESMONTE*")
+  ("TERRAPLEN"  "*TERRAPLEN*,*TERRAPLÉN*")
+  ("RELLENO"    "*RELLENO*")
+  ("CORAZA"     "*CORAZA*")
+  ("NUCLEO"     "*NUCLEO*,*NÚCLEO*")
+  ("ARENA"      "*ARENA*")
+  ("CORTE"      "*CORTE*")
+  ("AFINE"      "*AFINE*")
+  ("BASE"       "*BASE*")))
+(setq ea:*tipos* (mapcar 'car ea:*tipos-def*))
+
+;; Texto de MEMO_CONFIG (o el valor por defecto)
+(defun ea:cfg-txt (clave defecto / v)
+  (if (and memo:cfg (setq v (memo:cfg clave)) (/= v "")) v defecto))
+
+(defun ea:split (txt sep / pos res)
+  (while (setq pos (vl-string-search sep txt))
+    (setq res (cons (substr txt 1 pos) res) txt (substr txt (+ pos 1 (strlen sep)))))
+  (reverse (cons txt res)))
+
+;; Lee los patrones una vez por comando (getenv es lento en bucles)
+(defun ea:cargar-patrones ()
+  (setq ea:*patrones*
+    (mapcar '(lambda (e) (list (car e) (strcase (ea:cfg-txt (strcat "EA_TIPO_" (car e)) (cadr e)))))
+            ea:*tipos-def*)))
+
+;; Tipo de un texto o de un nombre de capa, o nil
+(defun ea:tipo-de (cadena / txt res)
+  (if (not ea:*patrones*) (ea:cargar-patrones))
+  (setq txt (strcase (ea:limpiar-mtext cadena)))
+  (foreach e ea:*patrones*
+    (if (and (not res) (wcmatch txt (cadr e))) (setq res (car e))))
+  res)
+
+;; ---------------------------------------------------------------
+;; RECUADROS DE SECCIÓN (7.2)
+;; Cada texto de área se asigna al CAD que está dentro del MISMO
+;; recuadro (polilínea cerrada) que el texto: el más pequeño que
+;; contenga al texto y a algún CAD. Si el texto no está dentro de
+;; ningún recuadro, se usa el CAD más cercano (como antes).
+;; MEMO_CONFIG: EA_ASIGNACION (RECUADRO/CERCANO), EA_CAPA_RECUADRO.
+;; ---------------------------------------------------------------
+
+;; T si (x y) está dentro del polígono verts ((x y) ...)
+(defun ea:pt-en-pol (x y verts / dentro j xi yi xj yj)
+  (setq j (last verts))
+  (foreach v verts
+    (setq xi (car v) yi (cadr v) xj (car j) yj (cadr j))
+    (if (and (/= (> yi y) (> yj y))
+             (< x (+ xi (/ (* (- xj xi) (- y yi)) (float (- yj yi))))))
+      (setq dentro (not dentro)))
+    (setq j v))
+  dentro)
+
+;; Área de un polígono (fórmula del área de Gauss)
+(defun ea:area-pol (verts / s j)
+  (setq s 0.0 j (last verts))
+  (foreach v verts
+    (setq s (+ s (- (* (car j) (cadr v)) (* (car v) (cadr j)))) j v))
+  (abs (/ s 2.0)))
+
+;; T si pt está dentro del recuadro rec
+(defun ea:en-rec (pt rec)
+  (and pt rec
+       (>= (car pt) (nth 1 rec)) (<= (car pt) (nth 3 rec))
+       (>= (cadr pt) (nth 2 rec)) (<= (cadr pt) (nth 4 rec))
+       (ea:pt-en-pol (car pt) (cadr pt) (car rec))))
+
+;; Recuadros que contienen al menos un CAD:
+;;   polis = ((x y) ...) por polilínea;  cads = lista_cads ((nombre num pos) ...)
+;;   -> ((verts xmin ymin xmax ymax area (cads dentro)) ...)
+(defun ea:recuadros-de (polis cads / res xs ys rec dentro)
+  (foreach v polis
+    (if (>= (length v) 3)
+      (progn
+        (setq xs (mapcar 'car v) ys (mapcar 'cadr v)
+              rec (list v (apply 'min xs) (apply 'min ys) (apply 'max xs) (apply 'max ys) (ea:area-pol v))
+              dentro nil)
+        (foreach c cads
+          (if (ea:en-rec (caddr c) rec) (setq dentro (cons c dentro))))
+        (if dentro (setq res (cons (append rec (list (reverse dentro))) res))))))
+  res)
+
+;; Recuadro más pequeño que contiene a pt, o nil
+(defun ea:recuadro-de (pt recs / mejor)
+  (foreach r recs
+    (if (and (ea:en-rec pt r) (or (null mejor) (< (nth 5 r) (nth 5 mejor))))
+      (setq mejor r)))
+  mejor)
+
+;; Polilíneas cerradas del dibujo (capa según EA_CAPA_RECUADRO)
+(defun ea:leer-polis (/ ss i e d capa pat v res)
+  (setq pat (strcase (ea:cfg-txt "EA_CAPA_RECUADRO" "*"))
+        ss (ssget "_X" '((0 . "LWPOLYLINE") (-4 . "&=") (70 . 1))) i 0)
+  (if ss
+    (repeat (sslength ss)
+      (setq e (ssname ss i) d (entget e) capa (strcase (cdr (assoc 8 d))) i (1+ i) v nil)
+      (if (wcmatch capa pat)
+        (progn
+          (foreach g d (if (= (car g) 10) (setq v (cons (list (cadr g) (caddr g)) v))))
+          (setq res (cons (reverse v) res))))))
+  res)
+
+;; CADs de un conjunto de textos: ((cad_limpia cad_num pos) ...) ordenados
+(defun ea:cads-de-ss (ss / i ent datos contenido pos cad_limpia cad_num res)
+  (setq i 0)
+  (if ss
+    (repeat (sslength ss)
+      (setq ent (ssname ss i) datos (entget ent)
+            contenido (cdr (assoc 1 datos)) pos (cdr (assoc 10 datos)) i (1+ i))
+      (if (and contenido
+               (not (wcmatch (strcase contenido) "*ESCALA*"))
+               (not (wcmatch (strcase contenido) "*AREA*"))
+               (wcmatch contenido "*+*")
+               (not (ea:capa-ignorada-p (cdr (assoc 8 datos)))))
+        (progn
+          (setq cad_limpia (extraer-cad-limpia (ea:limpiar-mtext contenido))
+                cad_num (if cad_limpia (cad-a-numero cad_limpia)))
+          (if (and cad_limpia cad_num pos)
+            (setq res (cons (list cad_limpia cad_num pos) res)))))))
+  (vl-sort res '(lambda (a b) (< (cadr a) (cadr b)))))
+
+;; Prepara ea:*recuadros* para el comando actual
+(defun ea:preparar-recuadros (cads)
+  (setq ea:*recuadros*
+    (if (/= (strcase (ea:cfg-txt "EA_ASIGNACION" "RECUADRO")) "CERCANO")
+      (ea:recuadros-de (ea:leer-polis) cads)))
+  (princ (strcat "\n[OK] Recuadros de sección con CAD: " (itoa (length ea:*recuadros*))
+                 (if ea:*recuadros* "" " (se usa el CAD más cercano)"))))
+
+;; Nombre para mostrar: "SUBBASE" -> "Subbase"
+(defun ea:nombre-tipo (tipo)
+  (strcat (substr tipo 1 1) (strcase (substr tipo 2) T)))
+
 ;; T si el tipo está desmarcado en el cuadro de diálogo de EA
 (defun ea:tipo-excluido-p (tipo)
   (and tipo
-       (member tipo '("CARPETA" "CORTE" "EXCAVACION" "BASE" "SUBRASANTE"
-                      "ARENA" "NUCLEO" "CORAZA" "RELLENO" "AFINE"))
+       (member tipo ea:*tipos*)
        (not (member tipo *haea_tipos_activos*))))
 
 ;===============================================================
@@ -526,23 +750,8 @@
         (setq area (abs (/ suma 2.0))))))
   area)
 
-(defun extraer-tipo-de-texto (texto / txt_upper resultado)
-  (setq txt_upper (strcase (ea:limpiar-mtext texto)) resultado nil)
-  (cond
-    ((wcmatch txt_upper "*CARPETA*") (setq resultado "CARPETA"))
-    ((wcmatch txt_upper "*EXCAVACION*") (setq resultado "EXCAVACION"))
-    ((wcmatch txt_upper "*EXCAVACIÓN*") (setq resultado "EXCAVACION"))
-    ((wcmatch txt_upper "*SUBRASANTE*") (setq resultado "SUBRASANTE"))
-    ((wcmatch txt_upper "*TERRAPLEN*") (setq resultado "TERRAPLEN"))
-    ((wcmatch txt_upper "*RELLENO*") (setq resultado "RELLENO"))
-    ((wcmatch txt_upper "*CORAZA*") (setq resultado "CORAZA"))
-    ((wcmatch txt_upper "*NUCLEO*") (setq resultado "NUCLEO"))
-    ((wcmatch txt_upper "*ARENA*") (setq resultado "ARENA"))
-    ((wcmatch txt_upper "*CORTE*") (setq resultado "CORTE"))
-    ((wcmatch txt_upper "*AFINE*") (setq resultado "AFINE"))
-    ((wcmatch txt_upper "*DESMONTE*") (setq resultado "DESMONTE"))
-    ((wcmatch txt_upper "*BASE*") (setq resultado "BASE")))
-  resultado)
+(defun extraer-tipo-de-texto (texto)
+  (ea:tipo-de texto))
 
 ;; Reemplaza el número del área (después del último "=" o ":") por nuevo_valor,
 ;; sin tocar los códigos de formato del MTEXT.
@@ -590,9 +799,9 @@
                                 tipo_texto area_hatch
                                 ss_todo tipo_ent contador_hatchs
                                 lista_textos_actualizada datos_actualizados
-                                contenido_actualizado lista_textos contenido capa)
+                                contenido_actualizado lista_textos contenido capa rec)
   
-  (princ "\n\n=== ETIQUETADO v7.0 ===")
+  (princ "\n\n=== ETIQUETADO v7.2 ===")
   (princ (strcat "\nAlcance: " modo))
   (princ (strcat "\nMover etiquetas a capa HATCH: " 
                  (if *haea_cambiar_capa* "SI" "NO")))
@@ -649,7 +858,8 @@
       (princ (strcat "\n[OK] HATCHs: " (itoa contador_hatchs)))
       
       (if (or (not lista_textos) (= contador_hatchs 0)) 
-        (setq ok nil))
+        (setq ok nil)
+        (ea:preparar-recuadros (ea:cads-de-ss (ssget "_X" '((0 . "TEXT,MTEXT"))))))
     )
   )
   
@@ -663,6 +873,7 @@
               texto_capa (nth 3 texto_item))
         
         (setq tipo_texto (extraer-tipo-de-texto contenido_texto))
+        (setq rec (ea:recuadro-de pos_texto ea:*recuadros*))   ; recuadro de la sección
         (setq mejor_dist 1e308 capa_hatch nil area_hatch nil)
         
         (setq j 0)
@@ -670,11 +881,11 @@
           (setq hatch_ent (ssname ss_hatch j))
           (setq hatch_capa (cdr (assoc 8 (entget hatch_ent))))
           (setq hatch_capa_upper (strcase hatch_capa))
-          (if (and tipo_texto (wcmatch hatch_capa_upper (strcat "*" tipo_texto "*")))
+          (if (and tipo_texto (= (ea:tipo-de hatch_capa) tipo_texto))
             (progn
               (setq hatch_obj (vlax-ename->vla-object hatch_ent))
               (setq pos_hatch (obtener-centro-hatch hatch_ent))
-              (if (and pos_hatch pos_texto)
+              (if (and pos_hatch pos_texto (or (null rec) (ea:en-rec pos_hatch rec)))
                 (progn
                   (setq dist (distance pos_texto pos_hatch))
                   (if (< dist mejor_dist)
@@ -683,7 +894,7 @@
                           area_hatch (obtener-area-hatch hatch_ent)))))))
           (setq j (1+ j)))
         
-        (if (and area_hatch (<= mejor_dist limite_dist))
+        (if (and area_hatch (or rec (<= mejor_dist limite_dist)))
           (progn
             (setq texto_datos (entget ent_texto))
             (setq texto_original (cdr (assoc 1 texto_datos)))
@@ -745,7 +956,7 @@
                         fila col fila_inicio fila_fin
                         num_cads num_tipos valor_area
                         cad_anterior num_actual num_anterior dist_actual
-                        usar_seleccion old_err pos_texto nueva_lista col_total)
+                        usar_seleccion old_err pos_texto nueva_lista col_total rec)
   
   (setq old_err *error*)
   (defun *error* (msg)
@@ -756,7 +967,8 @@
     (princ)
   )
   
-  (princ "\n\n=== EXPORTACION A EXCEL v7.0 ===")
+  (ea:cargar-patrones)
+  (princ "\n\n=== EXPORTACION A EXCEL v7.2 ===")
   
   (setq usar_seleccion 
         (and (= *haea_ultimo_modo* "Manual")
@@ -797,6 +1009,7 @@
   
   (if (= lista_cads nil)
     (progn (princ "\n[!] No se encontraron CADs.") (setq *error* old_err) (exit)))
+  (ea:preparar-recuadros lista_cads)
   
   (if usar_seleccion
     (progn
@@ -826,7 +1039,8 @@
   (foreach texto_item lista_textos_area
     (setq pos_texto (cadr texto_item) contenido (caddr texto_item))
     (setq mejor_cad nil mejor_dist 1e308)
-    (foreach cad lista_cads
+    ;; dentro del recuadro de la sección, sólo sus CADs; si no, todos
+    (foreach cad (if (setq rec (ea:recuadro-de pos_texto ea:*recuadros*)) (nth 6 rec) lista_cads)
       (setq dist (distance (caddr cad) pos_texto))
       (if (< dist mejor_dist)
         (setq mejor_dist dist mejor_cad cad)))
@@ -986,6 +1200,11 @@
   (excel-ancho-col excel_ws 1 12)
   (excel-ancho-col excel_ws 2 10)
   
+  (princ "\nCreando hoja RESUMEN (corte, relleno, curva masa)...")
+  (if (vl-catch-all-error-p
+        (vl-catch-all-apply 'ea:hoja-resumen
+          (list excel_wb tipos_detectados num_tipos fila_inicio fila_fin fila)))
+    (princ "\n[!] No se pudo crear la hoja RESUMEN (la hoja VOLUMEN sí está completa)."))
   (vl-catch-all-apply 'vlax-invoke-method (list excel_wb 'SaveAs archivo))
   
   (princ (strcat "\n\n[OK] Archivo: " archivo))
@@ -1013,6 +1232,7 @@
   )
   
   (vl-load-com)
+  (ea:cargar-patrones)
   (princ "\n=== HA RAPIDO ===")
   (setq hatch_ent (car (entsel "\nHATCH: ")))
   (if (and hatch_ent (= (cdr (assoc 0 (entget hatch_ent))) "HATCH"))
@@ -1050,7 +1270,7 @@
 ; MENSAJE DE CARGA
 ;===============================================================
 (princ "\n==========================================")
-(princ "\n  EA v7.1 MEMO - Compatible con CivilCAD")
+(princ "\n  EA v7.2 MEMO - Compatible con CivilCAD")
 (princ "\n==========================================")
 (princ "\n  EA          -> Interfaz completa (etiquetar + Excel)")
 (princ "\n  EA-HA       -> Etiquetado manual")

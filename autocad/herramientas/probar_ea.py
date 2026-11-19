@@ -33,8 +33,20 @@ REEMPLAZOS = [  # texto, nuevo valor -> resultado
 ]
 CADS = [("0+020", 20.0), ("1+020.50", 1020.5), ("SECCION 3 KM 1+020", 1020.0),
         ("EST. 2+340", 2340.0), ("\\H0.3x;KM 0+120.00", 120.0)]
-TIPOS = [("AREA DE CORTE=1", "CORTE"), ("\\H0.2x;AREA DE EXCAVACION=2", "EXCAVACION"),
-         ("AREA DE SUB-BASE=1", "BASE"), ("AREA DE TERRAPLEN=3", "TERRAPLEN")]
+TIPOS = [  # texto o nombre de capa -> tipo
+    ("AREA DE CORTE=1", "CORTE"), ("\\H0.2x;AREA DE EXCAVACION=2", "EXCAVACION"),
+    ("AREA DE SUB-BASE=1", "SUBBASE"), ("AREA DE SUBBASE=1", "SUBBASE"), ("AREA DE BASE=1", "BASE"),
+    ("AREA DE TERRAPLEN=3", "TERRAPLEN"), ("AREA DE DESMONTE=3", "DESMONTE"),
+    ("SEC-SUBBASE", "SUBBASE"), ("SEC-BASE", "BASE"), ("HATCH_SUBRASANTE", "SUBRASANTE"),
+    ("COTAS", None)]
+
+# Dos secciones apiladas, cada una con su recuadro y su CAD; el texto de la
+# sección de abajo está MÁS CERCA del CAD de la de arriba.
+RECUADRO_A = [[0.0, 0.0], [40.0, 0.0], [40.0, 20.0], [0.0, 20.0]]     # sección 0+020
+RECUADRO_B = [[0.0, 22.0], [40.0, 22.0], [40.0, 42.0], [0.0, 42.0]]   # sección 0+040
+LAMINA = [[-5.0, -5.0], [45.0, -5.0], [45.0, 50.0], [-5.0, 50.0]]     # marco de la lámina
+# CAD de cada sección escrito ARRIBA de su recuadro
+CADS_EJ = [["0+020", 20.0, [20.0, 19.0, 0.0]], ["0+040", 40.0, [20.0, 41.0, 0.0]]]
 
 
 def main():
@@ -63,6 +75,26 @@ def main():
     print("Tipo de área:")
     for t, e in TIPOS:
         ver(t, L.llamar("extraer-tipo-de-texto", t), e)
+    print("Recuadros de sección:")
+    recs = L.llamar("ea:recuadros-de", [RECUADRO_A, RECUADRO_B, LAMINA], CADS_EJ)
+    ver("recuadros que contienen CAD", len(recs or []), 3)
+    # texto de la sección 0+040 junto a su borde inferior: está a 3.5 m del
+    # CAD 0+020 y a 18.5 m del CAD 0+040. El método "más cercano" lo mandaba
+    # a 0+020 (error); con recuadros va a 0+040.
+    cercano = min(CADS_EJ, key=lambda c: ((c[2][0] - 20) ** 2 + (c[2][1] - 22.5) ** 2))[0]
+    ver("(antes) CAD más cercano al texto en (20,22.5)", cercano, "0+020")
+    r = L.llamar("ea:recuadro-de", [20.0, 22.5, 0.0], recs)
+    cads_r = r[6] if r else []
+    ver("texto en (20,22.5) -> CAD del recuadro", [c[0] for c in cads_r], ["0+040"])
+    r = L.llamar("ea:recuadro-de", [20.0, 10.0, 0.0], recs)
+    ver("texto en (20,10) -> CAD del recuadro", [c[0] for c in (r[6] if r else [])], ["0+020"])
+    ver("texto fuera de todo recuadro", L.llamar("ea:recuadro-de", [100.0, 100.0, 0.0], recs), None)
+    ver("punto en polígono (dentro)", L.llamar("ea:pt-en-pol", 5.0, 5.0, RECUADRO_A) is not None, True)
+    ver("punto en polígono (fuera)", L.llamar("ea:pt-en-pol", 5.0, 25.0, RECUADRO_A), None)
+    ver("área del recuadro", L.llamar("ea:area-pol", RECUADRO_A), 800.0)
+    print("Fórmulas de la hoja RESUMEN:")
+    ver("suma de 2 columnas", L.llamar("ea:suma-cols", ["H", "J"], 7), "=SUM(VOLUMEN!H7,VOLUMEN!J7)")
+    ver("sin columnas", L.llamar("ea:suma-cols", None, 7), 0)
     print("\nRESULTADO:", "OK" if not fallos else "%d prueba(s) fallaron" % fallos)
     return 1 if fallos else 0
 

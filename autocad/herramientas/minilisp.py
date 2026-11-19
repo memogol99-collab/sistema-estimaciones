@@ -281,6 +281,7 @@ class Lisp:
             Sym("SETVAR"): lambda n, v: self.glob.__setitem__(Sym("*SYSVAR-" + n.upper() + "*"), v) or v,
             Sym("STRCAT"): lambda *a: "".join(a),
             Sym("VL-LOAD-COM"): lambda: None,
+            Sym("APPLY"): lambda f, l: self.aplicar(f, list(l or [])),
             Sym("MAPCAR"): lambda f, *ls: [self.aplicar(f, list(t)) for t in zip(*map(lst, ls))] or None,
         })
 

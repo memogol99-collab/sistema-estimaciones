@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.4.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.5.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Topografia/Exportar_Coord_POL ( X-Y ).lsp
 ;;; Parches aplicados: getfiled-c
 

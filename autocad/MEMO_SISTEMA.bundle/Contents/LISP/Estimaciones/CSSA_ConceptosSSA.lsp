@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.4.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.5.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/Conceptos SSA ( CSSA ).lsp
 ;;; Parches aplicados: prefijo:cssa, portapapeles:4, cfg-cssa
 

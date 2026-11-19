@@ -1,5 +1,5 @@
 ;;; =====================================================================
-;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.4.0
+;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.5.0
 ;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
 ;;;
 ;;;  Un solo cargador para todos los LISP. NO carga los 55 archivos al
@@ -12,7 +12,7 @@
 
 (if (not memo:cargado)
   (progn
-    (setq memo:version "2.4.0")
+    (setq memo:version "2.5.0")
     (setq memo:raiz (findfile "MEMO_Cargador.lsp"))
     (if memo:raiz
       (setq memo:raiz (vl-string-translate "\\" "/" (vl-filename-directory memo:raiz))))
@@ -43,6 +43,24 @@
       ("MALLA_CURVA_CERO" "NO" "Malla: usar curvas con elevación 0 (SI para batimetría)" "TXT" "SI,NO")
       ("EA_DISTANCIA_MAX" "50" "EA: distancia máx. texto-hatch para etiquetar" "NUM" "")
       ("EA_DECIMALES" "2" "EA: decimales del área al etiquetar" "NUM" "")
+      ("EA_ASIGNACION" "RECUADRO" "EA: asignar áreas por RECUADRO de sección o CERCANO" "TXT" "RECUADRO,CERCANO")
+      ("EA_CAPA_RECUADRO" "*" "EA: capa(s) de los recuadros de sección (* = todas)" "TXT" "")
+      ("EA_TIPOS_CORTE" "CORTE,EXCAVACION,DESMONTE" "EA resumen: tipos que son CORTE" "TXT" "")
+      ("EA_TIPOS_RELLENO" "RELLENO,TERRAPLEN,NUCLEO,CORAZA,SUBRASANTE" "EA resumen: tipos que son RELLENO" "TXT" "")
+      ("EA_COEF_ABUND" "1.00" "EA resumen: coeficiente de abundamiento del corte" "NUM" "")
+      ("EA_TIPO_SUBBASE" "*SUBBASE*,*SUB-BASE*,*SUB BASE*" "EA: patrón de texto/capa del tipo SUBBASE" "TXT" "")
+      ("EA_TIPO_SUBRASANTE" "*SUBRASANTE*,*SUB-RASANTE*" "EA: patrón de texto/capa del tipo SUBRASANTE" "TXT" "")
+      ("EA_TIPO_CARPETA" "*CARPETA*" "EA: patrón de texto/capa del tipo CARPETA" "TXT" "")
+      ("EA_TIPO_EXCAVACION" "*EXCAVACION*,*EXCAVACIÓN*" "EA: patrón de texto/capa del tipo EXCAVACION" "TXT" "")
+      ("EA_TIPO_DESMONTE" "*DESMONTE*" "EA: patrón de texto/capa del tipo DESMONTE" "TXT" "")
+      ("EA_TIPO_TERRAPLEN" "*TERRAPLEN*,*TERRAPLÉN*" "EA: patrón de texto/capa del tipo TERRAPLEN" "TXT" "")
+      ("EA_TIPO_RELLENO" "*RELLENO*" "EA: patrón de texto/capa del tipo RELLENO" "TXT" "")
+      ("EA_TIPO_CORAZA" "*CORAZA*" "EA: patrón de texto/capa del tipo CORAZA" "TXT" "")
+      ("EA_TIPO_NUCLEO" "*NUCLEO*,*NÚCLEO*" "EA: patrón de texto/capa del tipo NUCLEO" "TXT" "")
+      ("EA_TIPO_ARENA" "*ARENA*" "EA: patrón de texto/capa del tipo ARENA" "TXT" "")
+      ("EA_TIPO_CORTE" "*CORTE*" "EA: patrón de texto/capa del tipo CORTE" "TXT" "")
+      ("EA_TIPO_AFINE" "*AFINE*" "EA: patrón de texto/capa del tipo AFINE" "TXT" "")
+      ("EA_TIPO_BASE" "*BASE*" "EA: patrón de texto/capa del tipo BASE" "TXT" "")
       ("TABLA_ULTIMO" "Obras" "MTABLA: último formato usado" "TXT" "")
       ("AREA_ULTIMO" "Prefijo" "MAREA: última opción usada" "TXT" "")
     ))

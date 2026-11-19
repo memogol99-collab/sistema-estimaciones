@@ -17,6 +17,17 @@ Rutinas LISP para estimaciones, secciones, topografía y batimetría, con **inst
 
 Para actualizar, vuelve a ejecutar `INSTALAR.bat`; tu configuración se conserva. Funciona con AutoCAD 2015–2026, Civil 3D y Map.
 
+## Novedades 2.5
+
+* **Menú:**
+  * El bundle ahora pide a AutoCAD cargar el menú al iniciar (`LoadOnAutoCADStartup`); antes sólo se cargaban los LISP.
+  * El CUIX usa el formato exacto que guarda AutoCAD, con iconos BMP incrustados.
+  * Si aun así no carga, `MEMO_MENU` crea el menú desplegable MEMO.
+* **EA v7.2:**
+  * Áreas asignadas por el **recuadro de cada sección**.
+  * Hoja **RESUMEN** con corte, relleno y **curva masa**.
+  * Tipos nuevos SUBBASE, TERRAPLEN y DESMONTE, con patrones de texto y capa configurables.
+
 ## Novedades 2.4
 
 * **EA (Exportar áreas) v7.1 corregido.**

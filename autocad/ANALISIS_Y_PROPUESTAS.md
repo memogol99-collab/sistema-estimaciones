@@ -368,6 +368,39 @@ Revisé EA v7.0 línea por línea y probé sus funciones con el código real (`h
 
 También: variables que se filtraban a globales y números del Excel con formato `0.00`.
 
+## 4e. Versión 2.5: menú y mejoras de EA
+
+### Menú que no cargaba
+En el registro de AutoCAD se veían los LISP del bundle cargados, pero **MEMO_SISTEMA** no aparecía entre los grupos de personalización. Lo comparé con el generador de CUIX de Autodesk Developer Network (`ADN-DevTech/acad-cuix-builder`) y con un `RibbonRoot.cui` extraído de un CUIX real:
+1. En `PackageContents.xml`, la línea del CUIX necesita **`LoadOnAutoCADStartup="True"`**. Sin eso AutoCAD registra el componente pero no lo carga. Es la causa más probable.
+2. La cinta ahora usa el formato exacto que guarda AutoCAD:
+   * `<RibbonRoot>` sin namespace (va en `RibbonPanelSourceCollection`).
+   * `Id="AcRibbonCommandButton"`, `TooltipTitle` y `ModifiedRev` en cada elemento.
+   * `RibbonRowPanel` con `ResizeStyle`, `RibbonPanelBreak` y `ResizeStyle="Default"` en las referencias.
+3. Los UID tienen el formato de AutoCAD (`RBNU_900_XXXXX`).
+4. Los iconos son BMP de 24 bits incrustados con relaciones `Image`.
+
+Si con todo esto AutoCAD rechazara el archivo, `MEMO_MENU` muestra el error y crea el menú desplegable MEMO por ActiveX, sin depender del CUIX.
+
+### EA 7.2
+1. **Recuadro de sección:** antes, cada texto de área iba al CAD más cercano. Con secciones apiladas y juntas, un texto pegado al borde podía quedar más cerca del CAD de la sección vecina. Ahora se busca la polilínea cerrada más pequeña que contenga al texto y a algún CAD, y se usa el CAD de ese recuadro. Al etiquetar, sólo se buscan hatches dentro del mismo recuadro. Si no hay recuadros, todo funciona como antes. Se configura con `EA_ASIGNACION` (RECUADRO/CERCANO) y `EA_CAPA_RECUADRO`.
+2. **Hoja RESUMEN** en el Excel, con fórmulas que leen la hoja VOLUMEN:
+
+   | Columna | Contenido |
+   |---|---|
+   | VOL. CORTE | Suma de los tipos de corte |
+   | CORTE x COEF. | Corte × coeficiente de abundamiento (celda D2, editable) |
+   | VOL. RELLENO | Suma de los tipos de relleno |
+   | DIFERENCIA | Corte con coeficiente − relleno |
+   | CURVA MASA | Diferencia acumulada (ordenadas de la curva masa) |
+
+   Se completa con totales y una tabla de volumen por tipo. Qué tipos son corte y cuáles relleno se define en `MEMO_CONFIG`.
+3. **Tipos:** se agregan **SUBBASE, TERRAPLEN y DESMONTE**, con su casilla en el cuadro de EA.
+   * Texto y capa se clasifican con el mismo patrón y por prioridad: SUBBASE va antes que BASE, así que una capa "SUBBASE" ya no se cuenta como BASE.
+   * Cada patrón es configurable (`EA_TIPO_<TIPO>`). Ejemplo: `*BASE*,*BAS-*`.
+
+Verificado con `herramientas/probar_ea.py` (35 casos, incluido un texto que el método anterior mandaba al CAD equivocado).
+
 ## 5. Tabla de equivalencias de archivos
 
 | Original | Nuevo (Contents/LISP/…) | Comandos |

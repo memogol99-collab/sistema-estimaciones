@@ -1,4 +1,4 @@
-# Lista de pruebas - MEMO SISTEMA 2.4.0
+# Lista de pruebas - MEMO SISTEMA 2.5.0
 
 > Archivo generado por `herramientas/construir_bundle.py`, a partir de `catalogo.py`.
 > Imprime esta lista o cópiala a Excel y marca cada prueba.
@@ -10,7 +10,31 @@
 3. Escribe `MEMO_VERIFICAR` y presiona Enter: al final debe decir **Todo correcto**.
    Si aparece *ERROR AL CARGAR* o *NO DEFINIDO*, copia ese texto y envíamelo.
 
-## 1. Lo nuevo en 2.4: EA (probar primero)
+## 1. Lo nuevo en 2.5 (probar primero)
+
+### Menú
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| 1 | Instala la 2.5 y abre AutoCAD | En la línea de comandos aparece *Grupo de personalización: MEMO_SISTEMA* y aparecen las fichas MEMO | |
+| 2 | Si no aparecen: `MEMO_MENU` | Dice si el menú cargó; si AutoCAD lo rechaza, muestra el error **(envíalo)** y crea el menú desplegable MEMO arriba | |
+
+### EA
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| 3 | Secciones dibujadas cada una dentro de su recuadro (polilínea cerrada) y muy juntas → `EA` → *Exportar* | Dice *Recuadros de sección con CAD: N*; cada área queda en la fila del CAD de **su** recuadro, aunque esté más cerca del CAD de otra sección | |
+| 4 | `EA` → *Etiquetar* en esas secciones | Cada texto toma el hatch de su propio recuadro | |
+| 5 | Secciones sin recuadro | Funciona como antes (CAD más cercano) | |
+| 6 | Abre el Excel exportado | Hay una hoja **RESUMEN**: CAD, VOL. CORTE, CORTE x COEF., VOL. RELLENO, DIFERENCIA y CURVA MASA acumulada, más el volumen total por tipo | |
+| 7 | En RESUMEN cambia el coeficiente de la celda D2 (ej. 1.25) | Se recalculan CORTE x COEF., DIFERENCIA y CURVA MASA | |
+| 8 | Corrige un área en la hoja VOLUMEN | El RESUMEN se actualiza solo | |
+| 9 | Texto "AREA DE SUB-BASE=…" y hatch en capa SUBBASE | Columna **SUBBASE** (antes se sumaba a BASE) | |
+| 10 | Textos/capas de TERRAPLEN y DESMONTE | Tienen su columna y casilla en el cuadro de EA | |
+| 11 | `MEMO_CONFIG` → *patrón del tipo BASE* = `*BASE*,*BAS-*` | Las capas "BAS-..." se reconocen como BASE | |
+| 12 | `MEMO_CONFIG` → *tipos que son RELLENO* agrega SUBBASE | En RESUMEN, SUBBASE suma al relleno | |
+
+## 1b. Lo nuevo en 2.4: EA
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
@@ -24,7 +48,7 @@
 | 8 | Un texto "AREA..." en el membrete o en la capa NOTAS | Se ignora | |
 | 9 | `MEMO_CONFIG` → *EA: decimales* = 3 → `EA-HA` | El área se escribe con 3 decimales (12.500) aunque DIMZIN suprima ceros | |
 
-## 1a. Versión 2.3: malla de puntos
+## 1c. Versión 2.3: malla de puntos
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
@@ -37,7 +61,7 @@
 | 7 | Batimetría con curva de nivel 0: `MEMO_CONFIG` → *usar curvas con elevación 0* = `SI` | La curva 0 se toma en cuenta (antes se ignoraba siempre) | |
 | 8 | Compara el tiempo con la versión anterior en el mismo dibujo | Igual o más rápido (en las pruebas fue unas 9 veces más rápido) | |
 
-## 1b. Versión 2.2
+## 1d. Versión 2.2
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
@@ -55,7 +79,7 @@
 | 12 | `MEMO_CONFIG` → *Tablas: tomar datos del portapapeles* = `PREGUNTAR` → `COP` | Vuelve a preguntar antes de usar lo copiado | |
 | 13 | `MEMO_CONFIG` → *Un solo Deshacer...* = `NO` → abre otro dibujo → `COP` → `U` | Deshace paso por paso, como antes (sirve si algún comando se comportara raro) | |
 
-## 1c. Versión 2.1
+## 1e. Versión 2.1
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
