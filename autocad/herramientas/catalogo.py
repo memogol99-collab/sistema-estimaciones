@@ -40,7 +40,7 @@ ARCHIVOS = [
     ("LISP_Secciones/Area_Secc 3P( AS ).lsp",                  "Secciones/AS_AreaSecc3P.lsp",                []),
     ("LISP_Secciones/Extraer Area de Cont ( AC ).LSP",         "Secciones/AC_AreaContorno.lsp",              []),
     ("LISP_Secciones/Extraer Area de Hatch ( AH ).lsp",        "Secciones/AH_AreaHatch.lsp",                 []),
-    ("LISP_Secciones/Exp_Est-Area ( EA ).lsp",                 "Secciones/EA_ExportarEstArea.lsp",           ["ea-ha"]),
+    ("@fuente/EA_ExportarEstArea.lsp",                         "Secciones/EA_ExportarEstArea.lsp",           []),   # v7.1 corregida (original en originales/)
     # --- Textos ------------------------------------------------------------
     ("LISP_Textos/CT-Toolbox.lsp",                             "Textos/CT_Toolbox.lsp",                      ["renombrar:CT=CTB"]),
     ("LISP_Textos/Cambia Texto ( CTT ).lsp",                   "Textos/CTT_CambiaTexto.lsp",                 ["renombrar:CTT=CTX", "ctx-portapapeles"]),
@@ -142,6 +142,8 @@ CONFIG = [
     ("MALLA_METODO",       "ENTRECURVAS", "Malla de puntos: ENTRECURVAS (nuevo) o IDW (anterior)", "TXT", "ENTRECURVAS,IDW"),
     ("MALLA_RADIO",        "0",       "Malla: distancia máx. de búsqueda (0 = automática)", "NUM", ""),
     ("MALLA_CURVA_CERO",   "NO",      "Malla: usar curvas con elevación 0 (SI para batimetría)", "TXT", "SI,NO"),
+    ("EA_DISTANCIA_MAX",   "50",      "EA: distancia máx. texto-hatch para etiquetar", "NUM", ""),
+    ("EA_DECIMALES",       "2",       "EA: decimales del área al etiquetar", "NUM", ""),
     ("TABLA_ULTIMO",       "Obras",   "MTABLA: último formato usado", "TXT", ""),
     ("AREA_ULTIMO",        "Prefijo", "MAREA: última opción usada", "TXT", ""),
 ]

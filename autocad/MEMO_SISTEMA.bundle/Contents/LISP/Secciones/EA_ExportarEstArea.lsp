@@ -1,10 +1,28 @@
-;;; MEMO SISTEMA 2.3.1 - archivo generado por construir_bundle.py
-;;; Origen: LISP_Secciones/Exp_Est-Area ( EA ).lsp
-;;; Parches aplicados: ea-ha
+;;; MEMO SISTEMA 2.4.0 - archivo generado por construir_bundle.py
+;;; Origen: @fuente/EA_ExportarEstArea.lsp
 
 ;===============================================================
 ; EA - EXPORTADOR + ETIQUETADO + EXCEL
-; Versión 7.0 - Compatible con CivilCAD (restaura *error*)
+; Versión 7.1 MEMO - Compatible con CivilCAD (restaura *error*)
+;
+; Correcciones 7.1 (MEMO SISTEMA):
+;  - El valor de área que va a Excel se toma DESPUÉS del "=" o ":".
+;    Antes "SUB-BASE=3.25" daba -3.25, "(M2)=12.50" daba 2,
+;    "1,234.56" daba 1 y "15,5" daba 15.
+;  - Se ignoran los códigos de formato de MTEXT (\H0.25x; etc.) al
+;    leer y al reemplazar el área.
+;  - Cadenamiento: sólo se leen los dígitos junto al "+"
+;    ("SECCION 3 KM 1+020" daba 31020).
+;  - Un CAD repetido en el dibujo ya no duplica sus áreas en Excel.
+;  - Fórmulas de Excel en inglés (IF, AVERAGE, ROUND, SUM): con las
+;    fórmulas en español Excel mostraba #¿NOMBRE?.
+;  - Las casillas "Tipo de Áreas a Procesar" ahora sí filtran.
+;  - Se ignoran textos en capas de membrete/títulos/notas.
+;  - "Exportar" en modo "Seleccionar secciones" pide la selección
+;    (antes usaba una selección vieja o todo el dibujo).
+;  - Áreas con decimales fijos (sin depender de DIMZIN).
+;  - Distancia máxima y decimales configurables con MEMO_CONFIG
+;    (EA_DISTANCIA_MAX, EA_DECIMALES).
 ;===============================================================
 
 (vl-load-com)
@@ -140,7 +158,7 @@
   (setq ruta (strcat (getenv "TEMP") "\\haea_temp.dcl"))
   (setq f (open ruta "w"))
   (write-line "haea_dialog : dialog {" f)
-  (write-line "  label = \"EA v7.0\";" f)
+  (write-line "  label = \"EA v7.1 MEMO\";" f)
   (write-line "  : boxed_radio_column {" f)
   (write-line "    label = \"Accion\";" f)
   (write-line "    key = \"accion\";" f)
@@ -255,7 +273,9 @@
       (setq *haea_ultima_accion* (cadr datos))
       (setq *haea_cambiar_capa* (caddr datos))
       (setq *haea_ultimo_modo* (cadddr datos))
-      (setq *haea_limite_dist* 50.0)
+      (setq *haea_limite_dist* (ea:cfg-num "EA_DISTANCIA_MAX" 50.0))
+      ;; "Sólo exportar" no debe usar una selección de una corrida anterior
+      (if (= *haea_ultima_accion* "XLSX") (setq *haea_textos_seleccionados* nil))
       
       (princ "\n\n========================================")
       (princ (strcat "\n  Accion: " *haea_ultima_accion*))
@@ -304,6 +324,94 @@
 )
 
 ;===============================================================
+; AUXILIARES 7.1
+;===============================================================
+
+;; Valor numérico de MEMO_CONFIG (o el valor por defecto si no hay MEMO)
+(defun ea:cfg-num (clave defecto / v)
+  (if (and memo:cfg-num (setq v (memo:cfg-num clave)) (> v 0.0)) v defecto))
+
+;; Área con decimales fijos, sin depender de DIMZIN
+(defun ea:fmt-area (v / dz txt)
+  (setq dz (getvar "DIMZIN"))
+  (setvar "DIMZIN" 0)
+  (setq txt (rtos v 2 (fix (ea:cfg-num "EA_DECIMALES" 2))))
+  (setvar "DIMZIN" dz)
+  txt)
+
+;; Quita los códigos de formato de un MTEXT: \H0.25x; \fArial|b0; {} \P ...
+(defun ea:limpiar-mtext (txt / i n c c2 res)
+  (setq i 1 n (strlen txt) res "")
+  (while (<= i n)
+    (setq c (substr txt i 1))
+    (cond
+      ((and (= c "\\") (< i n))
+       (setq c2 (substr txt (1+ i) 1))
+       (cond
+         ((wcmatch c2 "[ACcFfHQTWpS]")        ; códigos con parámetro hasta ";"
+          (while (and (<= i n) (/= (substr txt i 1) ";")) (setq i (1+ i))))
+         ((member c2 '("P" "~")) (setq res (strcat res " ")) (setq i (1+ i)))
+         ((member c2 '("\\" "{" "}")) (setq res (strcat res c2)) (setq i (1+ i)))
+         (T (setq i (1+ i)))))                 ; \L \l \O \o \K \k
+      ((member c '("{" "}")))
+      (T (setq res (strcat res c))))
+    (setq i (1+ i)))
+  res)
+
+;; Posición (1..n) del último "=" o ":" del texto, o nil
+(defun ea:pos-igual (txt / i pos c)
+  (setq i 1)
+  (while (<= i (strlen txt))
+    (setq c (substr txt i 1))
+    (if (or (= c "=") (= c ":")) (setq pos i))
+    (setq i (1+ i)))
+  pos)
+
+;; Primer número del texto a partir de la posición ini (1..n), saltando
+;; códigos de MTEXT. Devuelve (inicio fin valor) o nil.
+;;   "1234.56" -> 1234.56   "1,234.56" -> 1234.56 (coma de miles = 3 dígitos)
+;;   "15,5"    -> 15.5      (coma decimal)
+(defun ea:buscar-numero (txt ini / i n c ini_num fin str dec sig)
+  (setq n (strlen txt) i ini)
+  (while (and (<= i n) (not ini_num))
+    (setq c (substr txt i 1))
+    (cond
+      ((and (= c "\\") (< i n) (wcmatch (substr txt (1+ i) 1) "[ACcFfHQTWpS]"))
+       (while (and (<= i n) (/= (substr txt i 1) ";")) (setq i (1+ i))))
+      ((and (= c "\\") (< i n)) (setq i (1+ i)))
+      ((wcmatch c "#") (setq ini_num i)))
+    (setq i (1+ i)))
+  (if ini_num
+    (progn
+      (setq i ini_num str "" dec nil)
+      (while (and (<= i n) (not fin))
+        (setq c (substr txt i 1) sig (substr txt (1+ i) 1))
+        (cond
+          ((wcmatch c "#") (setq str (strcat str c)))
+          ((and (= c ",") (not dec)
+                (wcmatch (substr txt (1+ i) 3) "###")
+                (not (wcmatch (substr txt (+ i 4) 1) "#")))
+           nil)                                       ; coma de miles: se omite
+          ((and (member c '("." ",")) (not dec) (wcmatch sig "#"))
+           (setq str (strcat str ".") dec T))         ; punto o coma decimal
+          (T (setq fin (1- i))))
+        (if (not fin) (setq i (1+ i))))
+      (if (not fin) (setq fin n))
+      (list ini_num fin (atof str)))))
+
+;; T si el texto está en una capa de membrete/títulos/notas
+(defun ea:capa-ignorada-p (capa)
+  (and *haea_usar_filtro_capas* capa
+       (member (strcase capa) (mapcar 'strcase *haea_capas_ignorar*))))
+
+;; T si el tipo está desmarcado en el cuadro de diálogo de EA
+(defun ea:tipo-excluido-p (tipo)
+  (and tipo
+       (member tipo '("CARPETA" "CORTE" "EXCAVACION" "BASE" "SUBRASANTE"
+                      "ARENA" "NUCLEO" "CORAZA" "RELLENO" "AFINE"))
+       (not (member tipo *haea_tipos_activos*))))
+
+;===============================================================
 ; AUXILIARES
 ;===============================================================
 
@@ -322,12 +430,11 @@
   (if pos_inicio
     (progn
       (setq i pos_inicio)
-      (while (<= i (strlen texto))
-        (setq char (substr texto i 1))
-        (if (wcmatch char "[0-9.+ ]")
-          (setq resultado (strcat resultado char)))
+      ;; sólo "km+metros": termina en el primer carácter que no sea 0-9 . +
+      (while (and (<= i (strlen texto)) (wcmatch (substr texto i 1) "[0-9.+]"))
+        (setq resultado (strcat resultado (substr texto i 1)))
         (setq i (1+ i)))
-      (vl-string-trim " " resultado))
+      (vl-string-right-trim "." resultado))
     nil))
 
 (defun cad-a-numero (cad_texto / i char antes despues encontrado_plus)
@@ -423,7 +530,7 @@
   area)
 
 (defun extraer-tipo-de-texto (texto / txt_upper resultado)
-  (setq txt_upper (strcase texto) resultado nil)
+  (setq txt_upper (strcase (ea:limpiar-mtext texto)) resultado nil)
   (cond
     ((wcmatch txt_upper "*CARPETA*") (setq resultado "CARPETA"))
     ((wcmatch txt_upper "*EXCAVACION*") (setq resultado "EXCAVACION"))
@@ -440,62 +547,26 @@
     ((wcmatch txt_upper "*BASE*") (setq resultado "BASE")))
   resultado)
 
-(defun reemplazar-solo-numero (texto_original nuevo_valor / 
-                                i char resultado 
-                                pos_igual pos_inicio pos_fin
-                                longitud encontrado)
-  (setq resultado "" i 1 pos_igual nil pos_inicio nil pos_fin nil
-        encontrado nil longitud (strlen texto_original))
-  (while (<= i longitud)
-    (setq char (substr texto_original i 1))
-    (if (and (not pos_igual) (or (= char "=") (= char ":")))
-      (setq pos_igual i))
-    (setq i (1+ i)))
-  (setq i (if pos_igual (1+ pos_igual) 1))
-  (while (<= i longitud)
-    (setq char (substr texto_original i 1))
-    (if (and (not encontrado) (wcmatch char "[0-9]"))
-      (progn (setq pos_inicio i encontrado T)))
-    (if (and encontrado (not pos_fin) (> i pos_inicio))
-      (if (not (or (wcmatch char "[0-9]") (= char ".")))
-        (setq pos_fin (1- i))))
-    (setq i (1+ i)))
-  (if (and encontrado (not pos_fin))
-    (setq pos_fin longitud))
-  (if (and pos_inicio pos_fin)
-    (progn
-      (setq resultado (substr texto_original 1 (1- pos_inicio)))
-      (setq resultado (strcat resultado nuevo_valor))
-      (if (< pos_fin longitud)
-        (setq resultado (strcat resultado (substr texto_original (1+ pos_fin))))))
-    (setq resultado texto_original))
-  resultado)
+;; Reemplaza el número del área (después del último "=" o ":") por nuevo_valor,
+;; sin tocar los códigos de formato del MTEXT.
+(defun reemplazar-solo-numero (texto_original nuevo_valor / pos r)
+  (setq pos (ea:pos-igual texto_original))
+  (setq r (ea:buscar-numero texto_original (if pos (1+ pos) 1)))
+  (if r
+    (strcat (substr texto_original 1 (1- (car r)))
+            nuevo_valor
+            (substr texto_original (1+ (cadr r))))
+    texto_original))
 
-(defun extraer-numero (str / num_str char i encontrado_numero 
-                            punto_decimal encontrado_letra txt_upper)
-  (setq txt_upper (strcase str))
+(defun extraer-numero (str / txt txt_upper pos r)
+  (setq txt (ea:limpiar-mtext str) txt_upper (strcase txt))
   (if (or (wcmatch txt_upper "*ESCALA*") (wcmatch txt_upper "* : *")
           (wcmatch txt_upper "*1:*") (wcmatch txt_upper "*:1*"))
     nil
     (progn
-      (setq num_str "" encontrado_numero nil punto_decimal nil
-            encontrado_letra nil i 1)
-      (while (<= i (strlen str))
-        (setq char (substr str i 1))
-        (if (and encontrado_numero (wcmatch char "[a-zA-Z]"))
-          (setq encontrado_letra T))
-        (cond
-          (encontrado_letra (setq i (strlen str)))
-          ((wcmatch char "[0-9]") (setq num_str (strcat num_str char)) (setq encontrado_numero T))
-          ((and (wcmatch char ".") encontrado_numero (not punto_decimal))
-           (setq num_str (strcat num_str char)) (setq punto_decimal T))
-          ((and (wcmatch char ",") encontrado_numero (not punto_decimal))
-           (setq num_str (strcat num_str ".")) (setq punto_decimal T))
-          ((and (wcmatch char "-") (= num_str ""))
-           (setq num_str (strcat num_str char))))
-        (setq i (1+ i)))
-      (if (and encontrado_numero (/= num_str ""))
-        (atof num_str) nil))))
+      (setq pos (ea:pos-igual txt))
+      (setq r (ea:buscar-numero txt (if pos (1+ pos) 1)))
+      (if r (abs (caddr r))))))
 
 (defun reemplazar-en-lista (lista indice nuevo_elemento / resultado i)
   (setq resultado '() i 0)
@@ -522,7 +593,7 @@
                                 tipo_texto area_hatch
                                 ss_todo tipo_ent contador_hatchs
                                 lista_textos_actualizada datos_actualizados
-                                contenido_actualizado)
+                                contenido_actualizado lista_textos contenido capa)
   
   (princ "\n\n=== ETIQUETADO v7.0 ===")
   (princ (strcat "\nAlcance: " modo))
@@ -567,8 +638,9 @@
                  contenido (cdr (assoc 1 datos))
                  capa (cdr (assoc 8 datos)))
            
-           (if (and pos contenido)
-             (if (wcmatch (strcase contenido) "*AREA*")
+           (if (and pos contenido (not (ea:capa-ignorada-p capa))
+                    (not (ea:tipo-excluido-p (extraer-tipo-de-texto contenido))))
+             (if (wcmatch (strcase (ea:limpiar-mtext contenido)) "*AREA*")
                (setq lista_textos (cons (list ent pos contenido capa) lista_textos))
                (setq ignorados (1+ ignorados)))))
         )
@@ -618,7 +690,7 @@
           (progn
             (setq texto_datos (entget ent_texto))
             (setq texto_original (cdr (assoc 1 texto_datos)))
-            (setq area_val (rtos area_hatch 2 2))
+            (setq area_val (ea:fmt-area area_hatch))
             (setq nuevo_texto (reemplazar-solo-numero texto_original area_val))
             (entmod (subst (cons 1 nuevo_texto) (assoc 1 texto_datos) texto_datos))
             
@@ -676,7 +748,7 @@
                         fila col fila_inicio fila_fin
                         num_cads num_tipos valor_area
                         cad_anterior num_actual num_anterior dist_actual
-                        usar_seleccion old_err)
+                        usar_seleccion old_err pos_texto nueva_lista col_total)
   
   (setq old_err *error*)
   (defun *error* (msg)
@@ -693,11 +765,16 @@
         (and (= *haea_ultimo_modo* "Manual")
              *haea_textos_seleccionados*))
   
-  (if usar_seleccion
-    (princ "\n[INFO] Modo Manual - usando selección anterior")
-    (princ "\n[INFO] Modo Auto - usando todo el dibujo"))
-  
-  (setq ss_cads (ssget "_X" '((0 . "TEXT,MTEXT"))))
+  (cond
+    (usar_seleccion
+     (princ "\n[INFO] Modo Manual - usando los textos recién etiquetados")
+     (setq ss_cads (ssget "_X" '((0 . "TEXT,MTEXT")))))
+    ((= *haea_ultimo_modo* "Manual")
+     (princ "\n[INFO] Modo Manual - seleccione las secciones (textos de CAD y de área):")
+     (setq ss_cads (ssget '((0 . "TEXT,MTEXT")))))
+    (T
+     (princ "\n[INFO] Modo Auto - usando todo el dibujo")
+     (setq ss_cads (ssget "_X" '((0 . "TEXT,MTEXT"))))))
   (if (not ss_cads)
     (progn (princ "\n[!] No hay textos.") (setq *error* old_err) (exit)))
   
@@ -709,10 +786,11 @@
           pos (cdr (assoc 10 datos)))
     (if (and (not (wcmatch (strcase contenido) "*ESCALA*"))
              (not (wcmatch (strcase contenido) "*AREA*"))
-             (wcmatch contenido "*+*"))
+             (wcmatch contenido "*+*")
+             (not (ea:capa-ignorada-p (cdr (assoc 8 datos)))))
       (progn
-        (setq cad_limpia (extraer-cad-limpia contenido)
-              cad_num (cad-a-numero contenido))
+        (setq cad_limpia (extraer-cad-limpia (ea:limpiar-mtext contenido))
+              cad_num (if cad_limpia (cad-a-numero cad_limpia)))
         (if (and cad_limpia cad_num pos)
           (setq lista_cads (cons (list cad_limpia cad_num pos) lista_cads)))))
     (setq i (1+ i)))
@@ -735,14 +813,17 @@
               contenido (cdr (assoc 1 datos))
               capa (cdr (assoc 8 datos))
               pos (cdr (assoc 10 datos)))
-        (if (and pos (wcmatch (strcase contenido) "*AREA*"))
+        (if (and pos (wcmatch (strcase (ea:limpiar-mtext contenido)) "*AREA*")
+                 (not (ea:capa-ignorada-p capa))
+                 (not (ea:tipo-excluido-p (extraer-tipo-de-texto contenido))))
           (setq lista_textos_area (cons (list ent pos contenido capa) lista_textos_area)))
         (setq i (1+ i)))
       (princ (strcat "\n[OK] Textos (todo el dibujo): " (itoa (length lista_textos_area))))))
   
   (setq areas_por_cad '())
   (foreach cad lista_cads
-    (setq areas_por_cad (cons (list (car cad) (cadr cad) '()) areas_por_cad)))
+    (if (not (assoc (car cad) areas_por_cad))   ; un CAD repetido = una sola fila
+      (setq areas_por_cad (cons (list (car cad) (cadr cad) '()) areas_por_cad))))
   (setq areas_por_cad (reverse areas_por_cad))
   
   (foreach texto_item lista_textos_area
@@ -768,7 +849,8 @@
   (foreach cad areas_por_cad
     (foreach texto (caddr cad)
       (setq tipo_actual (extraer-tipo-de-texto (car texto)))
-      (if (and tipo_actual (not (member tipo_actual tipos_detectados)))
+      (if (and tipo_actual (not (member tipo_actual tipos_detectados))
+               (not (ea:tipo-excluido-p tipo_actual)))
         (setq tipos_detectados (cons tipo_actual tipos_detectados)))))
   (setq tipos_detectados (reverse tipos_detectados))
   (princ (strcat "\n[OK] Tipos: " (itoa (length tipos_detectados))))
@@ -847,8 +929,8 @@
     (foreach tipo tipos_detectados
       (if (> fila 6)
         (excel-set excel_ws fila col
-          (strcat "=SI(" (numero-a-letra (+ 3 i)) (itoa fila) "=\"\",\"\","
-                  "PROMEDIO(" (numero-a-letra (+ 3 i)) (itoa (- fila 1)) ":"
+          (strcat "=IF(" (numero-a-letra (+ 3 i)) (itoa fila) "=\"\",\"\","
+                  "AVERAGE(" (numero-a-letra (+ 3 i)) (itoa (- fila 1)) ":"
                   (numero-a-letra (+ 3 i)) (itoa fila) "))"))
         (excel-set excel_ws fila col 0))
       (setq col (1+ col) i (1+ i)))
@@ -857,8 +939,8 @@
     (foreach tipo tipos_detectados
       (if (> fila 6)
         (excel-set excel_ws fila col
-          (strcat "=SI(B" (itoa fila) "=\"\",\"\","
-                  "REDONDEAR(B" (itoa fila) "*" 
+          (strcat "=IF(B" (itoa fila) "=\"\",\"\","
+                  "ROUND(B" (itoa fila) "*" 
                   (numero-a-letra (+ 3 num_tipos i)) (itoa fila) ",2))"))
         (excel-set excel_ws fila col 0))
       (setq col (1+ col) i (1+ i)))
@@ -872,7 +954,7 @@
   (setq col (+ 3 (* num_tipos 2)) i 0)
   (foreach tipo tipos_detectados
     (excel-set excel_ws fila (+ col i)
-      (strcat "=SUMA(" (numero-a-letra (+ col i)) (itoa fila_inicio) ":"
+      (strcat "=SUM(" (numero-a-letra (+ col i)) (itoa fila_inicio) ":"
               (numero-a-letra (+ col i)) (itoa fila_fin) ")"))
     (setq i (1+ i)))
   
@@ -897,6 +979,13 @@
                  (list (list 'bold 1) (list 'size 12) (list 'color 16777215)
                        (list 'bg 2631720) (list 'halign -4152)))
   
+  ;; números con 2 decimales en distancias, áreas, promedios y volúmenes
+  (vl-catch-all-apply
+    '(lambda ()
+       (vlax-put-property
+         (vlax-get-property excel_ws 'Range
+           (strcat "B6:" (numero-a-letra col_total) (itoa fila)))
+         'NumberFormat "0.00")))
   (excel-ancho-col excel_ws 1 12)
   (excel-ancho-col excel_ws 2 10)
   
@@ -932,7 +1021,7 @@
   (if (and hatch_ent (= (cdr (assoc 0 (entget hatch_ent))) "HATCH"))
     (progn
       (setq hatch_obj (vlax-ename->vla-object hatch_ent))
-      (setq area_val (rtos (obtener-area-hatch hatch_ent) 2 2))
+      (setq area_val (ea:fmt-area (obtener-area-hatch hatch_ent)))
       (setq capa_hatch (cdr (assoc 8 (entget hatch_ent))))
       (princ (strcat "\n  CAPA: " capa_hatch))
       (princ (strcat "\n  Area: " area_val))
@@ -964,7 +1053,7 @@
 ; MENSAJE DE CARGA
 ;===============================================================
 (princ "\n==========================================")
-(princ "\n  EA v7.0 - Compatible con CivilCAD")
+(princ "\n  EA v7.1 MEMO - Compatible con CivilCAD")
 (princ "\n==========================================")
 (princ "\n  EA          -> Interfaz completa (etiquetar + Excel)")
 (princ "\n  EA-HA       -> Etiquetado manual")

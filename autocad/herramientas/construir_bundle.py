@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import catalogo as cat  # noqa: E402
 import iconos  # noqa: E402
 
-VERSION = "2.3.1"
+VERSION = "2.4.0"
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(AQUI)                       # autocad/
 ORIG = os.path.join(BASE, "originales", "MEMO_SISTEMA")
@@ -869,7 +869,21 @@ PRUEBAS_CABECERA = """# Lista de pruebas - MEMO SISTEMA @VERSION@
 3. Escribe `MEMO_VERIFICAR` y presiona Enter: al final debe decir **Todo correcto**.
    Si aparece *ERROR AL CARGAR* o *NO DEFINIDO*, copia ese texto y envíamelo.
 
-## 1. Lo nuevo en 2.3: malla de puntos (probar primero)
+## 1. Lo nuevo en 2.4: EA (probar primero)
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| 1 | `EA` → *Exportar a Excel* en un dibujo con secciones | En Excel, las columnas PROMEDIO, VOLUMEN y TOTAL muestran **números** (antes salía #¿NOMBRE? por las fórmulas en español) | |
+| 2 | Compara 5 áreas del Excel contra los textos del dibujo, sobre todo SUB-BASE, textos con "(M2)" y MTEXT con formato | Coinciden (antes podían salir negativas, 2.0 en vez de 12.50, etc.) | |
+| 3 | Un cadenamiento escrito como `KM 1+020` o con texto antes | Columna CAD = 1+020 y la distancia entre secciones es correcta | |
+| 4 | Un CAD escrito dos veces en el dibujo (arriba y abajo de la sección) | Aparece **una sola fila** con sus áreas (antes se duplicaban) | |
+| 5 | `EA` → desmarca *Carpeta* → Exportar | No sale la columna CARPETA (antes las casillas no hacían nada) | |
+| 6 | `EA` → *Exportar* con *Seleccionar secciones* | Pide seleccionar con ventana y exporta sólo eso | |
+| 7 | `EA` → *Etiquetar* en MTEXT con formato | Cambia sólo el número del área; el formato del texto queda intacto | |
+| 8 | Un texto "AREA..." en el membrete o en la capa NOTAS | Se ignora | |
+| 9 | `MEMO_CONFIG` → *EA: decimales* = 3 → `EA-HA` | El área se escribe con 3 decimales (12.500) aunque DIMZIN suprima ceros | |
+
+## 1a. Versión 2.3: malla de puntos
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|

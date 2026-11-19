@@ -277,9 +277,66 @@ class Lisp:
             Sym("NUMBERP"): lambda a: b(isinstance(a, (int, float))),
             Sym("PRINC"): lambda *a: a[0] if a else None,
             Sym("ITOA"): str, Sym("RTOS"): lambda v, *a: "%.*f" % (a[1] if len(a) > 1 else 4, v),
+            Sym("GETVAR"): lambda n: self.glob.get(Sym("*SYSVAR-" + n.upper() + "*"), 0),
+            Sym("SETVAR"): lambda n, v: self.glob.__setitem__(Sym("*SYSVAR-" + n.upper() + "*"), v) or v,
             Sym("STRCAT"): lambda *a: "".join(a),
             Sym("VL-LOAD-COM"): lambda: None,
             Sym("MAPCAR"): lambda f, *ls: [self.aplicar(f, list(t)) for t in zip(*map(lst, ls))] or None,
+        })
+
+        def wc_regex(pat):
+            out, i = "", 0
+            while i < len(pat):
+                c = pat[i]
+                if c == "`" and i + 1 < len(pat):
+                    out += re.escape(pat[i + 1]); i += 2; continue
+                if c == "#": out += "[0-9]"
+                elif c == "@": out += "[A-Za-z]"
+                elif c == ".": out += "[^A-Za-z0-9]"
+                elif c == "*": out += ".*"
+                elif c == "?": out += "."
+                elif c == "[":
+                    j = pat.index("]", i + 1)
+                    cl = pat[i + 1:j]
+                    out += "[^" + cl[1:] + "]" if cl.startswith("~") else "[" + cl + "]"
+                    i = j
+                else: out += re.escape(c)
+                i += 1
+            return out
+
+        def wcmatch(s, pat):
+            for alt in pat.split(","):
+                neg = alt.startswith("~")
+                if neg: alt = alt[1:]
+                m = re.fullmatch(wc_regex(alt), s, flags=re.S) is not None
+                if m != neg:
+                    return T
+            return None
+
+        def atof(s):
+            m = re.match(r"\s*[-+]?(\d+\.?\d*|\.\d+)", s)
+            return float(m.group(0)) if m else 0.0
+
+        def substr(s, i, n=None):
+            return s[i - 1:] if n is None else s[i - 1:i - 1 + n]
+
+        def search(pat, s, start=0):
+            r = s.find(pat, start)
+            return r if r >= 0 else None
+
+        B.update({
+            Sym("WCMATCH"): wcmatch, Sym("STRLEN"): len, Sym("SUBSTR"): substr, Sym("ATOF"): atof,
+            Sym("ATOI"): lambda s: int(atof(s)),
+            Sym("VL-STRING-SEARCH"): search,
+            Sym("VL-STRING-TRIM"): lambda c, s: s.strip(c), Sym("VL-STRING-RIGHT-TRIM"): lambda c, s: s.rstrip(c),
+            Sym("VL-STRING-LEFT-TRIM"): lambda c, s: s.lstrip(c),
+            Sym("VL-STRING-SUBST"): lambda n, o, s, *r: s.replace(o, n, 1),
+            Sym("VL-STRING-TRANSLATE"): lambda a, b2, s: s.translate(str.maketrans(a, b2)),
+            Sym("VL-STRING->LIST"): lambda s: [ord(c) for c in s] or None,
+            Sym("VL-LIST->STRING"): lambda l: "".join(chr(c) for c in lst(l)),
+            Sym("CHR"): chr, Sym("ASCII"): lambda s: ord(s[0]) if s else 0,
+            Sym("NUMBERP"): lambda a: b(isinstance(a, (int, float))),
+            Sym("ZEROP"): lambda a: b(a == 0), Sym("MINUSP"): lambda a: b(a < 0),
         })
 
         def vl_sort(l, f):

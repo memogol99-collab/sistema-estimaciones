@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.3.1 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.4.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Textos/Pendiente ( PTE ).lsp
 
 ; PENDIENTE.LSP 1.6

@@ -17,6 +17,15 @@ Rutinas LISP para estimaciones, secciones, topografía y batimetría, con **inst
 
 Para actualizar, vuelve a ejecutar `INSTALAR.bat`; tu configuración se conserva. Funciona con AutoCAD 2015–2026, Civil 3D y Map.
 
+## Novedades 2.4
+
+* **EA (Exportar áreas) v7.1 corregido.**
+  * Las fórmulas de Excel daban #¿NOMBRE?.
+  * Algunas áreas se exportaban mal: negativas con "SUB-BASE", 2.0 en lugar de 12.50 con "(M2)", 1 en lugar de 1,234.56, valores tomados de los códigos de formato de MTEXT, etc.
+  * Cadenamientos mal leídos y CAD repetidos que duplicaban áreas.
+  * Las casillas de tipos no filtraban, y "Exportar" no respetaba la opción "Seleccionar secciones".
+* `herramientas/probar_ea.py` comprueba 22 casos con el código AutoLISP real.
+
 ## Novedades 2.3
 
 * **Malla de puntos (`MLL`) interpolada ENTRE las curvas de nivel**, como CivilCAD. Cada punto toma la curva más cercana y la del otro lado, y reparte la diferencia según la distancia a cada una. Ya no deja huecos cuando las curvas están separadas, ni escalones pegados a cada curva.

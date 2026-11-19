@@ -349,6 +349,25 @@ En un terreno de 500 × 500 m con 4,400 vértices, el método nuevo fue además 
 * El redondeo de Z negativas: −1.234 daba −1.22.
 * Las curvas de elevación 0 se ignoraban siempre; ahora se pueden usar con `MALLA_CURVA_CERO = SI`, útil en batimetría.
 
+## 4d. EA, exportador de áreas (versión 2.4)
+
+Revisé EA v7.0 línea por línea y probé sus funciones con el código real (`herramientas/probar_ea.py`). La versión corregida 7.1 está en `fuente/EA_ExportarEstArea.lsp`, con el registro de cambios en la cabecera; el original quedó intacto en `originales/`.
+
+| # | Error | Efecto | Corrección |
+|---|---|---|---|
+| 1 | Fórmulas `=SI(`, `PROMEDIO(`, `REDONDEAR(`, `SUMA(` enviadas a Excel por COM | Excel por COM sólo entiende fórmulas en inglés: **#¿NOMBRE? en promedios, volúmenes y totales** | `IF`, `AVERAGE`, `ROUND`, `SUM` |
+| 2 | El área se tomaba juntando dígitos de todo el texto, y `"."` en `wcmatch` acepta *cualquier* signo | "SUB-BASE=3.25" → **−3.25**; "(M2)=12.50" → **2.0**; "1,234.56" → **1.0**; "15,5" → **15.0** | Se lee el número **después del último "=" o ":"**; coma de miles o decimal; siempre positivo |
+| 3 | No se ignoraban los códigos de formato de MTEXT | `\H0.25x;…=7.80` → **0.25**; al etiquetar se escribía el área **dentro** del código de formato | Se quitan los códigos de formato al leer y se saltan al reemplazar |
+| 4 | El cadenamiento juntaba todos los dígitos antes del "+" | "SECCION 3 KM 1+020" → **31020** | Sólo los dígitos pegados al "+" |
+| 5 | Un CAD escrito dos veces se buscaba por nombre | Las áreas se **duplicaban** en dos filas | Una fila por CAD |
+| 6 | Las casillas "Tipo de Áreas a Procesar" se guardaban pero no se usaban | Desmarcar un tipo no hacía nada | Filtran el etiquetado y la exportación |
+| 7 | Las listas de capas y textos a ignorar estaban definidas pero no se usaban | Textos "AREA" del membrete entraban al Excel | Se ignoran textos en capas MEMBRETE, TITULOS, NOTAS, ESCALA, etc. |
+| 8 | "Exportar" con "Seleccionar secciones" no pedía selección | Usaba una selección vieja o todo el dibujo | Pide la ventana de selección |
+| 9 | `rtos` depende de DIMZIN | El área podía escribirse "12.5" o "12.50" según el dibujo | Decimales fijos (`EA_DECIMALES`) |
+| 10 | Distancia máxima texto–hatch fija en 50 | No se podía ajustar | `EA_DISTANCIA_MAX` en `MEMO_CONFIG` |
+
+También: variables que se filtraban a globales y números del Excel con formato `0.00`.
+
 ## 5. Tabla de equivalencias de archivos
 
 | Original | Nuevo (Contents/LISP/…) | Comandos |

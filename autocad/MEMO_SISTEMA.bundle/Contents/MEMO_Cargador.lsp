@@ -1,5 +1,5 @@
 ;;; =====================================================================
-;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.3.1
+;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.4.0
 ;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
 ;;;
 ;;;  Un solo cargador para todos los LISP. NO carga los 55 archivos al
@@ -12,7 +12,7 @@
 
 (if (not memo:cargado)
   (progn
-    (setq memo:version "2.3.1")
+    (setq memo:version "2.4.0")
     (setq memo:raiz (findfile "MEMO_Cargador.lsp"))
     (if memo:raiz
       (setq memo:raiz (vl-string-translate "\\" "/" (vl-filename-directory memo:raiz))))
@@ -41,6 +41,8 @@
       ("MALLA_METODO" "ENTRECURVAS" "Malla de puntos: ENTRECURVAS (nuevo) o IDW (anterior)" "TXT" "ENTRECURVAS,IDW")
       ("MALLA_RADIO" "0" "Malla: distancia máx. de búsqueda (0 = automática)" "NUM" "")
       ("MALLA_CURVA_CERO" "NO" "Malla: usar curvas con elevación 0 (SI para batimetría)" "TXT" "SI,NO")
+      ("EA_DISTANCIA_MAX" "50" "EA: distancia máx. texto-hatch para etiquetar" "NUM" "")
+      ("EA_DECIMALES" "2" "EA: decimales del área al etiquetar" "NUM" "")
       ("TABLA_ULTIMO" "Obras" "MTABLA: último formato usado" "TXT" "")
       ("AREA_ULTIMO" "Prefijo" "MAREA: última opción usada" "TXT" "")
     ))

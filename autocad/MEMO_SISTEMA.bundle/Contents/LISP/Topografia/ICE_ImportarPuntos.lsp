@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.3.1 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.4.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Topografia/Importar PUNTOS ( ICE ).lsp
 
 ;; Modificado por Bier@es para este formato
