@@ -1,5 +1,5 @@
 ;;; =====================================================================
-;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.5.0
+;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.5.1
 ;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
 ;;;
 ;;;  Un solo cargador para todos los LISP. NO carga los 55 archivos al
@@ -12,7 +12,7 @@
 
 (if (not memo:cargado)
   (progn
-    (setq memo:version "2.5.0")
+    (setq memo:version "2.5.1")
     (setq memo:raiz (findfile "MEMO_Cargador.lsp"))
     (if memo:raiz
       (setq memo:raiz (vl-string-translate "\\" "/" (vl-filename-directory memo:raiz))))
@@ -425,7 +425,7 @@
   (princ))
 
 ;;; Carga y muestra el menú MEMO (fichas y menú desplegable)
-(defun c:MEMO_MENU (/ cuix old r)
+(defun c:MEMO_MENU (/ cuix old)
   (setq cuix (strcat memo:raiz "/MEMO_SISTEMA.cuix"))
   (princ "\n=== MEMO_MENU ===")
   (if (not (menugroup "MEMO_SISTEMA"))
@@ -436,7 +436,8 @@
         (progn
           (setq old (getvar "FILEDIA"))
           (setvar "FILEDIA" 0)
-          (setq r (vl-catch-all-apply 'command (list "_.CUILOAD" (vl-string-translate "/" "\\" cuix))))
+          ;; command no se puede usar con apply/vl-catch-all-apply: se llama directo
+          (command "_.CUILOAD" (vl-string-translate "/" "\\" cuix))
           (setvar "FILEDIA" old)
           (if (menugroup "MEMO_SISTEMA")
             (princ "\nMenú cargado correctamente.")
@@ -450,7 +451,8 @@
       (initget "Si No")
       (if (/= (getkword "\n¿Mostrar también la barra de menús clásica con el menú MEMO? [Si/No] <Si>: ") "No")
         (setvar "MENUBAR" 1))
-      (vl-catch-all-apply 'command (list "_.RIBBON"))
+      (command "_.RIBBON")
+      (princ "\nMenú MEMO_SISTEMA cargado. Arriba, en la barra de menús, debe verse el menú MEMO.")
       (princ "\nSi las fichas MEMO no aparecen en la cinta:")
       (princ "\n  1. Clic derecho sobre la cinta > Mostrar fichas > marque MEMO Estimaciones, MEMO Topografía y MEMO Dibujo.")
       (princ "\n  2. Si no están en esa lista: escriba IUP (o CUI) > arriba a la izquierda, 'Espacios de trabajo' >")

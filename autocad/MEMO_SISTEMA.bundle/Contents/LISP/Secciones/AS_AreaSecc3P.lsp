@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.5.0 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.5.1 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Secciones/Area_Secc 3P( AS ).lsp
 
 ; Parámetros del estilo de texto:

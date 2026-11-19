@@ -1,4 +1,4 @@
-﻿MEMO SISTEMA 2.5.0
+﻿MEMO SISTEMA 2.5.1
 ========================================
 
 Escriba MEMO_AYUDA en AutoCAD para ver todos los comandos.
