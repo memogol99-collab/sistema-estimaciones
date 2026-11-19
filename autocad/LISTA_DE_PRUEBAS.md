@@ -1,4 +1,4 @@
-# Lista de pruebas - MEMO SISTEMA 2.5.1
+# Lista de pruebas - MEMO SISTEMA 2.5.2
 
 > Archivo generado por `herramientas/construir_bundle.py`, a partir de `catalogo.py`.
 > Imprime esta lista o cópiala a Excel y marca cada prueba.

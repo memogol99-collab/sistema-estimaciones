@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.5.1 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.5.2 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Textos/Rot-Text ( RTT ).lsp
 
 (Defun C:RTT ( / sel i value minExt maxExt pt_mid)

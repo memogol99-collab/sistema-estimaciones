@@ -28,8 +28,26 @@ echo.
 echo Cierre AutoCAD antes de continuar.
 pause
 
+echo Quitando copias anteriores del MEMO SISTEMA...
+set "QUEDAN="
+for %%D in ("%APPDATA%\Autodesk\ApplicationPlugins" "%ProgramFiles%\Autodesk\ApplicationPlugins" "%ProgramData%\Autodesk\ApplicationPlugins") do (
+  if exist "%%~D\MEMO_SISTEMA.bundle" (
+    rmdir /s /q "%%~D\MEMO_SISTEMA.bundle" 2>nul
+    if exist "%%~D\MEMO_SISTEMA.bundle" (
+      echo   NO se pudo borrar: %%~D\MEMO_SISTEMA.bundle
+      set "QUEDAN=1"
+    ) else (
+      echo   Borrada: %%~D\MEMO_SISTEMA.bundle
+    )
+  )
+)
+if defined QUEDAN (
+  echo.
+  echo   Queda una copia vieja que requiere permisos de administrador.
+  echo   Ejecute INSTALAR.bat con clic derecho ^> Ejecutar como administrador.
+  echo.
+)
 if not exist "%DESTINO%" mkdir "%DESTINO%"
-if exist "%DESTINO%\MEMO_SISTEMA.bundle" rmdir /s /q "%DESTINO%\MEMO_SISTEMA.bundle"
 xcopy "%ORIGEN%" "%DESTINO%\MEMO_SISTEMA.bundle\" /E /I /Q /Y >nul
 if errorlevel 1 (
   echo ERROR al copiar los archivos.

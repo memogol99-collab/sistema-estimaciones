@@ -1,4 +1,4 @@
-;;; MEMO SISTEMA 2.5.1 - archivo generado por construir_bundle.py
+;;; MEMO SISTEMA 2.5.2 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/Conceptos Obras Publicas ( COP ).lsp
 ;;; Parches aplicados: prefijo:cop, portapapeles:5, cfg-cop
 

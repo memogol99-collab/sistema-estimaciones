@@ -1,5 +1,5 @@
 ;;; =====================================================================
-;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.5.1
+;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA 2.5.2
 ;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
 ;;;
 ;;;  Un solo cargador para todos los LISP. NO carga los 55 archivos al
@@ -10,15 +10,64 @@
 ;;; =====================================================================
 (vl-load-com)
 
-(if (not memo:cargado)
+;;; ---------------------------------------------------------------------
+;;; Copias instaladas: si hay más de una (por ejemplo, una vieja en el
+;;; perfil del usuario y otra nueva en Program Files), se usa SIEMPRE la
+;;; de versión más alta, aunque la vieja se haya cargado antes.
+;;; ---------------------------------------------------------------------
+(defun memo:ver-num (v / n p r)
+  ;; "2.5.2" -> 20502 ; sin versión -> 0
+  (setq n 0 r 0)
+  (if (and v (/= v ""))
+    (progn
+      (setq v (strcat v "."))
+      (repeat 3
+        (if (setq p (vl-string-search "." v))
+          (setq r (+ (* r 100) (atoi (substr v 1 p))) v (substr v (+ p 2)))
+          (setq r (* r 100))))))
+  r)
+
+(defun memo:leer-version (dir / f v)
+  (if (and (setq f (findfile (strcat dir "/MEMO_VERSION.txt"))) (setq f (open f "r")))
+    (progn (setq v (read-line f)) (close f)))
+  (if v v "0"))
+
+(defun memo:copias (/ dirs pos txt d res)
+  (setq dirs nil txt (getvar "ACADPREFIX"))
+  (while (and txt (/= txt ""))
+    (if (setq pos (vl-string-search ";" txt))
+      (setq dirs (cons (substr txt 1 pos) dirs) txt (substr txt (+ pos 2)))
+      (setq dirs (cons txt dirs) txt "")))
+  (foreach e '("APPDATA" "ProgramFiles" "ProgramData")
+    (if (getenv e)
+      (setq dirs (cons (strcat (getenv e) "/Autodesk/ApplicationPlugins/MEMO_SISTEMA.bundle/Contents") dirs))))
+  (foreach d dirs
+    (setq d (vl-string-right-trim "/" (vl-string-translate "\\" "/" d)))
+    (if (and (/= d "") (findfile (strcat d "/MEMO_Cargador.lsp")) (not (assoc (strcase d) res)))
+      (setq res (cons (list (strcase d) d (memo:leer-version d)) res))))
+  (reverse res))
+
+(setq memo:*copias* (memo:copias))
+(setq memo:*mejor* nil)
+(foreach c memo:*copias*
+  (if (or (null memo:*mejor*) (> (memo:ver-num (caddr c)) (memo:ver-num (caddr memo:*mejor*))))
+    (setq memo:*mejor* c)))
+
+;;; Registrar si no hay nada cargado o si lo cargado es una versión anterior
+(if (or (not memo:cargado) (< (memo:ver-num memo:version) (memo:ver-num "2.5.2")))
   (progn
-    (setq memo:version "2.5.1")
-    (setq memo:raiz (findfile "MEMO_Cargador.lsp"))
-    (if memo:raiz
-      (setq memo:raiz (vl-string-translate "\\" "/" (vl-filename-directory memo:raiz))))
+    (setq memo:*reemplazando* (if memo:cargado memo:version))
+    (setq memo:version "2.5.2" memo:cargado nil)
+    (setq memo:raiz (if memo:*mejor* (cadr memo:*mejor*)))
+    (if (not memo:raiz)
+      (progn
+        (setq memo:raiz (findfile "MEMO_Cargador.lsp"))
+        (if memo:raiz
+          (setq memo:raiz (vl-string-translate "\\" "/" (vl-filename-directory memo:raiz))))))
     (setq memo:archivos-cargados nil memo:num-comandos 0 memo:*mapa* nil memo:*stubs* nil memo:*ya-definidos* nil
           memo:*envueltos* nil memo:*marca-abierta* nil)
-    (setq memo:dir-fas (strcat (vl-string-translate "\\" "/" (getenv "APPDATA")) "/MEMO_SISTEMA/FAS/"))
+    (setq memo:dir-fas (strcat (vl-string-translate "\\" "/" (cond ((getenv "APPDATA")) ((getvar "TEMPPREFIX")) ("C:/")))
+                               "/MEMO_SISTEMA/FAS/"))
 
     ;; Valores configurables: (CLAVE "defecto" "descripción" "NUM|TXT" "opciones")
     (setq memo:*cfg-def* '(
@@ -104,7 +153,8 @@
         (setq sym (read (strcat "C:" cmd)))
         ;; Si otro LISP cargado antes ya definía el comando, se reemplaza por
         ;; la versión MEMO (la que esperan los botones) y se avisa.
-        (if (eval sym) (setq memo:*ya-definidos* (cons cmd memo:*ya-definidos*)))
+        (if (and (eval sym) (not memo:*reemplazando*))
+          (setq memo:*ya-definidos* (cons cmd memo:*ya-definidos*)))
         (eval (list 'defun sym nil (list 'memo:cargar rel cmd)))
         (setq memo:*stubs* (cons (cons cmd (vl-princ-to-string (eval sym))) memo:*stubs*))
         (setq memo:num-comandos (1+ memo:num-comandos))))
@@ -175,6 +225,13 @@
         (memo:al "Bloques/IBM_BloquesMultiples" '("IBM"))
         (memo:al "Sistema/MEMO_Unificados" '("MTABLA" "MAREA" "MBACHEO" "MEMO_CONFIG"))
         (setq memo:*mapa* (reverse memo:*mapa*))
+        (if memo:*reemplazando*
+          (princ (strcat "\nMEMO: se reemplazó la versión " memo:*reemplazando* " cargada antes por la " memo:version ".")))
+        (if (> (length memo:*copias*) 1)
+          (progn
+            (princ "\nMEMO: ATENCIÓN, hay más de una copia instalada del MEMO SISTEMA:")
+            (foreach c memo:*copias* (princ (strcat "\n   versión " (if (= (caddr c) "0") "anterior a 2.5.2" (caddr c)) "  " (cadr c))))
+            (princ (strcat "\n   Se usa la más nueva. Para quitar las viejas, ejecute de nuevo INSTALAR.bat."))))
         (if memo:*ya-definidos*
           (progn
             (princ "\nMEMO: otro LISP cargado antes ya definía estos comandos; se usa la versión MEMO:")
@@ -354,6 +411,9 @@
 (defun c:MEMO_INFO ()
   (princ (strcat "\nMEMO SISTEMA " memo:version))
   (princ (strcat "\nCarpeta: " (if memo:raiz memo:raiz "(no encontrada)")))
+  (princ "\nCopias instaladas:")
+  (foreach c (memo:copias)
+    (princ (strcat "\n   versión " (if (= (caddr c) "0") "anterior a 2.5.2" (caddr c)) "  " (cadr c))))
   (princ (strcat "\nComandos registrados: " (itoa memo:num-comandos)))
   (if memo:*ya-definidos*
     (progn
@@ -498,7 +558,7 @@
   (if (not vlisp-compile)
     (princ "\nEsta versión de AutoCAD no tiene vlisp-compile; se siguen usando los .lsp.")
     (progn
-      (setq base (strcat (vl-string-translate "\\" "/" (getenv "APPDATA")) "/MEMO_SISTEMA"))
+      (setq base (vl-string-right-trim "/" (vl-filename-directory (vl-string-right-trim "/" memo:dir-fas))))
       (vl-mkdir base)
       (vl-mkdir (strcat base "/FAS"))
       (setq ok 0 lista (cons "Sistema/MEMO_Lib" (mapcar 'car memo:*mapa*)))
