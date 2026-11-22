@@ -300,7 +300,7 @@ def parsear_reporte(mensaje: dict) -> tuple[dict, list[dict]]:
     maquinaria = secciones.get("maquinaria", [])
     inactivos = [l for l in secciones["personal"] + secciones.get("equipo menor", []) + maquinaria
                  if "inactiv" in sin_acentos(l) and l in maquinaria]
-    resumen = {"fecha": fecha, "obra": obra, "autor": mensaje["autor"],
+    resumen = {"fecha": fecha, "obra": obra, "grupo": mensaje.get("grupo", ""), "autor": mensaje["autor"],
                "personal_total": _sumar_personal(secciones.get("personal", []) + secciones.get("mano de obra", [])),
                "maquinaria": _sumar_personal(maquinaria),
                "maquinaria_inactiva": "; ".join(inactivos),
@@ -333,7 +333,7 @@ def parsear_reporte(mensaje: dict) -> tuple[dict, list[dict]]:
             "cadenamientos": info["cadenamientos"], "categorias": info["categorias"],
             "personal": _sumar_personal(pers),
             "equipo": " ".join(equipo).replace("Herramienta menor.", "").strip(" .") or "Herramienta menor",
-            "reportó": mensaje["autor"],
+            "reportó": mensaje["autor"], "grupo": mensaje.get("grupo", ""),
         })
     resumen["frentes"] = len(actividades)
     return resumen, actividades
@@ -363,7 +363,7 @@ def extraer_reportes(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 # --------------------------------------------------------------------------
 # REPORTES
 # --------------------------------------------------------------------------
-COLUMNAS = ["fecha", "hora", "autor", "texto", "categorias", "elementos", "cadenamientos",
+COLUMNAS = ["fecha", "hora", "grupo", "autor", "texto", "categorias", "elementos", "cadenamientos",
             "cantidades", "incidencia", "pendiente", "adjunto", "es_reporte"]
 
 
@@ -396,12 +396,12 @@ def escribir_excel(df: pd.DataFrame, reportes: pd.DataFrame, actividades: pd.Dat
         "Pendientes": texto_df[texto_df["pendiente"]][COLUMNAS],
         "Cantidades": texto_df[texto_df["cantidades"].ne("")][["fecha", "hora", "autor", "cantidades", "elementos",
                                                     "cadenamientos", "categorias", "texto"]],
-        "Por autor": df.groupby("autor").agg(mensajes=("texto", "size"),
+        "Por autor": df.groupby(["autor", "grupo"]).agg(mensajes=("texto", "size"),
                                              fotos_archivos=("adjunto", "sum"),
                                              primer_mensaje=("fecha", "min"),
                                              ultimo_mensaje=("fecha", "max")).reset_index()
                        .sort_values("mensajes", ascending=False),
-        "Adjuntos": df[df["adjunto"]][["fecha", "hora", "autor", "texto"]],
+        "Adjuntos": df[df["adjunto"]][["fecha", "hora", "grupo", "autor", "texto"]],
     }
     with pd.ExcelWriter(ruta, engine="openpyxl") as writer:
         for nombre, hoja in hojas.items():
@@ -423,6 +423,11 @@ DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Doming
 def _corto(texto: str, n: int = 400) -> str:
     texto = texto.replace("\n", " ")
     return texto if len(texto) <= n else texto[:n].rsplit(" ", 1)[0] + " …"
+
+
+def _etiqueta(r) -> str:
+    """Nombre corto del grupo entre corchetes, solo en el reporte consolidado."""
+    return f"[{r['grupo_corto']}] " if r.get("grupo_corto") else ""
 
 
 def escribir_markdown(df: pd.DataFrame, actividades: pd.DataFrame, reportes: pd.DataFrame,
@@ -451,17 +456,17 @@ def escribir_markdown(df: pd.DataFrame, actividades: pd.DataFrame, reportes: pd.
             if cat in por_cat:
                 lineas.append(f"**{cat}**")
                 for r in por_cat[cat]:
-                    lineas.append(f"- {r['hora']} · {r['autor']}: {_corto(r['texto'])}")
+                    lineas.append(f"- {r['hora']} · {_etiqueta(r)}{r['autor']}: {_corto(r['texto'])}")
                 lineas.append("")
         inc = g[g["incidencia"] & ~g["adjunto"]]
         if len(inc):
             lineas.append("**⚠️ Incidencias**")
-            lineas += [f"- {r['hora']} · {r['autor']}: {_corto(r['texto'])}" for _, r in inc.iterrows()]
+            lineas += [f"- {r['hora']} · {_etiqueta(r)}{r['autor']}: {_corto(r['texto'])}" for _, r in inc.iterrows()]
             lineas.append("")
         pen = g[g["pendiente"] & ~g["adjunto"]]
         if len(pen):
             lineas.append("**📌 Pendientes**")
-            lineas += [f"- {r['hora']} · {r['autor']}: {_corto(r['texto'])}" for _, r in pen.iterrows()]
+            lineas += [f"- {r['hora']} · {_etiqueta(r)}{r['autor']}: {_corto(r['texto'])}" for _, r in pen.iterrows()]
             lineas.append("")
         if n_adj:
             lineas += [f"_📷 {n_adj} fotos/archivos compartidos ese día._", ""]
@@ -471,13 +476,14 @@ def escribir_markdown(df: pd.DataFrame, actividades: pd.DataFrame, reportes: pd.
 # --------------------------------------------------------------------------
 # PROGRAMA PRINCIPAL
 # --------------------------------------------------------------------------
-def procesar_archivo(ruta: Path, desde: date | None, hasta: date | None, salida: Path) -> None:
+def cargar_grupo(ruta: Path, desde: date | None, hasta: date | None) -> pd.DataFrame | None:
     grupo, lineas = leer_lineas(ruta)
     mensajes = parsear_chat(lineas)
     if not mensajes:
         print(f"⚠️  {ruta.name}: no se reconocieron mensajes (¿es una exportación de WhatsApp?)")
-        return
+        return None
     df = pd.DataFrame([clasificar(m) for m in mensajes])
+    df.insert(0, "grupo", grupo)
     if desde:
         df = df[df["fecha"] >= desde]
     if hasta:
@@ -485,17 +491,37 @@ def procesar_archivo(ruta: Path, desde: date | None, hasta: date | None, salida:
     df = df[(df["autor"] != "(sistema)") & df["texto"].str.strip().ne("")]
     if df.empty:
         print(f"⚠️  {grupo}: no hay mensajes en el periodo indicado")
-        return
-    base = re.sub(r"[^\w\- ]", "_", grupo).strip()
+        return None
+    return df
+
+
+def generar(df: pd.DataFrame, nombre: str, salida: Path) -> None:
+    base = re.sub(r"[^\w\- ]", "_", nombre).strip()
     xlsx, md = salida / f"resumen_{base}.xlsx", salida / f"resumen_{base}.md"
     reportes, actividades = extraer_reportes(df)
     escribir_excel(df, reportes, actividades, xlsx)
-    escribir_markdown(df, actividades, reportes, grupo, md)
+    escribir_markdown(df, actividades, reportes, nombre, md)
     texto = df[~df["adjunto"] & ~df["es_reporte"]]
-    print(f"✅ {grupo}: {len(df)} mensajes ({df['fecha'].min()} a {df['fecha'].max()}), "
+    print(f"✅ {nombre}: {len(df)} mensajes ({df['fecha'].min()} a {df['fecha'].max()}), "
           f"{len(reportes)} reportes diarios con {len(actividades)} actividades por frente, "
           f"{int(texto['incidencia'].sum())} incidencias, {int(texto['pendiente'].sum())} pendientes")
     print(f"   → {xlsx}\n   → {md}")
+
+
+def consolidar(grupos: list[pd.DataFrame]) -> pd.DataFrame:
+    """Une varios grupos en una sola línea de tiempo. Un mensaje reenviado o repetido
+    en otro grupo (mismo día y mismo texto) se deja una sola vez y se anotan los grupos."""
+    df = pd.concat(grupos, ignore_index=True).sort_values("fecha_hora", kind="stable")
+    df["grupo_corto"] = df["grupo"].str.replace(r"(?i)\s*-?\s*barrio\s*(v|5)\b", "", regex=True).str.strip(" -") \
+        .replace("", pd.NA).fillna(df["grupo"])
+    clave = df["texto"].str.lower().str.replace(r"\W+", " ", regex=True).str.strip()
+    largo = ~df["adjunto"] & clave.str.len().ge(40)
+    df["_clave"] = df["fecha"].astype(str) + "|" + clave.where(largo, df.index.astype(str))
+    grupos_por_clave = df.groupby("_clave")["grupo_corto"].agg(lambda g: ", ".join(dict.fromkeys(g)))
+    df = df.drop_duplicates("_clave", keep="first").copy()
+    df["grupo_corto"] = df["_clave"].map(grupos_por_clave)
+    df["grupo"] = df["grupo_corto"]
+    return df.drop(columns="_clave")
 
 
 def main() -> None:
@@ -504,6 +530,8 @@ def main() -> None:
     ap.add_argument("--desde", type=date.fromisoformat, help="Fecha inicial AAAA-MM-DD")
     ap.add_argument("--hasta", type=date.fromisoformat, help="Fecha final AAAA-MM-DD")
     ap.add_argument("--salida", type=Path, default=Path("reportes_whatsapp"), help="Carpeta de salida")
+    ap.add_argument("--nombre", default="CONSOLIDADO", help="Nombre del reporte que une todos los grupos")
+    ap.add_argument("--sin-consolidado", action="store_true", help="No generar el reporte que une los grupos")
     args = ap.parse_args()
 
     archivos: list[Path] = []
@@ -518,11 +546,18 @@ def main() -> None:
         sys.exit("No se encontraron archivos .txt o .zip para procesar.")
 
     args.salida.mkdir(parents=True, exist_ok=True)
+    cargados = []
     for ruta in archivos:
         try:
-            procesar_archivo(ruta, args.desde, args.hasta, args.salida)
+            df = cargar_grupo(ruta, args.desde, args.hasta)
+            if df is not None:
+                generar(df, df["grupo"].iloc[0], args.salida)
+                cargados.append(df)
         except Exception as exc:  # un archivo dañado no detiene a los demás
             print(f"❌ {ruta.name}: {exc}")
+    if len(cargados) > 1 and not args.sin_consolidado:
+        print(f"\n📚 Consolidado de {len(cargados)} grupos:")
+        generar(consolidar(cargados), args.nombre, args.salida)
 
 
 if __name__ == "__main__":

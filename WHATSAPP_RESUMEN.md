@@ -47,6 +47,17 @@ python whatsapp_resumen.py whatsapp/ --desde 2026-11-16 --hasta 2026-11-22
 python whatsapp_resumen.py "whatsapp/Chat de WhatsApp con Frente Norte.txt" --salida reportes/semana47
 ```
 
+### Varios grupos de la misma obra
+
+Si en la carpeta hay **más de un chat**, además del reporte de cada grupo se genera uno **consolidado** que une todos en una sola línea de tiempo:
+- Cada mensaje indica de qué grupo viene, por ejemplo `[Supervisión]`.
+- Un mensaje o reporte reenviado a varios grupos (mismo día y mismo texto) aparece una sola vez, con los grupos donde se publicó.
+
+```bash
+python whatsapp_resumen.py whatsapp/ --nombre "Barrio V"        # genera también resumen_Barrio V.xlsx / .md
+python whatsapp_resumen.py whatsapp/ --sin-consolidado          # solo un reporte por grupo
+```
+
 ## 4. Resultados (carpeta `reportes_whatsapp/`)
 
 Por cada grupo se generan dos archivos.
