@@ -56,6 +56,8 @@ Por cada grupo se generan dos archivos.
 | Hoja | Contenido |
 |---|---|
 | Resumen diario | Por día: n.º de mensajes, quién reportó, categorías, elementos (Pila 3, Zapata 4…), cadenamientos, incidencias, pendientes y fotos |
+| Avance por frente | Se llena desde los mensajes **"Reporte de actividades …"**. Hay una fila por frente y por día, con obra, actividad, estado (en proceso / concluido), volúmenes y profundidades, elementos (Pila, Eje, Zapata, Caballete), personal y equipo |
+| Personal y equipo | Por reporte diario: total de personal, maquinaria y equipo inactivo |
 | Mensajes | Todos los mensajes ya clasificados, con filtros |
 | Incidencias | Problemas, fallas, retrasos, paros, material que no llegó… |
 | Pendientes | Lo programado, lo que falta y las solicitudes |
@@ -72,6 +74,8 @@ Al inicio de `whatsapp_resumen.py` están los diccionarios `CATEGORIAS`, `INCIDE
 - Un `*` al final funciona como prefijo: `colad*` encuentra *colado*, *colada* y *colados*.
 
 ## Notas
+
+- Los reportes diarios se reconocen cuando el mensaje empieza con **"Reporte de actividades"** y tiene bloques **"Frente N"**, cada uno con sus secciones *Personal* o *Mano de obra* y *Equipo y maquinaria*. Si se reenvía un reporte del mismo día y la misma obra, se toma el último.
 
 - Funciona con exportaciones de Android y iPhone, en español o inglés, con formato de 12 h o de 24 h.
 - Las fechas se interpretan como **día/mes/año**.

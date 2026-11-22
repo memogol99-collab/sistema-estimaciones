@@ -16,6 +16,7 @@ Las categorías y palabras clave se pueden ajustar en el diccionario CATEGORIAS.
 """
 
 import argparse
+import difflib
 import re
 import sys
 import unicodedata
@@ -39,14 +40,19 @@ CATEGORIAS = {
     "Pilas / Cimentación": ["pila", "pilas", "perforacion*", "perforad*", "ademe", "bentonit*",
                             "zapata*", "cabezal*", "pilote*", "cimentacion", "dado*"],
     "Estructura / Puente": ["trabe*", "losa*", "columna*", "caballete*", "neopreno*", "montaje",
-                            "aleros", "diafragma*", "parapeto*", "junta* de dilatacion"],
+                            "aleros", "diafragma*", "parapeto*", "junta* de dilatacion", "apoyo*", "spandeck", "mensula*",
+                            "muro respaldo", "descabece", "izad*", "izaje", "plantilla"],
     "Terracerías / Excavación": ["excavacion*", "excavad*", "terraplen*", "relleno*", "compact*",
                                  "terraceria*", "despalme", "corte", "cortes", "acarreo*",
                                  "subrasante", "base hidraulica", "subbase"],
     "Pavimentos": ["carpeta", "asfalt*", "riego de liga", "riego de impregnacion", "pavimento*",
                    "fresado", "bacheo"],
-    "Drenaje / Obras complementarias": ["alcantarilla*", "cuneta*", "lavadero*", "tubo*",
-                                        "drenaje", "contracuneta*", "bordillo*", "señalamiento"],
+    "Instalaciones / Obras complementarias": ["alcantarilla*", "cuneta*", "lavadero*", "tubo*", "tuberia*",
+                                              "drenaje", "contracuneta*", "bordillo*", "ducto*", "registro*",
+                                              "cfe", "fibra optica", "valvula*", "sanitari*", "agua potable",
+                                              "banqueta*", "guarnicion*", "alumbrado"],
+    "Demolición": ["demolicion*", "demoler", "demolid*"],
+    "Vialidad / Desvíos": ["desvio*", "banderer*", "señalamiento", "barrera*", "transito", "cierre de"],
     "Materiales / Suministros": ["llego", "llegaron", "suministro*", "entrega*", "material*",
                                  "pedido*", "remision*", "proveedor*", "cemento", "agregado*",
                                  "grava", "arena"],
@@ -65,14 +71,14 @@ CATEGORIAS = {
 }
 
 # Categorías especiales (se listan en hojas aparte)
-INCIDENCIAS = ["problema*", "falla*", "fallo", "retraso*", "atras*", "detenid*", "paro", "parado",
+INCIDENCIAS = ["problema*", "falla*", "fallo", "retraso*", "atras*", "detenid*", "paro", "parad*", "falta de pago", "sin pago", "se fue a la zanja",
                "suspend*", "no se pudo", "no llego", "no llegaron", "se descompuso", "descompuest*",
                "averia*", "urge", "urgente", "reclamo*", "rechaz*", "derrumbe*", "fuga*", "bloqueo*"]
 PENDIENTES = ["pendiente*", "falta", "faltan", "manana", "programad*", "se requiere", "requerimos",
               "hay que", "necesitamos", "necesito", "por hacer", "se va a", "vamos a",
               "favor de", "solicito", "solicitamos"]
 
-UNIDADES = r"(m3|m³|m2|m²|ml|m\.l\.|mts?|km|ton|tons|kg|pzas?|piezas|ollas?|viajes|lts?|litros|%|metros|hrs?|horas)"
+UNIDADES = r"(m3|m³|m2|m²|ml|m\.l\.|mts?|m|km|ton|tons|kg|pzas?|piezas|ollas?|viajes|lts?|litros|%|metros|hrs?|horas)"
 
 # --------------------------------------------------------------------------
 # PARSEO DE LA EXPORTACIÓN
@@ -200,10 +206,12 @@ def compilar(palabras: list[str]) -> re.Pattern:
 PATRONES = {cat: compilar(pal) for cat, pal in CATEGORIAS.items()}
 PATRON_INCIDENCIAS = compilar(INCIDENCIAS)
 PATRON_PENDIENTES = compilar(PENDIENTES)
+# Frases que niegan el problema ("no hay problema", "sin problema") no cuentan como incidencia
+RE_NEGACION = re.compile(r"\b(no hay|sin|no (va|vaya) (a )?(ver|haber)|no ve|ningun)\s+(ningun\s+)?problema\w*")
 RE_CANTIDAD = re.compile(r"(\d+(?:[.,]\d+)?)\s*" + UNIDADES + r"(?![a-z])(?!\.?\s*\d{1,3}\s?\+)", re.IGNORECASE)
 RE_CADENAMIENTO = re.compile(r"\b(?:km\.?\s*)?(\d{1,3}\s?\+\s?\d{3}(?:\.\d+)?)\b", re.IGNORECASE)
 RE_ELEMENTO = re.compile(
-    r"\b(pila|pilas|zapata|cabezal|columna|trabe|losa|caballete|estribo|apoyo|eje|tramo|claro|frente)"
+    r"\b(pila|pilas|zapata|cabezal|columna|trabe|losa|caballete|estribo|apoyo|eje|tramo|claro|mensula|ménsula)"
     r"(?:\s*(?:no\.?|num\.?|#)?\s*(\d+[a-z]?)|\s+([a-z])(?![\w.]))",
     re.IGNORECASE,
 )
@@ -222,20 +230,141 @@ def clasificar(mensaje: dict) -> dict:
         "fecha": mensaje["fecha_hora"].date(),
         "hora": mensaje["fecha_hora"].strftime("%H:%M"),
         "categorias": ", ".join(categorias),
-        "incidencia": bool(PATRON_INCIDENCIAS.search(normal)),
+        "incidencia": bool(PATRON_INCIDENCIAS.search(RE_NEGACION.sub(" ", normal))),
         "pendiente": bool(PATRON_PENDIENTES.search(normal)),
         "cantidades": ", ".join(cantidades),
         "cadenamientos": ", ".join(cadenamientos),
         "elementos": ", ".join(elementos),
         "adjunto": es_adjunto,
+        "es_reporte": es_reporte(texto),
     }
+
+
+# --------------------------------------------------------------------------
+# REPORTES DIARIOS ESTRUCTURADOS ("Reporte de actividades <obra>")
+# Formato esperado: encabezado con Personal / Equipo menor / Maquinaria y luego
+# bloques "Frente N" con la actividad, su Personal y su Equipo y maquinaria.
+# --------------------------------------------------------------------------
+MESES = {m: i for i, m in enumerate(["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+                                      "septiembre", "octubre", "noviembre", "diciembre"], 1)}
+RE_FECHA_LARGA = re.compile(r"(\d{1,2})\s+de\s+([a-z]+)\s+(?:de|del)\s+(\d{4})")
+RE_FRENTE = re.compile(r"^frente\b", re.IGNORECASE)
+RE_SECCION = re.compile(r"^(personal|mano de obra|equipo menor|equipo y maquinaria|maquinaria)\s*:?\s*$")
+RE_NUM_INICIAL = re.compile(r"^(\d+)\s")
+RE_VIÑETA = re.compile(r"^[\s•◦·\-–*]+")
+
+
+def es_reporte(texto: str) -> bool:
+    return sin_acentos(texto[:120]).lstrip("* ").startswith("reporte de actividades")
+
+
+def _sumar_personal(lineas: list[str]) -> int:
+    return sum(int(m[1]) for l in lineas if (m := RE_NUM_INICIAL.match(l)))
+
+
+def _estado(actividad: str) -> str:
+    a = sin_acentos(actividad)
+    if re.search(r"\b(conclu|termin|finaliz)", a):
+        return "Concluido"
+    if re.search(r"\b(continua|continuacion|sigue|seguimiento)", a):
+        return "En proceso"
+    return "Ejecutado / inicio"
+
+
+def parsear_reporte(mensaje: dict) -> tuple[dict, list[dict]]:
+    """Devuelve (fila de resumen del reporte, filas de actividades por frente)."""
+    lineas = [RE_VIÑETA.sub("", l).strip() for l in mensaje["texto"].splitlines()]
+    lineas = [l for l in lineas if l]
+    obra = re.sub(r"(?i)^\**\s*reporte de actividades\s*(de|del)?\s*", "", lineas[0]).strip(" *:") or "(sin nombre)"
+    obra = re.split(r"(?i)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)?\s*\d{1,2}\s+de\s", obra)[0].strip(" ,.-")
+    fecha = mensaje["fecha_hora"].date()
+    for l in lineas[0:3]:
+        m = RE_FECHA_LARGA.search(sin_acentos(l))
+        mes = m and (difflib.get_close_matches(m[2], MESES, n=1, cutoff=0.7) or [None])[0]
+        if mes:
+            try:
+                fecha = date(int(m[3]), MESES[mes], int(m[1]))
+            except ValueError:
+                pass
+            break
+
+    # Encabezado general (antes del primer frente)
+    secciones: dict[str, list[str]] = defaultdict(list)
+    actual, i = None, 1
+    while i < len(lineas) and not RE_FRENTE.match(lineas[i]):
+        if m := RE_SECCION.match(sin_acentos(lineas[i]).replace("maquinaria", "maquinaria")):
+            actual = m[1]
+        elif actual:
+            secciones[actual].append(lineas[i])
+        i += 1
+    maquinaria = secciones.get("maquinaria", [])
+    inactivos = [l for l in secciones["personal"] + secciones.get("equipo menor", []) + maquinaria
+                 if "inactiv" in sin_acentos(l) and l in maquinaria]
+    resumen = {"fecha": fecha, "obra": obra, "autor": mensaje["autor"],
+               "personal_total": _sumar_personal(secciones.get("personal", []) + secciones.get("mano de obra", [])),
+               "maquinaria": _sumar_personal(maquinaria),
+               "maquinaria_inactiva": "; ".join(inactivos),
+               "frentes": 0}
+
+    # Bloques por frente
+    actividades: list[dict] = []
+    while i < len(lineas):
+        frente = lineas[i].rstrip(":")
+        i += 1
+        desc, pers, equipo, actual = [], [], [], "actividad"
+        while i < len(lineas) and not RE_FRENTE.match(lineas[i]):
+            n = sin_acentos(lineas[i])
+            if m := RE_SECCION.match(n):
+                actual = "personal" if m[1] in ("personal", "mano de obra") else "equipo"
+            elif actual == "actividad":
+                desc.append(lineas[i])
+            elif actual == "personal":
+                pers.append(lineas[i])
+            else:
+                equipo.append(lineas[i])
+            i += 1
+        actividad = " ".join(desc)
+        if not actividad:
+            continue
+        info = clasificar({"fecha_hora": mensaje["fecha_hora"], "autor": mensaje["autor"], "texto": actividad})
+        actividades.append({
+            "fecha": fecha, "obra": obra, "frente": frente, "actividad": actividad,
+            "estado": _estado(actividad), "cantidades": info["cantidades"], "elementos": info["elementos"],
+            "cadenamientos": info["cadenamientos"], "categorias": info["categorias"],
+            "personal": _sumar_personal(pers),
+            "equipo": " ".join(equipo).replace("Herramienta menor.", "").strip(" .") or "Herramienta menor",
+            "reportó": mensaje["autor"],
+        })
+    resumen["frentes"] = len(actividades)
+    return resumen, actividades
+
+
+def extraer_reportes(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    resumenes, actividades = [], []
+    for _, r in df[df["es_reporte"]].iterrows():
+        res, act = parsear_reporte(r.to_dict())
+        resumenes.append(res)
+        actividades += act
+    res_df = pd.DataFrame(resumenes)
+    act_df = pd.DataFrame(actividades)
+    if not res_df.empty:  # unifica mayúsculas/minúsculas del nombre de la obra
+        nombres = {}
+        for o in res_df["obra"]:
+            nombres.setdefault(o.upper(), o)
+        res_df["obra"] = res_df["obra"].str.upper().map(nombres)
+        act_df["obra"] = act_df["obra"].str.upper().map(nombres)
+    if not res_df.empty:  # si un reporte se reenvió o corrigió, queda el último de ese día y obra
+        res_df = res_df.drop_duplicates(["fecha", "obra"], keep="last").sort_values(["fecha", "obra"])
+        act_df = (act_df.drop_duplicates(["fecha", "obra", "frente", "actividad"], keep="last")
+                  .sort_values(["fecha", "obra"], kind="stable"))
+    return res_df, act_df
 
 
 # --------------------------------------------------------------------------
 # REPORTES
 # --------------------------------------------------------------------------
 COLUMNAS = ["fecha", "hora", "autor", "texto", "categorias", "elementos", "cadenamientos",
-            "cantidades", "incidencia", "pendiente", "adjunto"]
+            "cantidades", "incidencia", "pendiente", "adjunto", "es_reporte"]
 
 
 def resumen_diario(df: pd.DataFrame) -> pd.DataFrame:
@@ -249,21 +378,23 @@ def resumen_diario(df: pd.DataFrame) -> pd.DataFrame:
             "categorías (n.º de mensajes)": ", ".join(f"{c} ({n})" for c, n in conteo.most_common()),
             "elementos mencionados": ", ".join(sorted({e for x in g["elementos"] if x for e in x.split(", ")})),
             "cadenamientos": ", ".join(sorted({e for x in g["cadenamientos"] if x for e in x.split(", ")})),
-            "incidencias": int(g["incidencia"].sum()),
-            "pendientes": int(g["pendiente"].sum()),
+            "incidencias": int((g["incidencia"] & ~g["es_reporte"]).sum()),
+            "pendientes": int((g["pendiente"] & ~g["es_reporte"]).sum()),
             "fotos/archivos": int(g["adjunto"].sum()),
         })
     return pd.DataFrame(filas)
 
 
-def escribir_excel(df: pd.DataFrame, ruta: Path) -> None:
-    texto_df = df[~df["adjunto"] | df["categorias"].ne("")]
+def escribir_excel(df: pd.DataFrame, reportes: pd.DataFrame, actividades: pd.DataFrame, ruta: Path) -> None:
+    texto_df = df[~df["adjunto"] & ~df["es_reporte"]]
     hojas = {
         "Resumen diario": resumen_diario(df),
+        "Avance por frente": actividades,
+        "Personal y equipo": reportes,
         "Mensajes": df[COLUMNAS],
         "Incidencias": texto_df[texto_df["incidencia"]][COLUMNAS],
         "Pendientes": texto_df[texto_df["pendiente"]][COLUMNAS],
-        "Cantidades": df[df["cantidades"].ne("")][["fecha", "hora", "autor", "cantidades", "elementos",
+        "Cantidades": texto_df[texto_df["cantidades"].ne("")][["fecha", "hora", "autor", "cantidades", "elementos",
                                                     "cadenamientos", "categorias", "texto"]],
         "Por autor": df.groupby("autor").agg(mensajes=("texto", "size"),
                                              fotos_archivos=("adjunto", "sum"),
@@ -274,6 +405,8 @@ def escribir_excel(df: pd.DataFrame, ruta: Path) -> None:
     }
     with pd.ExcelWriter(ruta, engine="openpyxl") as writer:
         for nombre, hoja in hojas.items():
+            if hoja.empty and nombre in ("Avance por frente", "Personal y equipo"):
+                continue
             hoja.to_excel(writer, sheet_name=nombre, index=False)
             ws = writer.sheets[nombre]
             ws.freeze_panes = "A2"
@@ -287,13 +420,30 @@ def escribir_excel(df: pd.DataFrame, ruta: Path) -> None:
 DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
 
-def escribir_markdown(df: pd.DataFrame, grupo: str, ruta: Path) -> None:
+def _corto(texto: str, n: int = 400) -> str:
+    texto = texto.replace("\n", " ")
+    return texto if len(texto) <= n else texto[:n].rsplit(" ", 1)[0] + " …"
+
+
+def escribir_markdown(df: pd.DataFrame, actividades: pd.DataFrame, reportes: pd.DataFrame,
+                      grupo: str, ruta: Path) -> None:
     lineas = [f"# Resumen de obra — {grupo}", "",
               f"Periodo: **{df['fecha'].min():%d/%m/%Y}** al **{df['fecha'].max():%d/%m/%Y}** · "
               f"{len(df)} mensajes · {df['autor'].nunique()} participantes · "
               f"{int(df['adjunto'].sum())} fotos/archivos", ""]
     for dia, g in df.groupby("fecha"):
         lineas += [f"## {DIAS[dia.weekday()]} {dia:%d/%m/%Y}", ""]
+        if not actividades.empty:
+            for obra, a in actividades[actividades["fecha"] == dia].groupby("obra", sort=False):
+                rep = reportes[(reportes["fecha"] == dia) & (reportes["obra"] == obra)]
+                extra = f" · {int(rep['personal_total'].iloc[0])} personas en obra" if len(rep) and rep["personal_total"].iloc[0] else ""
+                lineas.append(f"**🏗️ Reporte de actividades — {obra}**{extra}")
+                for _, r in a.iterrows():
+                    cant = f" **[{r['cantidades']}]**" if r["cantidades"] else ""
+                    lineas.append(f"- {r['frente']}: {_corto(r['actividad'], 250)}{cant}")
+                lineas.append("")
+        n_adj = int(g["adjunto"].sum())
+        g = g[~g["es_reporte"]]
         por_cat = defaultdict(list)
         for _, r in g[g["categorias"].ne("") & ~g["adjunto"]].iterrows():
             por_cat[r["categorias"].split(", ")[0]].append(r)
@@ -301,19 +451,18 @@ def escribir_markdown(df: pd.DataFrame, grupo: str, ruta: Path) -> None:
             if cat in por_cat:
                 lineas.append(f"**{cat}**")
                 for r in por_cat[cat]:
-                    lineas.append(f"- {r['hora']} · {r['autor']}: {r['texto'].replace(chr(10), ' ')}")
+                    lineas.append(f"- {r['hora']} · {r['autor']}: {_corto(r['texto'])}")
                 lineas.append("")
         inc = g[g["incidencia"] & ~g["adjunto"]]
         if len(inc):
             lineas.append("**⚠️ Incidencias**")
-            lineas += [f"- {r['hora']} · {r['autor']}: {r['texto'].replace(chr(10), ' ')}" for _, r in inc.iterrows()]
+            lineas += [f"- {r['hora']} · {r['autor']}: {_corto(r['texto'])}" for _, r in inc.iterrows()]
             lineas.append("")
         pen = g[g["pendiente"] & ~g["adjunto"]]
         if len(pen):
             lineas.append("**📌 Pendientes**")
-            lineas += [f"- {r['hora']} · {r['autor']}: {r['texto'].replace(chr(10), ' ')}" for _, r in pen.iterrows()]
+            lineas += [f"- {r['hora']} · {r['autor']}: {_corto(r['texto'])}" for _, r in pen.iterrows()]
             lineas.append("")
-        n_adj = int(g["adjunto"].sum())
         if n_adj:
             lineas += [f"_📷 {n_adj} fotos/archivos compartidos ese día._", ""]
     ruta.write_text("\n".join(lineas), encoding="utf-8")
@@ -333,16 +482,19 @@ def procesar_archivo(ruta: Path, desde: date | None, hasta: date | None, salida:
         df = df[df["fecha"] >= desde]
     if hasta:
         df = df[df["fecha"] <= hasta]
-    df = df[df["autor"] != "(sistema)"]
+    df = df[(df["autor"] != "(sistema)") & df["texto"].str.strip().ne("")]
     if df.empty:
         print(f"⚠️  {grupo}: no hay mensajes en el periodo indicado")
         return
     base = re.sub(r"[^\w\- ]", "_", grupo).strip()
     xlsx, md = salida / f"resumen_{base}.xlsx", salida / f"resumen_{base}.md"
-    escribir_excel(df, xlsx)
-    escribir_markdown(df, grupo, md)
+    reportes, actividades = extraer_reportes(df)
+    escribir_excel(df, reportes, actividades, xlsx)
+    escribir_markdown(df, actividades, reportes, grupo, md)
+    texto = df[~df["adjunto"] & ~df["es_reporte"]]
     print(f"✅ {grupo}: {len(df)} mensajes ({df['fecha'].min()} a {df['fecha'].max()}), "
-          f"{int(df['incidencia'].sum())} incidencias, {int(df['pendiente'].sum())} pendientes")
+          f"{len(reportes)} reportes diarios con {len(actividades)} actividades por frente, "
+          f"{int(texto['incidencia'].sum())} incidencias, {int(texto['pendiente'].sum())} pendientes")
     print(f"   → {xlsx}\n   → {md}")
 
 
