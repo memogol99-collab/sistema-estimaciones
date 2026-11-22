@@ -78,6 +78,22 @@ Por cada grupo se generan dos archivos.
 
 **`resumen_<grupo>.md`**: reporte legible día por día, agrupado por categoría (Colado, Acero, Pilas, Terracerías…), con secciones de ⚠️ Incidencias y 📌 Pendientes.
 
+**`pilas_<grupo>.xlsx`**: tabla de pilas para soporte de estimación.
+
+| Hoja | Contenido |
+|---|---|
+| Resumen por eje | Por eje: pilas coladas y pendientes, m³ de concreto colado y m³ de relleno fluido |
+| Pilas | Una fila por pila (E3-P5 = Eje 3, Pila 5): estado, inicio de perforación, última profundidad, intentos, caídos, relleno fluido (m³ y fechas), fecha y volumen de colado, **observaciones a verificar** y menciones en otros grupos |
+| Eventos (reportes) | Cada perforación, relleno fluido o colado tal como viene en los reportes diarios |
+| Apoyos (según grupos) | Pilas por apoyo (Garzas / Gaviotas) mencionadas en los mensajes: son **programas o avisos**, no reportes de lo ejecutado |
+| Menciones en grupos | Cada mensaje que menciona una pila, con el grupo y el autor |
+
+La columna *observaciones* marca lo que conviene revisar antes de estimar:
+- una pila con colado reportado dos veces;
+- un texto copiado del día anterior (no se suma);
+- un colado sin volumen;
+- una profundidad idéntica a la de otra pila reportada el día anterior.
+
 ## 5. Ajustar las palabras clave
 
 Al inicio de `whatsapp_resumen.py` están los diccionarios `CATEGORIAS`, `INCIDENCIAS` y `PENDIENTES`. Puedes agregar los términos que usa tu gente en obra.
