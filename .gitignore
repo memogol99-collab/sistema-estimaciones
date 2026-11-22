@@ -1,0 +1,5 @@
+# Chats exportados de WhatsApp y reportes generados (datos privados: no subir a GitHub)
+whatsapp/*
+!whatsapp/.gitkeep
+reportes_whatsapp/
+__pycache__/
