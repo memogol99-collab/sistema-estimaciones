@@ -78,6 +78,18 @@ PENDIENTES = ["pendiente*", "falta", "faltan", "manana", "programad*", "se requi
               "hay que", "necesitamos", "necesito", "por hacer", "se va a", "vamos a",
               "favor de", "solicito", "solicitamos"]
 
+# Puentes de la obra. Se revisan en orden: la primera regla que coincida decide.
+#   - "Complemento", "segunda etapa"/"etapa 2" y el Retorno son del contrato de GARZAS.
+#   - Lo demás que diga "Barrio V" o "Barrio 5" es GAVIOTAS.
+PUENTE_GARZAS = "Garzas (2ª etapa)"
+PUENTE_GAVIOTAS = "Gaviotas (Barrio V)"
+PUENTES = [
+    (PUENTE_GARZAS, r"\bcomplemento\b|segunda etapa|\betapa\s*(?:2|ii|dos)\b|\b2\s*(?:da|a|º|°|o)?\.?\s*etapa\b|\bretorno\b|\bgarzas\b"),
+    (PUENTE_GAVIOTAS, r"\bgaviotas\b|\bbarrio\s*(?:v|5)\b"),
+]
+# Calles con el mismo nombre que los puentes: no cuentan para decidir el puente
+RE_CALLES = re.compile(r"\b(?:av(?:enida)?\.?|calle|valle de)\s+(?:las\s+|los\s+)?(?:garzas|gaviotas)\b")
+
 UNIDADES = r"(m3|m³|m2|m²|ml|m\.l\.|mts?|m|km|ton|tons|kg|pzas?|piezas|ollas?|viajes|lts?|litros|%|metros|hrs?|horas)"
 
 # --------------------------------------------------------------------------
@@ -111,6 +123,15 @@ RE_ADJUNTO = re.compile(
 def sin_acentos(texto: str) -> str:
     texto = unicodedata.normalize("NFD", texto.lower())
     return "".join(c for c in texto if unicodedata.category(c) != "Mn")
+
+
+def puente(texto: str, por_defecto: str = "") -> str:
+    """Puente al que se refiere un texto según PUENTES, o por_defecto si no lo dice."""
+    n = RE_CALLES.sub(" ", sin_acentos(texto or ""))
+    for nombre, patron in PUENTES:
+        if re.search(patron, n):
+            return nombre
+    return por_defecto
 
 
 def parsear_fecha(fecha: str, hora: str, ampm: str | None, mes_primero: bool) -> datetime | None:
@@ -237,6 +258,7 @@ def clasificar(mensaje: dict) -> dict:
         "elementos": ", ".join(elementos),
         "adjunto": es_adjunto,
         "es_reporte": es_reporte(texto),
+        "puente": puente(texto),
     }
 
 
@@ -300,7 +322,7 @@ def parsear_reporte(mensaje: dict) -> tuple[dict, list[dict]]:
     maquinaria = secciones.get("maquinaria", [])
     inactivos = [l for l in secciones["personal"] + secciones.get("equipo menor", []) + maquinaria
                  if "inactiv" in sin_acentos(l) and l in maquinaria]
-    resumen = {"fecha": fecha, "obra": obra, "grupo": mensaje.get("grupo", ""), "autor": mensaje["autor"],
+    resumen = {"fecha": fecha, "obra": obra, "puente": puente(obra), "grupo": mensaje.get("grupo", ""), "autor": mensaje["autor"],
                "personal_total": _sumar_personal(secciones.get("personal", []) + secciones.get("mano de obra", [])),
                "maquinaria": _sumar_personal(maquinaria),
                "maquinaria_inactiva": "; ".join(inactivos),
@@ -328,7 +350,8 @@ def parsear_reporte(mensaje: dict) -> tuple[dict, list[dict]]:
             continue
         info = clasificar({"fecha_hora": mensaje["fecha_hora"], "autor": mensaje["autor"], "texto": actividad})
         actividades.append({
-            "fecha": fecha, "obra": obra, "frente": frente, "actividad": actividad,
+            "fecha": fecha, "obra": obra, "puente": puente(actividad, por_defecto=puente(obra)),
+            "frente": frente, "actividad": actividad,
             "estado": _estado(actividad), "cantidades": info["cantidades"], "elementos": info["elementos"],
             "cadenamientos": info["cadenamientos"], "categorias": info["categorias"],
             "personal": _sumar_personal(pers),
@@ -363,7 +386,7 @@ def extraer_reportes(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 # --------------------------------------------------------------------------
 # REPORTES
 # --------------------------------------------------------------------------
-COLUMNAS = ["fecha", "hora", "grupo", "autor", "texto", "categorias", "elementos", "cadenamientos",
+COLUMNAS = ["fecha", "hora", "grupo", "puente", "autor", "texto", "categorias", "elementos", "cadenamientos",
             "cantidades", "incidencia", "pendiente", "adjunto", "es_reporte"]
 
 
@@ -442,7 +465,8 @@ def escribir_markdown(df: pd.DataFrame, actividades: pd.DataFrame, reportes: pd.
             for obra, a in actividades[actividades["fecha"] == dia].groupby("obra", sort=False):
                 rep = reportes[(reportes["fecha"] == dia) & (reportes["obra"] == obra)]
                 extra = f" · {int(rep['personal_total'].iloc[0])} personas en obra" if len(rep) and rep["personal_total"].iloc[0] else ""
-                lineas.append(f"**🏗️ Reporte de actividades — {obra}**{extra}")
+                ptes = ", ".join(dict.fromkeys(a["puente"]))
+                lineas.append(f"**🏗️ Reporte de actividades — {obra}** (puente {ptes}){extra}")
                 for _, r in a.iterrows():
                     cant = f" **[{r['cantidades']}]**" if r["cantidades"] else ""
                     lineas.append(f"- {r['frente']}: {_corto(r['actividad'], 250)}{cant}")
@@ -512,7 +536,7 @@ def eventos_pilas(actividades: pd.DataFrame) -> pd.DataFrame:
         prof = [_num(v) for v in RE_PROF.findall(texto)]
         for eje, pila in pilas:
             filas.append({
-                "obra": r["obra"], "eje": eje, "pila": pila, "fecha": r["fecha"], "evento": tipo,
+                "puente": r["puente"], "eje": eje, "pila": pila, "fecha": r["fecha"], "evento": tipo,
                 "volumen_m3": m3[0] if m3 else None,
                 "profundidad_m": max(prof) if prof and "perfora" in n else None,
                 "caidos": bool(re.search(r"caido|se cae|cae la pared|no se recupero|se recupero|recupera", n)),
@@ -522,16 +546,16 @@ def eventos_pilas(actividades: pd.DataFrame) -> pd.DataFrame:
     ev = pd.DataFrame(filas)
     if ev.empty:
         return ev
-    ev = ev.sort_values(["obra", "eje", "pila", "fecha"], kind="stable")
+    ev = ev.sort_values(["puente", "eje", "pila", "fecha"], kind="stable")
     # Mismo evento con el mismo texto en días seguidos: casi siempre es un reporte copiado del día anterior
-    ev["posible_repetido"] = (ev.duplicated(["obra", "eje", "pila", "evento", "actividad"], keep="first")
+    ev["posible_repetido"] = (ev.duplicated(["puente", "eje", "pila", "evento", "actividad"], keep="first")
                               & ev["evento"].isin(["Colado", "Relleno fluido"]))
     return ev
 
 
 def resumen_pilas(ev: pd.DataFrame) -> pd.DataFrame:
     filas = []
-    for (obra, eje, pila), g in ev.groupby(["obra", "eje", "pila"]):
+    for (pte, eje, pila), g in ev.groupby(["puente", "eje", "pila"]):
         validos = g[~g["posible_repetido"]]
         col = validos[validos["evento"] == "Colado"]
         rf = validos[validos["evento"].str.contains("Relleno")]
@@ -555,7 +579,7 @@ def resumen_pilas(ev: pd.DataFrame) -> pd.DataFrame:
         else:
             estado = "Armado / preparación"
         filas.append({
-            "obra": obra, "eje": eje, "pila": pila, "elemento": f"E{eje}-P{pila}", "estado": estado,
+            "puente": pte, "eje": eje, "pila": pila, "elemento": f"E{eje}-P{pila}", "estado": estado,
             "inicio_perforación": perf["fecha"].min() if len(perf) else None,
             "última_profundidad_reportada_m": perf["profundidad_m"].dropna().iloc[-1] if perf["profundidad_m"].notna().any() else None,
             "fecha_última_profundidad": perf.loc[perf["profundidad_m"].notna(), "fecha"].iloc[-1] if perf["profundidad_m"].notna().any() else None,
@@ -571,7 +595,7 @@ def resumen_pilas(ev: pd.DataFrame) -> pd.DataFrame:
     # Misma profundidad exacta que otra pila reportada uno o dos días antes: posible texto copiado
     prof = res.dropna(subset=["última_profundidad_reportada_m"])
     for i, r in prof.iterrows():
-        otras = prof[(prof.index != i) & (prof["obra"] == r["obra"])
+        otras = prof[(prof.index != i) & (prof["puente"] == r["puente"])
                      & (prof["última_profundidad_reportada_m"] == r["última_profundidad_reportada_m"])]
         otras = otras[otras["fecha_última_profundidad"].apply(lambda d: 0 < (r["fecha_última_profundidad"] - d).days <= 2)]
         if len(otras):
@@ -581,7 +605,7 @@ def resumen_pilas(ev: pd.DataFrame) -> pd.DataFrame:
 
 
 def resumen_por_eje(res: pd.DataFrame) -> pd.DataFrame:
-    g = res.groupby(["obra", "eje"])
+    g = res.groupby(["puente", "eje"])
     return pd.DataFrame({
         "pilas con registro": g.size(),
         "coladas": g["estado"].apply(lambda s: (s == "Colada").sum()),
@@ -603,8 +627,9 @@ def menciones_pilas(df: pd.DataFrame) -> pd.DataFrame:
             hallazgos = [(p, a, (o or "").capitalize(), ref.lower()) for p, ref, a, o in RE_APOYO_PILA.findall(parte)]
             hallazgos += [(p, e, "", "eje") for e, p in RE_PILA_COD.findall(parte)]
             for pila, ap, obra, ref in hallazgos:
-                if not obra:
-                    obra = "Garzas" if "garza" in n else "Gaviotas" if "gaviota" in n else ""
+                # Solo cuenta el puente escrito en la misma línea: en los programas del día se mezclan
+                # renglones de los dos puentes y adivinar por el resto del mensaje da errores.
+                obra = puente(parte) or puente(obra)
                 if re.search(r"se termin|termin[oó]|conclu|qued[oó] colad|ya se col", n):
                     tipo = "Aviso de terminado"
                 elif re.search(r"cancel|suspend", n):
@@ -612,7 +637,7 @@ def menciones_pilas(df: pd.DataFrame) -> pd.DataFrame:
                 else:
                     tipo = "Programa / mención"
                 filas.append({"fecha": r["fecha"], "grupo": r.get("grupo", ""), "autor": r["autor"],
-                              "obra/tramo": obra, "referencia": ref, "apoyo/eje": int(ap), "pila": int(pila),
+                              "puente": obra, "referencia": ref, "apoyo/eje": int(ap), "pila": int(pila),
                               "tipo": tipo, "texto": parte.strip()})
     m = pd.DataFrame(filas)
     return m.drop_duplicates(["fecha", "apoyo/eje", "pila", "texto"]) if not m.empty else m
@@ -625,15 +650,15 @@ def resumen_apoyos(menciones: pd.DataFrame) -> pd.DataFrame:
         return menciones
     ap = menciones[menciones["referencia"] == "apoyo"]
     filas = []
-    for (obra, apoyo, pila), g in ap.groupby(["obra/tramo", "apoyo/eje", "pila"]):
+    for (obra, apoyo, pila), g in ap.groupby(["puente", "apoyo/eje", "pila"], dropna=False):
         term = g[g["tipo"] == "Aviso de terminado"]
-        filas.append({"obra/tramo": obra or "(sin indicar)", "apoyo": apoyo, "pila": pila,
+        filas.append({"puente": obra or "(sin indicar)", "apoyo": apoyo, "pila": pila,
                       "elemento": f"A{apoyo}-P{pila}",
                       "primera_mención": g["fecha"].min(), "última_mención": g["fecha"].max(),
                       "veces_programada": int((g["tipo"] == "Programa / mención").sum()),
                       "aviso_de_terminado": ", ".join(f"{d:%d/%m}" for d in term["fecha"]),
                       "quién_reporta": ", ".join(dict.fromkeys(g["autor"]))})
-    return pd.DataFrame(filas).sort_values(["obra/tramo", "apoyo", "pila"])
+    return pd.DataFrame(filas).sort_values(["puente", "apoyo", "pila"])
 
 
 def escribir_pilas(df: pd.DataFrame, actividades: pd.DataFrame, ruta: Path) -> pd.DataFrame | None:

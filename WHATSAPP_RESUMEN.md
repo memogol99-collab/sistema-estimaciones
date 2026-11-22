@@ -94,6 +94,14 @@ La columna *observaciones* marca lo que conviene revisar antes de estimar:
 - un colado sin volumen;
 - una profundidad idéntica a la de otra pila reportada el día anterior.
 
+### Puentes: Garzas y Gaviotas
+
+Cada mensaje, actividad y pila se asigna a un puente con las reglas de `PUENTES`, al inicio del script:
+- **Garzas (2ª etapa):** "Complemento", "segunda etapa", "etapa 2" o "2ª etapa", "Retorno" y "Garzas".
+- **Gaviotas (Barrio V):** "Gaviotas", "Barrio V" o "Barrio 5" (lo que no sea de la segunda etapa).
+
+Las actividades de un reporte toman el puente del título del reporte, salvo que el frente diga otro. Por ejemplo, el *Terraplén de Retorno* que viene en los reportes de "PSV Gaviotas" se asigna a Garzas. Los nombres de calles (Av. Garzas, Av. Gaviotas, Valle de las Garzas) no cuentan para decidir el puente.
+
 ## 5. Ajustar las palabras clave
 
 Al inicio de `whatsapp_resumen.py` están los diccionarios `CATEGORIAS`, `INCIDENCIAS` y `PENDIENTES`. Puedes agregar los términos que usa tu gente en obra.
