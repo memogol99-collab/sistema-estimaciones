@@ -102,6 +102,24 @@ Cada mensaje, actividad y pila se asigna a un puente con las reglas de `PUENTES`
 
 Las actividades de un reporte toman el puente del título del reporte, salvo que el frente diga otro. Por ejemplo, el *Terraplén de Retorno* que viene en los reportes de "PSV Gaviotas" se asigna a Garzas. Los nombres de calles (Av. Garzas, Av. Gaviotas, Valle de las Garzas) no cuentan para decidir el puente.
 
+### Catálogos de los contratos (opcional, recomendado)
+
+Copia los Excel de los contratos (con la hoja **E-7**, catálogo de conceptos) en la carpeta `contratos/`, que no se sube a GitHub. Por ejemplo:
+```
+contratos/CONTRATO C-029 2026 BARRIO 5 GAVIOTAS.xlsx
+contratos/CONTRATO C-035 2026 BARRIO 5 GARZAS.xlsx
+```
+Con los catálogos, el script:
+- **Asigna cada actividad de los reportes al concepto más parecido** del contrato de su puente. Agrega columnas de concepto, unidad, confianza (Alta / Media / Baja) y otras opciones. Si la actividad se parece claramente más a un concepto del otro contrato, lo avisa.
+- **Agrega la hoja "Avance por concepto"**: días con actividad, periodo y cantidad reportada en la misma unidad del concepto.
+- **Agrega al control de pilas la hoja "Pilas vs catálogo"**: perforación, concreto fluido, reperforación y concreto de pilas contra la cantidad del catálogo, con el % de avance y un importe preliminar (cantidad × P.U.).
+
+La asignación es por similitud de texto: es un apoyo, no sustituye a los números generadores.
+
+### Formatos de salida
+- **`resumen_<nombre>.html`** y **`.pdf`**: reporte con formato. Incluye indicadores, contratos, pilas, datos a verificar, actividades por concepto, incidencias y bitácora por día. El PDF se genera si hay Chrome o Edge instalado; si no, abre el HTML y usa *Imprimir → Guardar como PDF*.
+- **`resumen_<nombre>.xlsx`** y **`pilas_<nombre>.xlsx`**: con portada e índice, encabezados, colores por estado y por puente, totales y listos para imprimir.
+
 ## 5. Ajustar las palabras clave
 
 Al inicio de `whatsapp_resumen.py` están los diccionarios `CATEGORIAS`, `INCIDENCIAS` y `PENDIENTES`. Puedes agregar los términos que usa tu gente en obra.

@@ -3,3 +3,4 @@ whatsapp/*
 !whatsapp/.gitkeep
 reportes_whatsapp/
 __pycache__/
+contratos/
