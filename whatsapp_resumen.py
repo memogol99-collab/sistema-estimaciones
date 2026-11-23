@@ -415,7 +415,9 @@ def extraer_reportes(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         res_df["obra"] = res_df["obra"].str.upper().map(nombres)
         act_df["obra"] = act_df["obra"].str.upper().map(nombres)
     if not res_df.empty:  # si un reporte se reenvió o corrigió, queda el último de ese día y obra
-        res_df = res_df.drop_duplicates(["fecha", "obra"], keep="last").sort_values(["fecha", "obra"])
+        # Varias personas reportan la misma obra el mismo día (cada quien sus frentes): se conservan todos;
+        # solo se quita el reenvío o la corrección de la misma persona
+        res_df = res_df.drop_duplicates(["fecha", "obra", "autor"], keep="last").sort_values(["fecha", "obra", "autor"])
         act_df = (act_df.drop_duplicates(["fecha", "obra", "frente", "actividad"], keep="last")
                   .sort_values(["fecha", "obra"], kind="stable"))
     return res_df, act_df
@@ -516,7 +518,7 @@ def escribir_markdown(df: pd.DataFrame, actividades: pd.DataFrame, reportes: pd.
         if not actividades.empty:
             for obra, a in actividades[actividades["fecha"] == dia].groupby("obra", sort=False):
                 rep = reportes[(reportes["fecha"] == dia) & (reportes["obra"] == obra)]
-                extra = f" · {int(rep['personal_total'].iloc[0])} personas en obra" if len(rep) and rep["personal_total"].iloc[0] else ""
+                extra = f" · {int(rep['personal_total'].sum())} personas en obra" if len(rep) and rep["personal_total"].sum() else ""
                 ptes = ", ".join(dict.fromkeys(a["puente"]))
                 lineas.append(f"**🏗️ Reporte de actividades — {obra}** (puente {ptes}){extra}")
                 for _, r in a.iterrows():

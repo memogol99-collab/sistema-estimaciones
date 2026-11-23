@@ -15,6 +15,20 @@ El script `whatsapp_resumen.py` lee los chats que exportas de WhatsApp. Con ello
 > Conviene procesar siempre el historial completo. Con `--desde` el reporte solo cubre ese periodo, y la tabla de pilas, el avance contra el programa y los rendimientos se calcularían con esos días nada más.
 > Si quieres conservar los reportes de cada semana, cambia el nombre de la carpeta de salida: `--salida reportes/semana_48`.
 
+## Reportes originales de una persona y una fecha
+
+Para sacar el texto tal cual de los "Reporte de actividades" (una columna por persona, como en el chat):
+```bash
+python reportes_originales.py --fecha 29/09/2026                         # todos los reportes de ese día
+python reportes_originales.py --fecha 29/09/2026 --autor teran           # solo Edgar Terán
+python reportes_originales.py --fecha 2026-11-16 --hasta 2026-11-21 --autor marco   # una semana
+python reportes_originales.py --fecha 2026-11-20 --autor chompa --autor david        # dos personas
+```
+- **Nombre:** puede ir incompleto, sin acentos y en minúsculas.
+- **Fecha:** es la escrita en el reporte. Si no viene, se usa la del mensaje.
+- **Resultado:** queda en `reportes_originales/` como Excel (una hoja por día) y como `.txt`.
+- **Si no encuentra el reporte,** te muestra los que hay en fechas cercanas y la lista de autores.
+
 ## 1. Exportar el chat del grupo
 
 **Android**

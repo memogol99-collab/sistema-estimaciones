@@ -164,12 +164,12 @@ def detalle_recursos(reportes: pd.DataFrame, actividades: pd.DataFrame) -> pd.Da
                               ("maquinaria", "Maquinaria"), ("equipo menor", "Equipo menor"),
                               ("equipo y maquinaria", "Maquinaria")):
             for f in _filas(sec.get(nombre, []), clase):
-                filas.append({"fecha": r["fecha"], "puente": r["puente"], "obra": r["obra"], "nivel": "General",
+                filas.append({"fecha": r["fecha"], "puente": r["puente"], "obra": r["obra"], "reportó": r["autor"], "nivel": "General",
                               "frente": "", "actividad": "", **f})
     for _, a in actividades.iterrows():
         for lineas, clase in ((a.get("personal_lineas") or [], "Mano de obra"), (a.get("equipo_lineas") or [], "Maquinaria")):
             for f in _filas(lineas, clase):
-                filas.append({"fecha": a["fecha"], "puente": a["puente"], "obra": a["obra"], "nivel": "Frente",
+                filas.append({"fecha": a["fecha"], "puente": a["puente"], "obra": a["obra"], "reportó": a["reportó"], "nivel": "Frente",
                               "frente": a["frente"], "actividad": a["actividad"], **f})
     return pd.DataFrame(filas)
 
@@ -181,8 +181,8 @@ def plantilla_diaria(det: pd.DataFrame, clase: str) -> pd.DataFrame:
         return pd.DataFrame()
     d = det[(det["clase"] == clase) & ~det["inactivo"]]
     gen = d[d["nivel"] == "General"]
-    con_general = set(zip(gen["fecha"], gen["obra"]))
-    fre = d[(d["nivel"] == "Frente") & ~pd.Series([(f, o) in con_general for f, o in zip(d["fecha"], d["obra"])],
+    con_general = set(zip(gen["fecha"], gen["obra"], gen["reportó"]))
+    fre = d[(d["nivel"] == "Frente") & ~pd.Series([k in con_general for k in zip(d["fecha"], d["obra"], d["reportó"])],
                                                     index=d.index)]
     base = pd.concat([gen, fre])
     if base.empty:
@@ -273,14 +273,14 @@ def rendimientos(actividades: pd.DataFrame, det: pd.DataFrame, pilas_vs_cat: pd.
     if actividades.empty:
         return pd.DataFrame()
     a = actividades.copy()
-    a["clave_jornada"] = a["fecha"].astype(str) + "|" + a["obra"] + "|" + a["frente"]
+    a["clave_jornada"] = a["fecha"].astype(str) + "|" + a["obra"] + "|" + a["reportó"] + "|" + a["frente"]
     confiable = a.get("confianza", pd.Series("", index=a.index)).isin(["Alta", "Media"])
     a["grupo_rend"] = [
         f"Concepto {int(n)}" if ok and pd.notna(n) else f"Actividad: {clave_actividad(t)}"
         for ok, n, t in zip(confiable, a.get("concepto_no", pd.Series(None, index=a.index)), a["actividad"])]
     dfr = det[det["nivel"] == "Frente"].copy() if not det.empty else pd.DataFrame()
     if not dfr.empty:
-        dfr["clave_jornada"] = dfr["fecha"].astype(str) + "|" + dfr["obra"] + "|" + dfr["frente"]
+        dfr["clave_jornada"] = dfr["fecha"].astype(str) + "|" + dfr["obra"] + "|" + dfr["reportó"] + "|" + dfr["frente"]
     filas = []
     for (pte, grupo), g in a.groupby(["puente", "grupo_rend"]):
         jornadas = g["clave_jornada"].nunique()
@@ -376,9 +376,9 @@ def _recurso_en_frentes(det: pd.DataFrame, actividades: pd.DataFrame, puente: st
     a = actividades[(actividades["puente"] == puente) & (actividades["concepto_no"] == no) & (actividades["fecha"] >= desde)]
     if a.empty:
         return None
-    claves = set(zip(a["fecha"], a["obra"], a["frente"]))
+    claves = set(zip(a["fecha"], a["obra"], a["reportó"], a["frente"]))
     d = det[(det["nivel"] == "Frente") & (det["tipo"] == recurso) & ~det["inactivo"]]
-    d = d[[k in claves for k in zip(d["fecha"], d["obra"], d["frente"])]]
+    d = d[[k in claves for k in zip(d["fecha"], d["obra"], d["reportó"], d["frente"])]]
     if d.empty:
         return None
     por_dia = d.groupby("fecha")["cantidad"].sum().reindex(sorted(set(a["fecha"])), fill_value=0)
