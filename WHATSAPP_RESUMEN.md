@@ -66,6 +66,8 @@ Por cada grupo se generan dos archivos.
 
 | Hoja | Contenido |
 |---|---|
+| **Tablero** | Lo mismo que el reporte HTML en una sola hoja: indicadores, contratos, pilas, datos a verificar, recursos en obra, atrasos, partidas sin abrir, posibles extraordinarios, conceptos e incidencias |
+| **Bitácora por día** | Cada día, del más reciente al más antiguo, con las actividades por puente y frente, sus cantidades y su concepto, y los mensajes relevantes (incidencias en rojo, pendientes en amarillo). Cada día se abre o se cierra con los botones **+ / −** de Excel |
 | Resumen diario | Por día: n.º de mensajes, quién reportó, categorías, elementos (Pila 3, Zapata 4…), cadenamientos, incidencias, pendientes y fotos |
 | Avance por frente | Se llena desde los mensajes **"Reporte de actividades …"**. Hay una fila por frente y por día, con obra, actividad, estado (en proceso / concluido), volúmenes y profundidades, elementos (Pila, Eje, Zapata, Caballete), personal y equipo |
 | Personal y equipo | Por reporte diario: total de personal, maquinaria y equipo inactivo |

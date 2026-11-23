@@ -28,6 +28,7 @@ from pathlib import Path
 import pandas as pd
 
 import catalogo
+import excel_tablero
 import formato
 import recursos
 import reporte_html
@@ -415,7 +416,8 @@ def resumen_diario(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def escribir_excel(df: pd.DataFrame, reportes: pd.DataFrame, actividades: pd.DataFrame,
-                   por_concepto: pd.DataFrame, nombre: str, ruta: Path) -> None:
+                   por_concepto: pd.DataFrame, nombre: str, ruta: Path, pilas=None, por_eje=None,
+                   contratos=None, extra=None) -> None:
     texto_df = df[~df["adjunto"] & ~df["es_reporte"]]
     cols_msg = ["fecha", "hora", "grupo", "puente", "autor", "texto", "categorias", "elementos",
                 "cadenamientos", "cantidades", "incidencia", "pendiente"]
@@ -453,7 +455,10 @@ def escribir_excel(df: pd.DataFrame, reportes: pd.DataFrame, actividades: pd.Dat
         h["titulo"] = f"{h['nombre']} — {nombre}"
     formato.guardar_libro(ruta, f"Resumen de obra — {nombre}",
                           [("Periodo", periodo), ("Grupos", grupos), ("Mensajes analizados", f"{len(df):,}"),
-                           ("Reportes diarios", str(len(reportes)))], hojas)
+                           ("Reportes diarios", str(len(reportes)))], hojas,
+                          previas=[lambda wb: excel_tablero.hoja_tablero(wb, nombre, df, actividades, reportes, pilas, por_eje,
+                                                                         por_concepto, contratos or [], extra),
+                                   lambda wb: excel_tablero.hoja_bitacora(wb, nombre, df, actividades)])
 
 
 DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
@@ -861,7 +866,6 @@ def generar(df: pd.DataFrame, nombre: str, salida: Path, clasif=None, contratos=
     if clasif is not None and not actividades.empty:
         actividades = catalogo.asignar_conceptos(actividades, clasif)
         por_concepto = catalogo.avance_por_concepto(actividades, clasif.conceptos)
-    escribir_excel(df, reportes, actividades, por_concepto, nombre, xlsx)
     escribir_markdown(df, actividades, reportes, nombre, md)
     pilas, por_eje, vs_cat = escribir_pilas(df, actividades, salida / f"pilas_{base}.xlsx", nombre, clasif)
     extra = {}
@@ -878,6 +882,7 @@ def generar(df: pd.DataFrame, nombre: str, salida: Path, clasif=None, contratos=
         escribir_recursos(salida / f"recursos_{base}.xlsx", nombre, det, rend, propuesta, corte)
         extra = {"det": det, "rend": rend, "propuesta": propuesta, "corte": corte}
         print(f"   → {salida / f'recursos_{base}.xlsx'}")
+    escribir_excel(df, reportes, actividades, por_concepto, nombre, xlsx, pilas, por_eje, contratos, extra)
     reporte_html.escribir_html(htm, nombre, df, actividades, reportes, pilas, por_eje, por_concepto, contratos or [], extra)
     hecho_pdf = pdf and reporte_html.html_a_pdf(htm, htm.with_suffix(".pdf"))
     texto = df[~df["adjunto"] & ~df["es_reporte"]]

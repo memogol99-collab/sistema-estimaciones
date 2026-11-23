@@ -152,8 +152,9 @@ def escribir_hoja(wb: Workbook, nombre: str, df: pd.DataFrame, titulo: str, subt
 
 
 def guardar_libro(ruta: Path, titulo: str, datos_generales: list[tuple[str, str]],
-                  hojas: list[dict]) -> None:
-    """hojas: [{"nombre", "df", "descripcion", "totales"?, "nota"?}] — las vacías se omiten."""
+                  hojas: list[dict], previas: list | None = None) -> None:
+    """hojas: [{"nombre", "df", "descripcion", "totales"?, "nota"?}] — las vacías se omiten.
+    previas: funciones f(wb) -> (nombre, descripción) que crean hojas con diseño propio; van primero."""
     wb = Workbook()
     portada = wb.active
     portada.title = "Portada"
@@ -172,6 +173,19 @@ def guardar_libro(ruta: Path, titulo: str, datos_generales: list[tuple[str, str]
     fila += 1
     portada.cell(row=fila, column=2, value="Contenido").font = Font(bold=True, size=12, color=AZUL)
     fila += 1
+    for f in previas or []:
+        try:
+            nombre_h, desc_h = f(wb)
+        except Exception as exc:  # una hoja de diseño que falle no debe impedir el resto del libro
+            print(f"   (no se pudo crear una hoja de resumen: {exc})")
+            continue
+        c = portada.cell(row=fila, column=2, value=nombre_h)
+        c.hyperlink = f"#'{nombre_h[:31]}'!A1"
+        c.font = Font(size=10, bold=True, color="0563C1", underline="single")
+        d = portada.cell(row=fila, column=3, value=desc_h)
+        d.font = Font(size=9, color=GRIS)
+        d.alignment = Alignment(wrap_text=True, vertical="top")
+        fila += 1
     for h in hojas:
         if h["df"] is None or h["df"].empty:
             continue
