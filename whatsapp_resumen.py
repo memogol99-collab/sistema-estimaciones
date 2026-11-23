@@ -180,7 +180,38 @@ def nombre_grupo(ruta: Path) -> str:
     for prefijo in ("Chat de WhatsApp con ", "WhatsApp Chat with ", "WhatsApp Chat - ", "Chat de WhatsApp - "):
         if nombre.startswith(prefijo):
             nombre = nombre[len(prefijo):]
+    nombre = re.sub(r"\s*\(\d+\)$", "", nombre)  # "Grupo (1).zip" de una descarga repetida
+    nombre = nombre.replace("_", " ")
     return nombre.strip() or "chat"
+
+
+def ultimo_mensaje(ruta: Path) -> datetime:
+    """Fecha del último mensaje de una exportación (para quedarse con la más reciente)."""
+    try:
+        _, lineas = leer_lineas(ruta)
+        mensajes = parsear_chat(lineas[-3000:])
+        return max(m["fecha_hora"] for m in mensajes) if mensajes else datetime.min
+    except Exception:
+        return datetime.min
+
+
+def quitar_exportaciones_viejas(archivos: list[Path]) -> list[Path]:
+    """Si hay varias exportaciones del mismo grupo (la anterior y la nueva), usa solo la más reciente:
+    cada exportación ya trae todo el historial del grupo."""
+    por_grupo: dict[str, list[Path]] = defaultdict(list)
+    for a in archivos:
+        por_grupo[sin_acentos(nombre_grupo(a))].append(a)
+    elegidos = []
+    for grupo, rutas in por_grupo.items():
+        if len(rutas) == 1:
+            elegidos.append(rutas[0])
+            continue
+        mejor = max(rutas, key=lambda r: (ultimo_mensaje(r), r.stat().st_mtime))
+        otros = ", ".join(r.name for r in rutas if r != mejor)
+        print(f"ℹ️  {nombre_grupo(mejor)}: hay {len(rutas)} exportaciones; uso la más reciente ({mejor.name}) "
+              f"e ignoro: {otros}")
+        elegidos.append(mejor)
+    return sorted(elegidos)
 
 
 def detectar_mes_primero(lineas: list[str]) -> bool:
@@ -934,6 +965,7 @@ def main() -> None:
             print(f"⚠️  No existe: {e}")
     if not archivos:
         sys.exit("No se encontraron archivos .txt o .zip para procesar.")
+    archivos = quitar_exportaciones_viejas(archivos)
 
     args.salida.mkdir(parents=True, exist_ok=True)
     clasif, contratos = None, []

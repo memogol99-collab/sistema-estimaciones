@@ -2,6 +2,19 @@
 
 El script `whatsapp_resumen.py` lee los chats que exportas de WhatsApp. Con ellos genera un **Excel** y un **reporte por día** con las actividades, cantidades, elementos, cadenamientos, incidencias y pendientes que se reportaron en cada grupo.
 
+## Actualización periódica (cada semana o cuando quieras)
+
+1. **Exporta de nuevo los 3 grupos** (Proyeterra, Construcción Puente y Supervisión) con *Exportar chat → Sin archivos*. Cada exportación trae **todo el historial**, así que no hace falta juntar exportaciones anteriores.
+2. **Copia los archivos nuevos a `whatsapp/`**, reemplazando los anteriores. Si se quedan los dos (por ejemplo `… Barrio V.zip` y `… Barrio V (1).zip`), el script usa solo el que tiene los mensajes más recientes y te avisa cuál ignoró.
+3. **Ejecuta el script.** En Windows, doble clic en **`actualizar.bat`**; o desde la terminal:
+   ```bash
+   python whatsapp_resumen.py whatsapp/ --nombre "Barrio V"
+   ```
+4. Los reportes en `reportes_whatsapp/` se **sobrescriben** con la información al día. La fecha de corte es la del último mensaje de los chats.
+
+> Conviene procesar siempre el historial completo. Con `--desde` el reporte solo cubre ese periodo, y la tabla de pilas, el avance contra el programa y los rendimientos se calcularían con esos días nada más.
+> Si quieres conservar los reportes de cada semana, cambia el nombre de la carpeta de salida: `--salida reportes/semana_48`.
+
 ## 1. Exportar el chat del grupo
 
 **Android**
