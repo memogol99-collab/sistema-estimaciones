@@ -1035,7 +1035,16 @@ def generar(df: pd.DataFrame, nombre: str, salida: Path, clasif=None, contratos=
         print(f"   → {salida / f'recursos_{base}.xlsx'}")
     extra["caidos"] = pilas_con_caidos(df, actividades, pilas)
     if not extra["caidos"][1].empty:
-        print(f"   → {len(extra['caidos'][1])} publicaciones de caídos en {len(extra['caidos'][0])} pilas")
+        c_res, c_det = extra["caidos"]
+        ruta_c = salida / f"caidos_{base}.xlsx"
+        formato.guardar_libro(ruta_c, f"Pilas con caídos — {nombre}",
+                              [("Pilas con caídos", str(len(c_res))), ("Publicaciones", str(len(c_det))),
+                               ("Fuente", "Reportes de actividades y mensajes de los grupos de WhatsApp")],
+                              [{"nombre": "Pilas con caídos", "df": c_res, "titulo": f"Pilas con caídos — {nombre}",
+                                "descripcion": "Resumen por pila: días, fechas, profundidad, relleno fluido total y estado"},
+                               {"nombre": "Caídos (publicaciones)", "df": c_det, "titulo": f"Caídos (publicaciones) — {nombre}",
+                                "descripcion": "Cada reporte o mensaje que informa caídos, con quién lo publicó y en qué grupo"}])
+        print(f"   → {ruta_c} ({len(c_det)} publicaciones de caídos en {len(c_res)} pilas)")
     escribir_excel(df, reportes, actividades, por_concepto, nombre, xlsx, pilas, por_eje, contratos, extra)
     reporte_html.escribir_html(htm, nombre, df, actividades, reportes, pilas, por_eje, por_concepto, contratos or [], extra)
     hecho_pdf = pdf and reporte_html.html_a_pdf(htm, htm.with_suffix(".pdf"))
