@@ -943,6 +943,11 @@ def consolidar(grupos: list[pd.DataFrame]) -> pd.DataFrame:
 
 
 def main() -> None:
+    for flujo in (sys.stdout, sys.stderr):  # la consola de Windows no siempre acepta acentos y emojis
+        try:
+            flujo.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     ap = argparse.ArgumentParser(description="Resume avances de obra de chats exportados de WhatsApp.")
     ap.add_argument("entradas", nargs="+", help="Archivos .txt/.zip exportados, o carpetas que los contengan")
     ap.add_argument("--desde", type=date.fromisoformat, help="Fecha inicial AAAA-MM-DD")
