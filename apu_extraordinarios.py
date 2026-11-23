@@ -20,8 +20,8 @@ from pathlib import Path
 import openpyxl
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.worksheet.pagebreak import Break
 
+import formato_neodata as fmt_neo
 import neodata_concurso as nc
 
 CARPETA = Path("contratos/concurso_garzas")
@@ -302,222 +302,6 @@ def F(**kw):
 LINEA = Side(style="thin", color="000000")
 
 
-def _cabecera(ws, fila, cab, ancho_col="H"):
-    for txt, tam, neg in ((cab["empresa1"], 10, True), (cab["empresa2"], 10, True), (cab["cliente1"], 8, True),
-                          (cab["cliente2"], 8, True)):
-        ws.merge_cells(f"A{fila}:H{fila}")
-        c = ws.cell(row=fila, column=1, value=txt)
-        c.font = F(size=tam, bold=neg)
-        c.alignment = Alignment(horizontal="center")
-        fila += 1
-    fila += 1
-    ws.cell(row=fila, column=1, value=f"Concurso No. {cab['concurso']}").font = F(bold=True)
-    ws.cell(row=fila, column=7, value="Fecha:").font = F(bold=True)
-    ws.cell(row=fila, column=8, value=cab["fecha"]).font = F()
-    fila += 1
-    ws.cell(row=fila, column=1, value="Obra:").font = F(bold=True)
-    ws.merge_cells(start_row=fila, start_column=2, end_row=fila + 3, end_column=5)
-    c = ws.cell(row=fila, column=2, value=cab["obra"])
-    c.font = F(size=7)
-    c.alignment = Alignment(wrap_text=True, vertical="top")
-    for k, (et, v) in enumerate((("Inicio Obra:", cab["inicio"]), ("Fin Obra:", cab["fin"]), ("Duración:", cab["duracion"]),
-                                 ("DOCUMENTO", "EXT"))):
-        ws.cell(row=fila + k, column=7, value=et).font = F(bold=True)
-        ws.cell(row=fila + k, column=8, value=v).font = F()
-    fila += 5
-    ws.merge_cells(f"A{fila}:H{fila}")
-    c = ws.cell(row=fila, column=1, value="ANALISIS DE PRECIOS UNITARIOS EXTRAORDINARIOS")
-    c.font = F(size=10, bold=True)
-    c.alignment = Alignment(horizontal="center")
-    fila += 1
-    for j, t in enumerate(["Código", "Concepto", "Unidad", "P. Unitario", "Op.", "Cantidad", "Importe", "%"], 1):
-        c = ws.cell(row=fila, column=j, value=t)
-        c.font = F(bold=True)
-        c.border = Border(top=LINEA, bottom=LINEA)
-        c.alignment = Alignment(horizontal="center")
-    return fila + 1
-
-
-def escribir_apu(ws, fila, ext, calc, cab, ref_ins, fmt):
-    inicio = fila
-    fila = _cabecera(ws, fila, cab)
-    # Análisis: clave, unidad, cantidad, importe
-    cant_total = (ext.get("cant_garzas") or 0) + (ext.get("cant_bv") or 0)
-    ws.cell(row=fila, column=1, value="Análisis:").font = F(bold=True)
-    ws.cell(row=fila, column=2, value=ext["clave"]).font = F(bold=True)
-    ws.cell(row=fila, column=5, value=ext["unidad"]).font = F(bold=True)
-    c = ws.cell(row=fila, column=6, value=cant_total)
-    c.number_format = "#,##0.0000"
-    c.font = F(bold=True)
-    fila_analisis = fila
-    fila += 1
-    ws.merge_cells(start_row=fila, start_column=1, end_row=fila, end_column=8)
-    c = ws.cell(row=fila, column=1, value=ext["descripcion"])
-    c.font = F()
-    c.alignment = Alignment(wrap_text=True, vertical="top")
-    ws.row_dimensions[fila].height = 11 * max(1, math.ceil(len(ext["descripcion"]) / 150))
-    fila += 1
-
-    subtot_celdas, k_rango = [], []
-    sub_mo = None
-    lineas_pct = []
-    for secc, titulo in SECC_ORDEN:
-        ls = [l for l in calc["lineas"] if l["tipo"] == secc]
-        if not ls:
-            continue
-        ws.cell(row=fila, column=1, value=titulo).font = F(bold=True)
-        fila += 1
-        primera = fila
-        for l in ls:
-            es_pct = l["cod"].startswith("%MO")
-            if l.get("basico") and secc == "BAS":
-                # Básico expandido como en el concurso: encabezado, componentes, Importe y Volumen
-                b = l["basico"]
-                ws.cell(row=fila, column=1, value=l["cod"]).font = F(bold=True)
-                ws.cell(row=fila, column=2, value=b["descripcion"]).font = F(bold=True)
-                ws.cell(row=fila, column=3, value=b["unidad"]).font = F()
-                fila += 1
-                p0 = fila
-                for r in b["renglones"]:
-                    ws.cell(row=fila, column=1, value=r["codigo"]).font = F()
-                    ws.cell(row=fila, column=2, value=r["descripcion"]).font = F()
-                    ws.cell(row=fila, column=3, value=r["unidad"]).font = F()
-                    pc = ws.cell(row=fila, column=4, value=f'=IFERROR({ref_ins(r["codigo"])},{r["precio"]})'
-                                 if not r["codigo"].startswith("%") else r["precio"])
-                    pc.number_format = fmt["$"]
-                    pc.font = F()
-                    ws.cell(row=fila, column=5, value=r["op"]).font = F()
-                    cc = ws.cell(row=fila, column=6, value=r["cantidad"])
-                    cc.number_format = "0.000000"
-                    cc.font = F()
-                    op = "/" if r["op"] == "/" else "*"
-                    ic = ws.cell(row=fila, column=7, value=f"=ROUND(D{fila}{op}F{fila},2)")
-                    ic.number_format = fmt["$"]
-                    ic.font = F()
-                    fila += 1
-                ws.cell(row=fila, column=2, value="Importe:").font = F(italic=True)
-                c = ws.cell(row=fila, column=7, value=f"=SUM(G{p0}:G{fila - 1})")
-                c.number_format = fmt["$"]
-                c.font = F(italic=True)
-                fila_imp = fila
-                fila += 1
-                ws.cell(row=fila, column=2, value="Volumen:").font = F(italic=True)
-                c = ws.cell(row=fila, column=6, value=l["cant"])
-                c.number_format = "0.000000"
-                c.font = F()
-                c = ws.cell(row=fila, column=7, value=f"=ROUND(G{fila_imp}*F{fila},2)")
-                c.number_format = fmt["$"]
-                c.font = F()
-                ws.cell(row=fila, column=10, value=l["k"])
-                k_rango.append(fila)
-                lineas_pct.append(fila)
-                fila += 1
-                continue
-            ws.cell(row=fila, column=1, value=l["cod"]).font = F()
-            ws.cell(row=fila, column=2, value=l["desc"]).font = F()
-            ws.cell(row=fila, column=3, value=l["unidad"]).font = F()
-            if es_pct:
-                pc = ws.cell(row=fila, column=4, value=f"=G{sub_mo}" if sub_mo else 0)
-            else:
-                pc = ws.cell(row=fila, column=4, value=f"={ref_ins(l['cod'])}")
-            pc.number_format = fmt["$"]
-            pc.font = F()
-            # Como NEODATA: rendimientos (cantidad < 1 en mano de obra y equipo) se expresan con "/"
-            usar_div = l["tipo"] in ("MO", "EQ") and not es_pct and 0 < l["cant"] < 1
-            oc = ws.cell(row=fila, column=5, value="/" if usar_div else "*")
-            oc.font = F()
-            oc.alignment = Alignment(horizontal="center")
-            cc = ws.cell(row=fila, column=6, value=round(1 / l["cant"], 6) if usar_div else l["cant"])
-            cc.number_format = "0.000000"
-            cc.font = F()
-            ic = ws.cell(row=fila, column=7, value=f"=ROUND(D{fila}/F{fila},2)" if usar_div else f"=ROUND(D{fila}*F{fila},2)")
-            ic.number_format = fmt["$"]
-            ic.font = F()
-            if l.get("nuevo"):
-                for j in range(1, 9):
-                    ws.cell(row=fila, column=j).fill = PatternFill("solid", fgColor=NARANJA)
-            ws.cell(row=fila, column=10, value=l["k"])
-            k_rango.append(fila)
-            lineas_pct.append(fila)
-            fila += 1
-        fila += 1
-        ws.cell(row=fila, column=1, value="SUBTOTAL:").font = F(bold=True)
-        ws.cell(row=fila, column=2, value=titulo).font = F(bold=True)
-        celdas = [f"G{r}" for r in k_rango if primera <= r < fila]
-        c = ws.cell(row=fila, column=7, value=f"=SUM({','.join(celdas)})" if celdas else 0)
-        c.number_format = fmt["$"]
-        c.font = F(bold=True)
-        c.border = Border(top=LINEA)
-        if secc == "MO":
-            sub_mo = fila
-        subtot_celdas.append((fila, secc))
-        fila += 1
-
-    # (A) … (K) como el concurso
-    cd_fila = fila
-    filas_tot = {}
-
-    def tot(etq, formula, pct=None, negrita=False, clave=None):
-        nonlocal fila
-        ws.cell(row=fila, column=2, value=etq).font = F(bold=negrita)
-        if pct is not None:
-            c = ws.cell(row=fila, column=6, value=pct)
-            c.font = F()
-            c.alignment = Alignment(horizontal="right")
-        c = ws.cell(row=fila, column=7, value=formula)
-        c.number_format = fmt["$"]
-        c.font = F(bold=negrita)
-        if clave:
-            filas_tot[clave] = fila
-        fila += 1
-
-    sub_refs = ",".join(f"G{r}" for r, _ in subtot_celdas)
-    tot("(A) COSTO DIRECTO", f"=SUM({sub_refs})", None, True, "A")
-    ws.cell(row=filas_tot["A"], column=8, value=1).number_format = "0.00%"
-    tot("(B) INDIRECTO OFICINA CENTRAL", f"=G{filas_tot['A']}*Parametros!$C$5", "=Parametros!$C$5", clave="B")
-    tot("(C) INDIRECTO DE CAMPO", f"=G{filas_tot['A']}*Parametros!$C$6", "=Parametros!$C$6", clave="C")
-    tot("INDIRECTO TOTAL", f"=G{filas_tot['B']}+G{filas_tot['C']}", "=Parametros!$C$5+Parametros!$C$6", clave="IT")
-    tot("(D) SUBTOTAL (A+B+C)", f"=G{filas_tot['A']}+G{filas_tot['IT']}", clave="D")
-    tot("(E) FINANCIAMIENTO", f"=G{filas_tot['D']}*Parametros!$C$7", "=Parametros!$C$7", clave="E")
-    tot("(F) SUBTOTAL (D+E)", f"=G{filas_tot['D']}+G{filas_tot['E']}", clave="F")
-    tot("(G) UTILIDAD", f"=G{filas_tot['F']}*Parametros!$C$8", "=Parametros!$C$8", clave="G")
-    tot("(H) SUBTOTAL (F+G)", f"=G{filas_tot['F']}+G{filas_tot['G']}", clave="H")
-    ws.cell(row=fila, column=2, value="CARGOS ADICIONALES").font = F(bold=True)
-    fila += 1
-    tot("(I) SFP 5 al millar = [ H / (1-0.005) - H ]", f"=G{filas_tot['H']}/(1-Parametros!$C$9)-G{filas_tot['H']}",
-        "0.5025%", clave="I")
-    rk = ",".join(f"G{r}*J{r}" for r in k_rango)
-    base_formula = f"({'+'.join(f'G{r}*J{r}' for r in k_rango)})" if k_rango else "0"
-    ws.cell(row=fila, column=2, value="(J) ISN = IMPUESTO SOBRE NOMINA").font = F()
-    c = ws.cell(row=fila, column=6, value=f'="3.00% x "&TEXT({base_formula},"#,##0.00")')
-    c.font = F()
-    c.alignment = Alignment(horizontal="right")
-    c = ws.cell(row=fila, column=7, value=f"=ROUND({base_formula}*Parametros!$C$10,2)")
-    c.number_format = fmt["$"]
-    c.font = F()
-    filas_tot["J"] = fila
-    fila += 1
-    tot("(K) PRECIO UNITARIO (H+I+J)",
-        f"=ROUND(ROUND(G{filas_tot['H']},2)+ROUND(G{filas_tot['I']},2)+G{filas_tot['J']},2)", None, True, "K")
-    ws.cell(row=fila, column=2, value=letra(calc["pu"])).font = F(bold=True)
-    fila += 1
-    # % de cada renglón y de los subtotales
-    for r in lineas_pct + [s for s, _ in subtot_celdas]:
-        c = ws.cell(row=r, column=8, value=f"=IFERROR(G{r}/G${filas_tot['A']},0)")
-        c.number_format = "0.00%"
-        c.font = F()
-    # importe total del concepto en el renglón Análisis
-    c = ws.cell(row=fila_analisis, column=7, value=f"=G{filas_tot['K']}*F{fila_analisis}")
-    c.number_format = fmt["$"]
-    c.font = F(bold=True)
-    fila += 2
-    ws.cell(row=fila, column=2, value="ELABORÓ: ____________________").font = F()
-    ws.cell(row=fila, column=4, value="REVISÓ: ____________________").font = F()
-    ws.cell(row=fila, column=7, value="AUTORIZÓ: ________________").font = F()
-    fila += 1
-    return fila, filas_tot["K"], inicio
-
-
 def main() -> None:
     for flujo in (sys.stdout, sys.stderr):
         try:
@@ -560,21 +344,65 @@ def main() -> None:
     # ---------------- Libro ----------------
     wb = Workbook()
     wb.remove(wb.active)
-    m1 = concurso["matrices"][1]
-    cab = {"empresa1": "GRUPO CONSTRUCTOR TRANSPORTIEREN, S.A. de C.V. EN ASOCIACIÓN CON OPERADORA Y",
-           "empresa2": "ADMINISTRACIÓN TÉCNICA, S.A. DE C.V.",
-           "cliente1": "Cliente: SECRETARÍA DE INFRAESTRUCTURA, COMUNICACIONES Y TRANSPORTES",
-           "cliente2": "DIRECCIÓN GENERAL DE CARRETERAS", "concurso": "LO-09-210-009000999-T-873-2026",
-           "fecha": f"{date.today():%d-%b-%Y}".lower(),
+    cab = {"empresa": ("GRUPO CONSTRUCTOR TRANSPORTIEREN, S.A. DE C.V. EN ASOCIACIÓN CON "
+                       "OPERADORA Y ADMINISTRACIÓN TÉCNICA, S.A. DE C.V."),
+           "cliente": "SECRETARÍA DE INFRAESTRUCTURA, COMUNICACIONES Y TRANSPORTES — DIRECCIÓN GENERAL DE CARRETERAS",
+           "concurso": "LO-09-210-009000999-T-873-2026", "fecha": f"{date.today():%d/%m/%Y}",
            "obra": ("CONSTRUCCIÓN DEL PSV COMPLEMENTO BARRIO V (2DA ETAPA), QUE CONSISTE EN LA CONSTRUCCIÓN DE UNA ESTRUCTURA "
                     "TIPO PSV EN LA INTERSECCIÓN DE LA AV. PASEO DE LAS GARZAS CON LA AV. ELÍAS ZAMORA VERDUZCO ASÍ COMO LA "
-                    "CONSTRUCCIÓN DEL RETORNO DEL PSV PASEO DE LAS GAVIOTAS UBICADO EN EL KM 11+225 DEL LIBRAMIENTO MANZANILLO, "
-                    "LOS TRABAJOS INCLUYEN TERRACERÍAS, MUROS MECÁNICAMENTE ESTABILIZADOS, OBRAS DE DRENAJE, ESTRUCTURAS DE "
-                    "CONCRETO HIDRÁULICO REFORZADAS Y PRESFORZADAS, ESTRUCTURAS DE CONCRETO HIDRAULICO PREFABRICADAS, "
-                    "PAVIMENTACIÓN, SEÑALAMIENTO HORIZONTAL Y VERTICAL, ASÍ COMO LA REUBICACIÓN DE OBRAS INDUCIDAS Y "
-                    "RECONSTRUCCIÓN DE CALLES LATERALES EN EL MUNICIPIO DE MANZANILLO, ESTADO DE COLIMA."),
-           "inicio": "30-jul-2026", "fin": "30-dic-2026", "duracion": "154 Días Naturales"}
+                    "CONSTRUCCIÓN DEL RETORNO DEL PSV PASEO DE LAS GAVIOTAS UBICADO EN EL KM 11+225 DEL LIBRAMIENTO MANZANILLO "
+                    "(CONTRATO 2026-06-CF-A-035-W-00-2026)."),
+           "lugar": "MANZANILLO, COLIMA", "inicio": "30/07/2026", "fin": "30/12/2026",
+           "duracion": "154 días naturales", "documento": "EXTRAORDINARIOS"}
     fmt = {"$": '"$"#,##0.00'}
+    for e in exts:
+        e["cantidad"] = (e.get("cant_garzas") or 0) + (e.get("cant_bv") or 0)
+
+    # Partidas (A1, A2, …) en el orden en que aparecen
+    orden_partidas = []
+    for e in exts:
+        e["partida"] = (e.get("partida") or "OTROS").upper()
+        if e["partida"] not in orden_partidas:
+            orden_partidas.append(e["partida"])
+    cod_partida = {p: f"A{k}" for k, p in enumerate(orden_partidas, 1)}
+
+    # Básicos y cuadrillas que intervienen (con sus sub-básicos)
+    bas = concurso["basicos"]
+    usados_bas = []
+
+    def agregar_basico(cod):
+        if cod in bas and cod not in usados_bas:
+            usados_bas.append(cod)
+            for r in bas[cod]["renglones"]:
+                agregar_basico(r["codigo"])
+    for e in exts:
+        for l in calcs[e["clave"]]["lineas"]:
+            agregar_basico(l["cod"])
+    usados_bas.sort(key=lambda c: (not c.startswith("MOCU"), c))
+
+    # Insumos: todo lo que aparece en análisis y básicos
+    usados = {}
+    for e in exts:
+        for l in calcs[e["clave"]]["lineas"]:
+            if not l["cod"].startswith("%"):
+                usados[l["cod"]] = l
+    for cod in usados_bas:
+        usados.setdefault(cod, {"cod": cod, **base.info(cod)})
+        for r in bas[cod]["renglones"]:
+            c = r["codigo"]
+            if c.startswith("%") or c in usados:
+                continue
+            try:
+                usados[c] = {"cod": c, **base.info(c)}
+            except KeyError:
+                usados[c] = {"cod": c, "desc": r["descripcion"], "unidad": r["unidad"], "precio": r["precio"],
+                             "tipo": "MAT", "origen": "Doc. 14c (componente)", "k": 0}
+    codigos_ins = sorted(usados)
+    n_ins = len(codigos_ins) + 1
+    fila_ins = {c: k for k, c in enumerate(codigos_ins, 2)}
+
+    def ref_ins(cod):
+        return f"Insumos!$D${fila_ins[cod]}" if cod in fila_ins else "0"
 
     # Parámetros
     wp = wb.create_sheet("Parametros")
@@ -593,89 +421,76 @@ def main() -> None:
     wp["C12"].number_format = "0.000000"
     wp["B14"] = "Base del ISN"
     wp["B15"] = (f"Como en NEODATA: 3% sobre la parte de salarios. Calibrado con las {len(concurso['matrices'])} matrices del "
-                 f"concurso: {isn['MO']:.4f} × importe de mano de obra + un factor por equipo (columna J de cada análisis). "
-                 f"Error mediano contra el concurso: {isn['_error_mediana']:.2%}.")
-    wp["B17"] = "Comprobación con el concurso"
-    filas_c = 18
-    for no in (323, 288, 44, 41):
-        m = concurso["matrices"][no]
-        wp.cell(row=filas_c, column=2, value=f"Matriz {no}: CD ${m['cd']:,.2f} → P.U. concurso ${m['pu']:,.2f}")
-        filas_c += 1
-    for r in wp.iter_rows(min_row=14, max_row=filas_c):
+                 f"concurso: {isn['MO']:.4f} × importe de mano de obra + un factor por equipo (columna J oculta de cada "
+                 f"análisis). Error mediano contra el concurso: {isn['_error_mediana']:.2%}.")
+    for r in wp.iter_rows(min_row=12, max_row=16):
         for c in r:
             c.font = F(size=9)
             c.alignment = Alignment(wrap_text=True, vertical="top")
     wp.column_dimensions["B"].width = 110
     wp.column_dimensions["C"].width = 14
 
+    # Básicos (formato NEODATA)
+    wbas = wb.create_sheet("Basicos")
+    for col, w in zip("ABCDEFGHIJ", (11, 44, 7, 11, 4, 10, 12, 9, 2, 7)):
+        wbas.column_dimensions[col].width = w
+    fmt_neo._impresion(wbas)
+    fila, cd_bas = 1, {}
+    for cod in usados_bas:
+        fila, cd_bas[cod] = fmt_neo.basico(wbas, fila, cab, cod, bas[cod], ref_ins)
+
     # Insumos
     wi = wb.create_sheet("Insumos")
     wi.append(["Código", "Descripción", "Unidad", "Precio", "Tipo", "Origen", "Factor ISN"])
-    usados = {}
-    for e in exts:
-        for l in calcs[e["clave"]]["lineas"]:
-            usados[l["cod"]] = l
-            if l.get("basico"):
-                for r in l["basico"]["renglones"]:
-                    if r["codigo"] not in usados and not r["codigo"].startswith("%"):
-                        try:
-                            usados[r["codigo"]] = {"cod": r["codigo"], **base.info(r["codigo"])}
-                        except KeyError:
-                            usados[r["codigo"]] = {"cod": r["codigo"], "desc": r["descripcion"], "unidad": r["unidad"],
-                                                   "precio": r["precio"], "tipo": "MAT", "origen": "Doc. 14c (componente)", "k": 0}
-    for cod in sorted(usados):
+    for cod in codigos_ins:
         l = usados[cod]
-        if cod.startswith("%"):
-            continue
-        wi.append([cod, l["desc"], l["unidad"], l["precio"], l["tipo"], l["origen"], round(l["k"], 6)])
+        precio = f"=Basicos!$G${cd_bas[cod]}" if cod in cd_bas else l["precio"]
+        wi.append([cod, l["desc"], l["unidad"], precio, l["tipo"], l["origen"], round(l["k"], 6)])
+        for c in wi[wi.max_row]:
+            c.font = F(size=9)
+        wi.cell(row=wi.max_row, column=4).number_format = fmt["$"]
         if l.get("nuevo"):
             for c in wi[wi.max_row]:
                 c.fill = PatternFill("solid", fgColor=NARANJA)
-            wi.cell(row=wi.max_row, column=4).font = F(size=9, color="0000FF")
+            wi.cell(row=wi.max_row, column=4).font = F(size=9, color="0000FF", bold=True)
     for c in wi[1]:
         c.font = F(size=9, bold=True, color="FFFFFF")
         c.fill = PatternFill("solid", fgColor=AZUL)
-    for r in wi.iter_rows(min_row=2):
-        for c in r:
-            if c.font.color is None or c.column != 4:
-                c.font = F(size=9)
-        r[3].number_format = fmt["$"]
     for col, w in zip("ABCDEFG", (14, 90, 9, 14, 7, 34, 10)):
         wi.column_dimensions[col].width = w
     wi.freeze_panes = "A2"
     wi.auto_filter.ref = wi.dimensions
-    n_ins = wi.max_row
 
-    def ref_ins(cod):
-        return f'INDEX(Insumos!$D$2:$D${n_ins},MATCH("{cod}",Insumos!$A$2:$A${n_ins},0))'
-
-    # Análisis
+    # Análisis de precios unitarios (formato NEODATA)
     wa = wb.create_sheet("Analisis PU")
-    for col, w in zip("ABCDEFGHIJ", (11, 56, 7, 11, 3, 10, 12, 9, 2, 7)):
+    for col, w in zip("ABCDEFGHIJ", (11, 44, 7, 11, 4, 10, 12, 9, 2, 7)):
         wa.column_dimensions[col].width = w
     wa.column_dimensions["J"].hidden = True
-    fila = 1
-    celdas_pu = {}
-    for e in exts:
-        fila_fin, fila_k, ini = escribir_apu(wa, fila, e, calcs[e["clave"]], cab, ref_ins, fmt)
-        celdas_pu[e["clave"]] = f"'Analisis PU'!G{fila_k}"
-        wa.row_breaks.append(Break(id=fila_fin))
-        fila = fila_fin + 1
-    wa.page_setup.orientation = "portrait"
-    wa.page_setup.paperSize = wa.PAPERSIZE_LETTER
-    wa.page_setup.fitToWidth = 1
-    wa.page_setup.fitToHeight = 0
-    wa.sheet_properties.pageSetUpPr.fitToPage = True
-    wa.page_margins.left = wa.page_margins.right = 0.4
-    wa.oddFooter.center.text = "Página &P de &N"
-    wa.oddFooter.center.font = FUENTE
+    wbas.column_dimensions["J"].hidden = True
+    fmt_neo._impresion(wa)
+    fila, celdas_pu = 1, {}
+    for k, e in enumerate(exts, 1):
+        fila, fila_pu = fmt_neo.apu(wa, fila, cab, e, calcs[e["clave"]], ref_ins, cod_partida[e["partida"]], k * 10,
+                                    letra(calcs[e["clave"]]["pu"]))
+        celdas_pu[e["clave"]] = f"'Analisis PU'!$G${fila_pu}"
 
-    # Catálogo / resumen
-    wc = wb.create_sheet("Catalogo EXT", 0)
-    wc["A1"] = "CATÁLOGO DE CONCEPTOS EXTRAORDINARIOS — análisis integrados con insumos, básicos y cargos del concurso"
+    # Presupuestos por catálogo (formato NEODATA)
+    totales = {}
+    for nombre, campo in (("Presupuesto Garzas", "cant_garzas"), ("Presupuesto Barrio V DS24", "cant_bv")):
+        partidas = []
+        for p in orden_partidas:
+            lista = [{**e, "cantidad": e.get(campo) or 0} for e in exts if e["partida"] == p and (e.get(campo) or 0) > 0]
+            if lista:
+                partidas.append((cod_partida[p], p, lista))
+        if partidas:
+            _, totales[nombre] = fmt_neo.hoja_presupuesto(wb, nombre, cab, partidas, celdas_pu)
+
+    # Resumen con origen de rendimientos
+    wc = wb.create_sheet("Resumen EXT")
+    wc["A1"] = "RESUMEN DE CONCEPTOS EXTRAORDINARIOS — origen del rendimiento y evidencia en bitácora"
     wc["A1"].font = F(size=12, bold=True, color=AZUL)
-    wc["A2"] = ("Contrato 2026-06-CF-A-035-W-00-2026 (Concurso LO-09-210-009000999-T-873-2026). Precios sin IVA. "
-                "Renglones naranja = insumo NUEVO, requiere 3 cotizaciones (cambiar el precio en la hoja Insumos).")
+    wc["A2"] = ("Precios sin IVA. Renglones naranja en los análisis = insumo NUEVO: requiere 3 cotizaciones "
+                "(cambiar el precio en la hoja Insumos y todo se recalcula).")
     wc["A2"].font = F(size=9, italic=True)
     enc = ["Clave", "Descripción", "Unidad", "Cant. Garzas", "Cant. Barrio V DS24", "Cantidad total", "P.U.", "Importe",
            "Origen del rendimiento", "Rendimiento", "Evidencia en bitácora", "Insumos nuevos"]
@@ -713,7 +528,7 @@ def main() -> None:
     wc.auto_filter.ref = f"A4:L{ult}"
 
     # Rendimientos (bitácora)
-    wr = wb.create_sheet("Rendimientos bitacora", 1)
+    wr = wb.create_sheet("Rendimientos bitacora")
     wr["A1"] = "RENDIMIENTOS DETERMINADOS CON LAS ACTIVIDADES DIARIAS (reportes de WhatsApp)"
     wr["A1"].font = F(size=12, bold=True, color=AZUL)
     wr.append([])
@@ -759,6 +574,9 @@ def main() -> None:
     for col, w in zip("ABCDEFG", (11, 60, 24, 34, 34, 70, 40)):
         wr.column_dimensions[col].width = w
 
+    orden = ["Presupuesto Garzas", "Presupuesto Barrio V DS24", "Analisis PU", "Basicos", "Insumos", "Parametros",
+             "Rendimientos bitacora", "Resumen EXT"]
+    wb._sheets = [wb[n] for n in orden if n in wb.sheetnames]
     SALIDA.parent.mkdir(parents=True, exist_ok=True)
     wb.save(SALIDA)
     total = sum(calcs[e["clave"]]["pu"] * ((e.get("cant_garzas") or 0) + (e.get("cant_bv") or 0)) for e in exts)

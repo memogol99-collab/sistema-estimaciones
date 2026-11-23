@@ -195,13 +195,11 @@ Necesita en `contratos/concurso_garzas/`:
 - Los documentos del concurso: `14a_Precios.pdf`, `14c_Basicos.pdf` y `15_Insumos.pdf`.
 - El libro `PU_Contrato_y_Extraordinarios_Manzanillo.xlsx`.
 
-Genera `reportes_whatsapp/APU_Extraordinarios_NEODATA.xlsx`:
-- **Catalogo EXT:** clave, descripción, cantidades, P.U. (ligado a su análisis), importe, IVA y total. También el origen del rendimiento y su evidencia en la bitácora.
-- **Rendimientos bitacora:** los rendimientos ajustados, confirmados u observados en los reportes diarios, y el comparativo de rendimientos del concurso contra la obra (perforación y colado de pilas).
-- **Analisis PU:** un análisis por página con el encabezado y la estructura del Doc. 14:
-  - Secciones: materiales, mano de obra, equipo y herramienta, y básicos expandidos con *Importe/Volumen*.
-  - Cargos (A)…(K) del concurso, ISN y precio con letra.
-- **Insumos:** precios del concurso (Doc. 15 y 14c). Los insumos **NUEVOS** van en naranja y requieren 3 cotizaciones; al cambiar su precio, todo se recalcula.
-- **Parametros:** indirectos, financiamiento, utilidad, SFP e ISN.
+Genera `reportes_whatsapp/APU_Extraordinarios_NEODATA.xlsx` con los formatos de exportación de NEODATA P.U. Cada hoja lleva el recuadro de encabezado (empresa, cliente, concurso, obra, lugar, duración, fechas y documento):
+- **Presupuesto Garzas** y **Presupuesto Barrio V DS24:** *Presupuesto de obra* por partidas (A1, A2…), con "TOTAL <partida>", %, total, IVA y total con IVA.
+- **Analisis PU:** *Análisis de precios unitarios*, uno por página. Lleva partida y análisis No., materiales, mano de obra, equipo y herramienta, básicos y subtotales. Los cargos van como (CD), (CI), SUBTOTAL1, (CF), SUBTOTAL2, (CU), SUBTOTAL3, (CA1) SFP y (CA2) ISN, y al final el precio unitario con letra.
+- **Basicos:** *Análisis de básicos* (cuadrillas y básicos del Doc. 14c), uno por página, con su costo directo.
+- **Insumos:** precios del concurso. Los **NUEVOS** van en naranja y requieren 3 cotizaciones. Los precios de básicos y cuadrillas salen de la hoja *Basicos*: todo está ligado y se recalcula.
+- **Parametros**, **Rendimientos bitacora** y **Resumen EXT:** cargos, rendimientos con su evidencia y resumen con el origen de cada rendimiento.
 
 El cálculo reproduce las 360 matrices del concurso con diferencias de centavos. La base del ISN se calibra con esas mismas matrices.
