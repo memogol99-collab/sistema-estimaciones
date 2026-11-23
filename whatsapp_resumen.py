@@ -29,6 +29,7 @@ import pandas as pd
 
 import catalogo
 import formato
+import recursos
 import reporte_html
 
 # --------------------------------------------------------------------------
@@ -330,7 +331,7 @@ def parsear_reporte(mensaje: dict) -> tuple[dict, list[dict]]:
                "personal_total": _sumar_personal(secciones.get("personal", []) + secciones.get("mano de obra", [])),
                "maquinaria": _sumar_personal(maquinaria),
                "maquinaria_inactiva": "; ".join(inactivos),
-               "frentes": 0}
+               "frentes": 0, "secciones": {k: list(v) for k, v in secciones.items()}}
 
     # Bloques por frente
     actividades: list[dict] = []
@@ -361,6 +362,7 @@ def parsear_reporte(mensaje: dict) -> tuple[dict, list[dict]]:
             "personal": _sumar_personal(pers),
             "equipo": " ".join(equipo).replace("Herramienta menor.", "").strip(" .") or "Herramienta menor",
             "reportó": mensaje["autor"], "grupo": mensaje.get("grupo", ""),
+            "personal_lineas": pers, "equipo_lineas": equipo,
         })
     resumen["frentes"] = len(actividades)
     return resumen, actividades
@@ -430,7 +432,8 @@ def escribir_excel(df: pd.DataFrame, reportes: pd.DataFrame, actividades: pd.Dat
         {"nombre": "Avance por concepto", "df": por_concepto, "totales": ["importe_reportado_estimado"],
          "descripcion": "Actividades agrupadas por concepto del catálogo (confianza media o alta)",
          "nota": "Cantidades e importes referenciales tomados de los mensajes; no sustituyen a los números generadores."},
-        {"nombre": "Personal y equipo", "df": reportes, "descripcion": "Personal total, maquinaria y equipo inactivo por reporte"},
+        {"nombre": "Personal y equipo", "df": reportes.drop(columns=["secciones"], errors="ignore"),
+         "descripcion": "Personal total, maquinaria y equipo inactivo por reporte (el detalle por tipo está en recursos_*.xlsx)"},
         {"nombre": "Incidencias", "df": texto_df[texto_df["incidencia"]][cols_msg], "descripcion": "Problemas, fallas, retrasos, paros"},
         {"nombre": "Pendientes", "df": texto_df[texto_df["pendiente"]][cols_msg], "descripcion": "Lo programado, lo que falta y solicitudes"},
         {"nombre": "Cantidades", "df": texto_df[texto_df["cantidades"].ne("")][["fecha", "hora", "puente", "autor", "cantidades",
@@ -720,7 +723,7 @@ def escribir_pilas(df: pd.DataFrame, actividades: pd.DataFrame, ruta: Path, nomb
     ev = eventos_pilas(actividades) if not actividades.empty else pd.DataFrame()
     menciones = menciones_pilas(df)
     if ev.empty and menciones.empty:
-        return None, None
+        return None, None, pd.DataFrame()
     res = resumen_pilas(ev) if not ev.empty else pd.DataFrame()
     if not res.empty and not menciones.empty:  # avisos de otros grupos que hablan de la misma pila por eje
         por_eje = menciones[menciones["referencia"] == "eje"]
@@ -751,7 +754,7 @@ def escribir_pilas(df: pd.DataFrame, actividades: pd.DataFrame, ruta: Path, nomb
                           [("Pilas con registro", str(len(res))), ("Pilas coladas", str(coladas)),
                            ("Fuente principal", "Reportes de actividades diarios (lo ejecutado)"),
                            ("Fuente secundaria", "Mensajes de los grupos (programas y avisos)")], hojas)
-    return res, resumen_eje
+    return res, resumen_eje, vs_cat
 
 
 # --------------------------------------------------------------------------
@@ -776,7 +779,81 @@ def cargar_grupo(ruta: Path, desde: date | None, hasta: date | None) -> pd.DataF
     return df
 
 
-def generar(df: pd.DataFrame, nombre: str, salida: Path, clasif=None, contratos=None, pdf: bool = True) -> None:
+def avance_ejecutado(por_concepto: pd.DataFrame, vs_cat: pd.DataFrame, clasif) -> pd.DataFrame:
+    """Avance por concepto para comparar contra el programa. En pilas se usa la cifra depurada de la
+    tabla de pilas, y el acero de pilas se estima con la cuantía del catálogo (kg de acero por m³)."""
+    filas = []
+    if por_concepto is not None and not por_concepto.empty:
+        for _, r in por_concepto.iterrows():
+            filas.append({"puente": r["puente"], "concepto": int(r["concepto"]),
+                          "ejecutado_whatsapp": r["cantidad_reportada_whatsapp"],
+                          "fuente_avance": "Suma de cantidades en los reportes" if pd.notna(r["cantidad_reportada_whatsapp"]) else "",
+                          "días_con_actividad": r["días_con_actividad"], "primera_fecha": r["primera_fecha"],
+                          "última_fecha": r["última_fecha"]})
+    av = pd.DataFrame(filas)
+    if vs_cat is not None and not vs_cat.empty and not av.empty:
+        for _, v in vs_cat.iterrows():
+            m = (av["puente"] == v["puente"]) & (av["concepto"] == v["concepto"])
+            if m.any() and pd.notna(v["cantidad_según_whatsapp"]):
+                av.loc[m, "ejecutado_whatsapp"] = v["cantidad_según_whatsapp"]
+                av.loc[m, "fuente_avance"] = "Tabla de pilas (depurada)"
+        # Acero de pilas estimado por cuantía
+        for pte, g in vs_cat.groupby("puente"):
+            conc = g[g["descripción"].str.contains("Pilas de cimentación") & g["unidad"].str.lower().eq("m3")
+                     & g["descripción"].str.contains("Concreto")]
+            sug = clasif.sugerir("Armado de acero de refuerzo para pilas de cimentación", pte, n=1) if clasif else []
+            if conc.empty or not sug or pd.isna(conc["cantidad_según_whatsapp"].iloc[0]):
+                continue
+            acero = clasif.conceptos.loc[sug[0][0]]
+            if isinstance(acero["cantidad"], (int, float)) and conc["cantidad_catálogo"].iloc[0]:
+                cuantia = acero["cantidad"] / conc["cantidad_catálogo"].iloc[0]
+                m = (av["puente"] == pte) & (av["concepto"] == int(acero["no"]))
+                if m.any():
+                    av.loc[m, "ejecutado_whatsapp"] = conc["cantidad_según_whatsapp"].iloc[0] * cuantia
+                    av.loc[m, "fuente_avance"] = f"Estimado: concreto colado × {cuantia:,.0f} kg/m³ (cuantía del catálogo)"
+    return av
+
+
+def escribir_recursos(ruta: Path, nombre: str, det: pd.DataFrame, rend: pd.DataFrame, propuesta: pd.DataFrame,
+                      corte) -> None:
+    hojas = [
+        {"nombre": "Propuesta de recursos", "df": propuesta[propuesta["recurso_adicional_sugerido"].notna()
+                                                            | (propuesta["situación"] == "Atrasado")] if not propuesta.empty else propuesta,
+         "totales": ["importe_programado_al_corte"],
+         "descripcion": "Conceptos atrasados contra el programa E-6, ritmo necesario para terminar en plazo y recursos adicionales sugeridos",
+         "nota": "Recurso necesario = recurso actual × ritmo necesario ÷ ritmo observado. Ritmos en días hábiles (lunes a sábado)."},
+        {"nombre": "Frentes sin abrir", "df": recursos.frentes_faltantes(propuesta), "totales": ["importe_programado_al_corte"],
+         "descripcion": "Partidas que según el programa ya deberían llevar avance y no aparecen en los reportes",
+         "nota": "Solo cuenta lo que se reporta en WhatsApp: una partida puede estar en obra aunque no se reporte. Confirmar en campo."},
+        {"nombre": "Programa vs real", "df": propuesta, "totales": ["importe_programado_al_corte"],
+         "descripcion": f"Todos los conceptos programados al {corte:%d/%m/%Y} contra lo reportado en WhatsApp"},
+        {"nombre": "Posibles extraordinarios", "df": rend[rend["posible_extraordinario"] == "Sí"] if not rend.empty else rend,
+         "descripcion": "Actividades sin concepto claro en el catálogo: cuadrilla, equipo, jornadas y rendimiento observado (base para el análisis de P.U.)"},
+        {"nombre": "Rendimientos", "df": rend,
+         "descripcion": "Rendimiento observado por concepto o tipo de actividad (cantidad reportada ÷ jornadas de frente)"},
+        {"nombre": "Personal por día", "df": recursos.plantilla_diaria(det, "Mano de obra"),
+         "descripcion": "Personal activo por día y tipo (encabezado del reporte o suma de frentes)"},
+        {"nombre": "Maquinaria por día", "df": recursos.plantilla_diaria(det, "Maquinaria"),
+         "descripcion": "Maquinaria activa por día y tipo (sin la reportada como inactiva)"},
+        {"nombre": "Equipo menor por día", "df": recursos.plantilla_diaria(det, "Equipo menor"),
+         "descripcion": "Equipo menor por día y tipo"},
+        {"nombre": "Resumen semanal", "df": recursos.resumen_semanal(det),
+         "descripcion": "Promedio diario y máximo por semana, clase y tipo de recurso"},
+        {"nombre": "Equipo inactivo", "df": recursos.equipo_inactivo(det),
+         "descripcion": "Maquinaria y equipo reportados como inactivos y por cuántos días"},
+        {"nombre": "Detalle de recursos", "df": det, "descripcion": "Cada línea de personal y equipo de los reportes, ya clasificada por tipo"},
+    ]
+    for h in hojas:
+        h["titulo"] = f"{h['nombre']} — {nombre}"
+    formato.guardar_libro(ruta, f"Recursos, rendimientos y propuesta — {nombre}",
+                          [("Fecha de corte", f"{corte:%d/%m/%Y}"),
+                           ("Fuente", "Reportes de actividades de WhatsApp + programa E-6 y catálogo E-7 de los contratos"),
+                           ("Uso", "Proponer recursos para recuperar el programa y analizar rendimientos para precios extraordinarios")],
+                          hojas)
+
+
+def generar(df: pd.DataFrame, nombre: str, salida: Path, clasif=None, contratos=None, programa=None,
+            pdf: bool = True) -> None:
     base = re.sub(r"[^\w\- ]", "_", nombre).strip()
     xlsx, md, htm = (salida / f"resumen_{base}.{ext}" for ext in ("xlsx", "md", "html"))
     reportes, actividades = extraer_reportes(df)
@@ -786,8 +863,22 @@ def generar(df: pd.DataFrame, nombre: str, salida: Path, clasif=None, contratos=
         por_concepto = catalogo.avance_por_concepto(actividades, clasif.conceptos)
     escribir_excel(df, reportes, actividades, por_concepto, nombre, xlsx)
     escribir_markdown(df, actividades, reportes, nombre, md)
-    pilas, por_eje = escribir_pilas(df, actividades, salida / f"pilas_{base}.xlsx", nombre, clasif)
-    reporte_html.escribir_html(htm, nombre, df, actividades, reportes, pilas, por_eje, por_concepto, contratos or [])
+    pilas, por_eje, vs_cat = escribir_pilas(df, actividades, salida / f"pilas_{base}.xlsx", nombre, clasif)
+    extra = {}
+    if not reportes.empty:
+        corte = df["fecha"].max()
+        det = recursos.detalle_recursos(reportes, actividades)
+        rend = recursos.rendimientos(actividades, det, vs_cat)
+        propuesta = pd.DataFrame()
+        if clasif is not None and programa is not None and not programa.empty:
+            fin = {c["puente"]: catalogo.fecha_fin_contrato(c["periodo"]) for c in (contratos or [])}
+            avance = avance_ejecutado(por_concepto, vs_cat, clasif)
+            propuesta = recursos.propuesta_recursos(clasif.conceptos, programa, avance, det, contratos, corte, fin,
+                                                    actividades)
+        escribir_recursos(salida / f"recursos_{base}.xlsx", nombre, det, rend, propuesta, corte)
+        extra = {"det": det, "rend": rend, "propuesta": propuesta, "corte": corte}
+        print(f"   → {salida / f'recursos_{base}.xlsx'}")
+    reporte_html.escribir_html(htm, nombre, df, actividades, reportes, pilas, por_eje, por_concepto, contratos or [], extra)
     hecho_pdf = pdf and reporte_html.html_a_pdf(htm, htm.with_suffix(".pdf"))
     texto = df[~df["adjunto"] & ~df["es_reporte"]]
     print(f"✅ {nombre}: {len(df)} mensajes ({df['fecha'].min()} a {df['fecha'].max()}), "
@@ -845,7 +936,8 @@ def main() -> None:
         contratos, conceptos = catalogo.cargar_catalogos(args.catalogos)
         if not conceptos.empty:
             clasif = catalogo.Clasificador(conceptos)
-    opciones = {"clasif": clasif, "contratos": contratos, "pdf": not args.sin_pdf}
+    programa = catalogo.cargar_programas(args.catalogos, contratos) if contratos else pd.DataFrame()
+    opciones = {"clasif": clasif, "contratos": contratos, "programa": programa, "pdf": not args.sin_pdf}
     cargados = []
     for ruta in archivos:
         try:

@@ -107,7 +107,7 @@ def _corto(t: str, n: int = 320) -> str:
 
 def escribir_html(ruta: Path, nombre: str, df: pd.DataFrame, actividades: pd.DataFrame,
                   reportes: pd.DataFrame, pilas: pd.DataFrame | None, por_eje: pd.DataFrame | None,
-                  por_concepto: pd.DataFrame | None, contratos: list[dict]) -> None:
+                  por_concepto: pd.DataFrame | None, contratos: list[dict], extra: dict | None = None) -> None:
     texto = df[~df["adjunto"] & ~df["es_reporte"]]
     inicio, fin = df["fecha"].min(), df["fecha"].max()
     grupos = sorted({g.strip() for gs in df["grupo"].astype(str) for g in gs.split(",")})
@@ -186,6 +186,79 @@ def escribir_html(ruta: Path, nombre: str, df: pd.DataFrame, actividades: pd.Dat
         partes.append("<p class='nota'>* En pilas, la cifra depurada (sin reportes repetidos ni colados duplicados) "
                       "es la de la sección <b>Pilas de cimentación</b>. En rojo: cantidad que supera la del catálogo "
                       "(posible doble conteo en los reportes o concepto mal asignado; revisar).</p></section>")
+
+    # Recursos, propuesta y extraordinarios
+    extra = extra or {}
+    det, rend, prop, corte = extra.get("det"), extra.get("rend"), extra.get("propuesta"), extra.get("corte")
+    if det is not None and not det.empty:
+        import recursos as _rec
+        partes.append("<section><h2>Recursos en obra y propuesta</h2>")
+        from datetime import timedelta as _td
+        desde = corte - _td(days=13)
+        for clase, titulo in (("Mano de obra", "Personal promedio por día (últimas 2 semanas)"),
+                              ("Maquinaria", "Maquinaria activa promedio por día (últimas 2 semanas)")):
+            p = _rec.plantilla_diaria(det, clase)
+            if p.empty:
+                continue
+            p = p[p["fecha"] >= desde]
+            if p.empty:
+                continue
+            tipos = [c for c in p.columns if c not in ("fecha", "puente", "TOTAL")]
+            filas = []
+            for pte, g in p.groupby("puente"):
+                prom = g[tipos].mean().sort_values(ascending=False)
+                prom = prom[prom >= 0.5]
+                filas.append([_chip(pte), _num(g["TOTAL"].mean(), 1),
+                              _e(", ".join(f"{v:.0f} {t.lower()}" for t, v in prom.items()))])
+            partes.append(f"<h3>{titulo}</h3>" + _tabla(["Puente", "Total promedio", "Por tipo"], filas, {1}))
+        ina = _rec.equipo_inactivo(det)
+        if ina is not None and not ina.empty:
+            ina = ina[ina["último_día"] >= corte - _td(days=7)]
+            if len(ina):
+                partes.append("<h3>Equipo inactivo en la última semana</h3>" + "".join(
+                    f"<div class='alerta'><b>{_e(r['tipo'])}</b> — {_e(r['descripción'])}: inactivo {r['días_inactivo']} días "
+                    f"(del {_fecha(r['primer_día'])} al {_fecha(r['último_día'])})</div>" for _, r in ina.iterrows()))
+        if prop is not None and not prop.empty:
+            atr = prop[prop["situación"] == "Atrasado"]
+            if len(atr):
+                filas = [[_chip(r["puente"]), _e(r["concepto"]), _e(_corto(r["descripción"], 70)), _e(r["unidad"]),
+                          f"{r['avance_vs_programa_%']:.0%}" if pd.notna(r["avance_vs_programa_%"]) else "",
+                          _num(r["ritmo_observado_por_día"]), _num(r["ritmo_necesario_por_día"]),
+                          _e(r["recurso_que_manda"]), _num(r["recurso_actual_promedio_4_sem"], 1),
+                          _e("" if pd.isna(r["recurso_necesario"]) else int(r["recurso_necesario"])),
+                          _e(r["comentario"])] for _, r in atr.iterrows()]
+                partes.append(f"<h3>Conceptos atrasados contra el programa al {_fecha(corte)}</h3>"
+                              "<p class='nota'>Ritmos por día hábil (lunes a sábado). Recurso necesario = recurso actual × "
+                              "ritmo necesario ÷ ritmo observado, para terminar en el plazo del contrato.</p>" + _tabla(
+                                  ["Puente", "No.", "Concepto", "Unidad", "Avance vs programa", "Ritmo actual/día",
+                                   "Ritmo necesario/día", "Recurso que manda", "Actual", "Necesario", "Comentario"],
+                                  filas, {1, 4, 5, 6, 8, 9}))
+            falt = _rec.frentes_faltantes(prop)
+            if not falt.empty:
+                filas = []
+                for pte, g in falt.groupby("puente"):
+                    for _, r in g.head(8).iterrows():
+                        filas.append([_chip(pte), _e(r["partida"]), _e(r["conceptos"]),
+                                      "$" + _num(r["importe_programado_al_corte"]), _e(_corto(r["principales"], 160))])
+                partes.append("<h3>Partidas programadas al corte sin actividad en los reportes</h3>"
+                              "<p class='nota'>Solo refleja lo que se reporta en WhatsApp; confirmar en campo antes de "
+                              "proponer. Se muestran las 8 de mayor importe por puente.</p>" + _tabla(
+                                  ["Puente", "Partida", "Conceptos", "Importe programado al corte", "Principales conceptos"],
+                                  filas, {2, 3}))
+        if rend is not None and not rend.empty:
+            ext = rend[rend["posible_extraordinario"] == "Sí"].sort_values("jornadas_de_frente", ascending=False).head(15)
+            if len(ext):
+                filas = [[_chip(r["puente"]), _e(r["agrupación"].replace("Actividad: ", "").capitalize()),
+                          _e(r["jornadas_de_frente"]), _e(r["cuadrilla_típica"]), _e(r["equipo_típico"]),
+                          _e(r["hombres_día"]),
+                          (_num(r["rendimiento_por_jornada"]) + " " + _e(r["unidad"])) if pd.notna(r["rendimiento_por_jornada"]) else ""]
+                         for _, r in ext.iterrows()]
+                partes.append("<h3>Posibles conceptos extraordinarios (sin concepto claro en catálogo)</h3>"
+                              "<p class='nota'>Cuadrilla y equipo típicos por jornada de frente, según los reportes: base "
+                              "para integrar la tarjeta de precio unitario. Detalle completo en recursos_*.xlsx.</p>" + _tabla(
+                                  ["Puente", "Actividad", "Jornadas", "Cuadrilla típica", "Equipo típico", "Hombres-día",
+                                   "Rendimiento/jornada"], filas, {2, 5}))
+        partes.append("</section>")
 
     # Incidencias y pendientes
     inc = texto[texto["incidencia"]].sort_values("fecha_hora", ascending=False)

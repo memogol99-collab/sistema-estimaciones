@@ -318,3 +318,60 @@ def avance_por_concepto(actividades: pd.DataFrame, conceptos: pd.DataFrame) -> p
                      "repetidos y colados duplicados") if "pilas" in _norm(c["descripción"] + c["texto_padre"]) else "",
         })
     return pd.DataFrame(filas).sort_values(["puente", "concepto"]) if filas else pd.DataFrame()
+
+
+# --------------------------------------------------------------------------
+# PROGRAMA DE OBRA (forma E-6): cantidades programadas por mes
+# --------------------------------------------------------------------------
+_MESES = {m: i for i, m in enumerate(["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+                                       "septiembre", "octubre", "noviembre", "diciembre"], 1)}
+
+
+def fecha_fin_contrato(periodo: str):
+    """'Del 01 de agosto al 31 de diciembre de 2026 (…)' → date(2026, 12, 31)."""
+    from datetime import date
+    m = re.search(r"al\s+(\d{1,2})\s+de\s+([a-z]+)\s+(?:de|del)\s+(\d{4})", _norm(periodo))
+    if m and m[2] in _MESES:
+        return date(int(m[3]), _MESES[m[2]], int(m[1]))
+    return None
+
+
+def leer_programa(ruta: Path, puente: str, anio: int) -> pd.DataFrame:
+    from datetime import date
+    wb = openpyxl.load_workbook(ruta, data_only=True, read_only=True)
+    if "E-6" not in [n.strip().upper() for n in wb.sheetnames]:
+        return pd.DataFrame()
+    hoja = next(wb[n] for n in wb.sheetnames if n.strip().upper() == "E-6")
+    filas = list(hoja.iter_rows(values_only=True))
+    wb.close()
+    meses = {}
+    for f in filas[:30]:
+        for j, v in enumerate(f):
+            if isinstance(v, str) and _norm(v).strip() in _MESES:
+                meses[j] = date(anio, _MESES[_norm(v).strip()], 1)
+        if meses:
+            break
+    out = []
+    for f in filas:
+        if not (isinstance(f[0], (int, float)) and len(f) > 4 and f[3]):
+            continue
+        for j, mes in meses.items():
+            v = f[j] if j < len(f) else None
+            if isinstance(v, (int, float)) and v:
+                out.append({"puente": puente, "no": int(f[0]), "mes": mes, "cantidad_programada": float(v)})
+    return pd.DataFrame(out)
+
+
+def cargar_programas(carpeta: Path, contratos: list[dict]) -> pd.DataFrame:
+    tablas = []
+    for c in contratos:
+        fin = fecha_fin_contrato(c.get("periodo", ""))
+        try:
+            p = leer_programa(carpeta / c["archivo"], c["puente"], fin.year if fin else 2026)
+        except Exception as exc:
+            print(f"⚠️  No se pudo leer el programa E-6 de {c['archivo']}: {exc}")
+            continue
+        if not p.empty:
+            tablas.append(p)
+            print(f"🗓️  Programa E-6 {c['contrato']}: {p['no'].nunique()} conceptos programados")
+    return pd.concat(tablas, ignore_index=True) if tablas else pd.DataFrame()

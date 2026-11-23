@@ -116,6 +116,27 @@ Con los catálogos, el script:
 
 La asignación es por similitud de texto: es un apoyo, no sustituye a los números generadores.
 
+### Recursos, rendimientos y propuesta (`recursos_<nombre>.xlsx`)
+
+De cada reporte diario se toma cada línea de personal y de equipo, del encabezado y de cada frente, y se clasifica por tipo:
+- **Personal:** oficial fierrero, carpintero, ayudante general, banderero(a), residente, operador de cada máquina, etc.
+- **Equipo:** perforadora, grúa de orugas, HIAB, retroexcavadora, excavadora, volteo, pipa, generador, motobomba, etc.
+- **Inactivos:** se marcan los equipos reportados como inactivos.
+
+| Hoja | Contenido |
+|---|---|
+| Propuesta de recursos | Conceptos atrasados contra el programa E-6. Incluye: % de avance, ritmo actual y ritmo necesario por día hábil para terminar en plazo, el recurso que manda (perforadora, fierreros, volteos…), cuántos hay y cuántos harían falta |
+| Frentes sin abrir | Partidas que según el programa ya deberían llevar avance y no aparecen en los reportes, con su importe programado |
+| Programa vs real | Todos los conceptos programados al corte contra lo reportado |
+| Posibles extraordinarios | Actividades sin concepto claro en el catálogo. Por cada una: jornadas, cuadrilla típica, equipo típico, hombres-día y rendimiento observado, como base para la tarjeta de precio unitario |
+| Rendimientos | Lo mismo para todos los conceptos y actividades |
+| Personal / Maquinaria / Equipo menor por día | Recursos activos por día y tipo |
+| Resumen semanal | Promedio diario y máximo por semana y tipo |
+| Equipo inactivo | Equipo reportado como inactivo y por cuántos días |
+| Detalle de recursos | Cada línea de personal y equipo ya clasificada |
+
+Para la propuesta se necesitan los catálogos **con la hoja E-6** (programa de obra) en `contratos/`. El acero de pilas se estima con la cuantía del catálogo (kg de acero ÷ m³ de concreto), porque los reportes no traen kilos.
+
 ### Formatos de salida
 - **`resumen_<nombre>.html`** y **`.pdf`**: reporte con formato. Incluye indicadores, contratos, pilas, datos a verificar, actividades por concepto, incidencias y bitácora por día. El PDF se genera si hay Chrome o Edge instalado; si no, abre el HTML y usa *Imprimir → Guardar como PDF*.
 - **`resumen_<nombre>.xlsx`** y **`pilas_<nombre>.xlsx`**: con portada e índice, encabezados, colores por estado y por puente, totales y listos para imprimir.
