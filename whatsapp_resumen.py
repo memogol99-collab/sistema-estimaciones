@@ -330,6 +330,25 @@ def _estado(actividad: str) -> str:
     return "Ejecutado / inicio"
 
 
+DIAS_SEMANA = {"lunes": 0, "martes": 1, "miercoles": 2, "jueves": 3, "viernes": 4, "sabado": 5, "domingo": 6}
+
+
+def corregir_dia_semana(linea: str, fecha: date, enviado: date) -> date:
+    """Si el día de la semana no corresponde al número ('Jueves 11' cuando el 11 fue miércoles), se elige entre la
+    fecha escrita y el jueves más cercano, la que esté más cerca del envío del reporte."""
+    m = re.search(r"\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b", linea)
+    if not m or fecha.weekday() == DIAS_SEMANA[m[1]]:
+        return fecha
+    from datetime import timedelta
+    candidatos = [fecha + timedelta(days=k) for k in range(-3, 4)
+                  if (fecha + timedelta(days=k)).weekday() == DIAS_SEMANA[m[1]] and fecha + timedelta(days=k) <= enviado]
+    if not candidatos:
+        return fecha
+    por_dia = min(candidatos, key=lambda d: abs((d - fecha).days))
+    # Gana la fecha (la escrita o la del día de la semana) más cercana al envío del reporte
+    return por_dia if abs((enviado - por_dia).days) < abs((enviado - fecha).days) else fecha
+
+
 def parsear_reporte(mensaje: dict) -> tuple[dict, list[dict]]:
     """Devuelve (fila de resumen del reporte, filas de actividades por frente)."""
     lineas = [RE_VIÑETA.sub("", l).strip() for l in mensaje["texto"].splitlines()]
@@ -345,6 +364,7 @@ def parsear_reporte(mensaje: dict) -> tuple[dict, list[dict]]:
                 fecha = date(int(m[3]), MESES[mes], int(m[1]))
             except ValueError:
                 pass
+            fecha = corregir_dia_semana(sin_acentos(l), fecha, mensaje["fecha_hora"].date())
             break
 
     # Encabezado general (antes del primer frente)

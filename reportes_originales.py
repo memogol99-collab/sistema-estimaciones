@@ -41,7 +41,7 @@ def leer_fecha(texto: str) -> date:
     raise argparse.ArgumentTypeError(f"Fecha no reconocida: {texto} (usa AAAA-MM-DD o DD/MM/AAAA)")
 
 
-def cargar_reportes(carpeta: Path) -> pd.DataFrame:
+def cargar_reportes(carpeta: Path, con_mensajes: bool = False):
     archivos = w.quitar_exportaciones_viejas(sorted(p for p in carpeta.iterdir() if p.suffix.lower() in (".zip", ".txt")))
     grupos = [g for g in (w.cargar_grupo(a, None, None) for a in archivos) if g is not None]
     if not grupos:
@@ -53,7 +53,8 @@ def cargar_reportes(carpeta: Path) -> pd.DataFrame:
         resumen, _ = w.parsear_reporte(m.to_dict())
         filas.append({"fecha_reporte": resumen["fecha"], "obra": resumen["obra"], "autor": m["autor"],
                       "enviado": m["fecha_hora"], "grupo": m.get("grupo", ""), "texto": m["texto"]})
-    return pd.DataFrame(filas)
+    rep = pd.DataFrame(filas)
+    return (rep, df) if con_mensajes else rep
 
 
 def coincide(autor: str, buscados: list[str]) -> bool:
@@ -86,7 +87,8 @@ def escribir(reportes: pd.DataFrame, ruta_xlsx: Path, ruta_txt: Path) -> None:
             enc.font = Font(bold=True, color="FFFFFF", size=12)
             enc.fill = PatternFill("solid", fgColor=AZUL)
             enc.alignment = Alignment(horizontal="center")
-            sub = ws.cell(row=4, column=j, value=f"{r['obra']} · enviado {r['enviado']:%d/%m/%Y %H:%M}")
+            sub = ws.cell(row=4, column=j, value="SIN 'REPORTE DE ACTIVIDADES' ESE DÍA" if r["obra"] == "sin reporte de actividades"
+                          else f"{r['obra']} · enviado {r['enviado']:%d/%m/%Y %H:%M}")
             sub.font = Font(italic=True, size=9, color="FFFFFF")
             sub.fill = PatternFill("solid", fgColor=AZUL2)
             sub.alignment = Alignment(horizontal="center")
@@ -100,7 +102,9 @@ def escribir(reportes: pd.DataFrame, ruta_xlsx: Path, ruta_txt: Path) -> None:
                 if "inactiv" in n:
                     c.font = Font(size=10, bold=True, color="A4161A")
                 c.border = borde
-            txt.append(f"\n--- {r['autor']} · {r['obra']} · enviado {r['enviado']:%d/%m/%Y %H:%M} ---\n{r['texto']}")
+            txt.append(f"\n--- {r['autor']} · {r['obra']}"
+                       + ("" if r["obra"] == "sin reporte de actividades" else f" · enviado {r['enviado']:%d/%m/%Y %H:%M}")
+                       + f" ---\n{r['texto']}")
         ws.freeze_panes = "A5"
         ws.page_setup.orientation = "landscape"
         ws.page_setup.fitToWidth = 1
@@ -126,11 +130,45 @@ def main() -> None:
     args = ap.parse_args()
 
     hasta = args.hasta or args.fecha
-    todos = cargar_reportes(args.chats)
+    todos, mensajes = cargar_reportes(args.chats, con_mensajes=True)
     sel = todos[(todos["fecha_reporte"] >= args.fecha) & (todos["fecha_reporte"] <= hasta)
                 & todos["autor"].apply(lambda a: coincide(a, args.autor))]
     # El mismo reporte reenviado el mismo día por la misma persona: queda el último
     sel = sel.sort_values("enviado").drop_duplicates(["fecha_reporte", "autor", "obra"], keep="last")
+    # Personas pedidas que no mandaron "Reporte de actividades" ese día: se ponen sus mensajes del día
+    if args.autor:
+        extra = []
+        dia = args.fecha
+        while dia <= hasta:
+            for buscado in args.autor:
+                autores = sorted({a for a in mensajes["autor"].unique() if coincide(a, [buscado])})
+                if not autores or any(coincide(a, [buscado]) for a in sel[sel["fecha_reporte"] == dia]["autor"]):
+                    continue
+                # Si el nombre coincide con varias cuentas (p. ej. "David Soto" y "David Torres Soto"), la más activa ese día
+                autores = [max(autores, key=lambda a: int(((mensajes["autor"] == a) & (mensajes["fecha"] == dia)).sum()))]
+                for autor in autores:
+                    m = mensajes[(mensajes["autor"] == autor) & (mensajes["fecha"] == dia)].sort_values("fecha_hora")
+                    fotos = int(m["adjunto"].sum())
+                    textos = m[~m["adjunto"] & ~m["es_reporte"]
+                               & ~m["texto"].str.contains("Se eliminó este mensaje", regex=False)]
+                    cuerpo = [f"No envió 'Reporte de actividades' con fecha del {dia:%d/%m/%Y}.",
+                              f"Ese día compartió {fotos} fotos/archivos (no vienen en la exportación sin archivos).", ""]
+                    if len(textos):
+                        cuerpo.append("Mensajes de texto del día:")
+                        for _, x in textos.iterrows():
+                            cuerpo.append(f"{x['hora']} · {x['grupo']}:")
+                            cuerpo += [f"   {t}" for t in x["texto"].splitlines()]
+                    else:
+                        cuerpo.append("No escribió mensajes de texto ese día.")
+                    otros = todos[(todos["autor"] == autor) & (todos["enviado"].dt.date == dia)]
+                    for _, o in otros.iterrows():
+                        cuerpo += ["", f"(Ese día envió su reporte con fecha del {o['fecha_reporte']:%d/%m/%Y}; "
+                                       "ver esa fecha.)"]
+                    extra.append({"fecha_reporte": dia, "obra": "sin reporte de actividades", "autor": autor,
+                                  "enviado": pd.Timestamp(dia), "grupo": "", "texto": "\n".join(cuerpo)})
+            dia += timedelta(days=1)
+        if extra:
+            sel = pd.concat([sel, pd.DataFrame(extra)], ignore_index=True)
     if sel.empty:
         cerca = todos[(todos["fecha_reporte"] >= args.fecha - timedelta(days=2)) & (todos["fecha_reporte"] <= hasta + timedelta(days=2))]
         print("No encontré reportes con esos datos.")
@@ -147,7 +185,8 @@ def main() -> None:
     xlsx, txt = args.salida / f"reportes_{etiqueta}.xlsx", args.salida / f"reportes_{etiqueta}.txt"
     escribir(sel, xlsx, txt)
     for _, r in sel.sort_values(["fecha_reporte", "autor"]).iterrows():
-        print(f"✅ {r['fecha_reporte']:%d/%m/%Y} · {r['autor']} · {r['obra']} (enviado {r['enviado']:%d/%m %H:%M})")
+        print(f"✅ {r['fecha_reporte']:%d/%m/%Y} · {r['autor']} · {r['obra']}"
+              + ("" if r["obra"] == "sin reporte de actividades" else f" (enviado {r['enviado']:%d/%m %H:%M})"))
     print(f"   → {xlsx}\n   → {txt}")
 
 
