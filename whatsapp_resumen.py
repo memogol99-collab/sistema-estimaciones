@@ -480,7 +480,13 @@ def escribir_excel(df: pd.DataFrame, reportes: pd.DataFrame, actividades: pd.Dat
                 if c in actividades.columns]
     periodo = f"Del {df['fecha'].min():%d/%m/%Y} al {df['fecha'].max():%d/%m/%Y}"
     grupos = ", ".join(sorted({g.strip() for gs in df["grupo"].astype(str) for g in gs.split(",")}))
+    caidos_res, caidos_det = (extra or {}).get("caidos", (pd.DataFrame(), pd.DataFrame()))
     hojas = [
+        {"nombre": "Pilas con caídos", "df": caidos_res, "titulo": f"Pilas con caídos — {nombre}",
+         "descripcion": "Resumen por pila de los caídos publicados en los reportes diarios y en los mensajes de los grupos"},
+        {"nombre": "Caídos (publicaciones)", "df": caidos_det,
+         "descripcion": "Cada publicación que informa caídos: fecha, hora, pila, profundidad, relleno fluido, quién y en qué grupo",
+         "nota": "Profundidad recuperada = hasta dónde quedó limpia la perforación después del caído, según el texto."},
         {"nombre": "Resumen diario", "df": resumen_diario(df), "descripcion": "Mensajes, autores, categorías, elementos, incidencias y fotos por día"},
         {"nombre": "Avance por frente", "df": actividades[cols_act] if len(actividades) else actividades,
          "descripcion": "Actividades de los reportes diarios, una por frente y día, con su concepto de catálogo sugerido"},
@@ -632,7 +638,11 @@ def resumen_pilas(ev: pd.DataFrame) -> pd.DataFrame:
     for (pte, eje, pila), g in ev.groupby(["puente", "eje", "pila"]):
         validos = g[~g["posible_repetido"]]
         col = validos[validos["evento"] == "Colado"]
-        rf = validos[validos["evento"].str.contains("Relleno")]
+        # Relleno fluido: los eventos propios, más el que viene en el renglón de perforación cuando ese día
+        # no hay un renglón aparte de relleno (si lo hay, es el mismo volumen y no se suma dos veces)
+        rf_solo = validos[validos["evento"] == "Relleno fluido"]
+        rf_perf = validos[(validos["evento"] == "Perforación + relleno fluido") & ~validos["fecha"].isin(set(rf_solo["fecha"]))]
+        rf = pd.concat([rf_solo, rf_perf]).sort_values("fecha")
         perf = g[g["evento"].str.contains("erforaci")]
         obs = []
         if len(col) > 1:
@@ -774,6 +784,94 @@ def pilas_vs_catalogo(res: pd.DataFrame, ev: pd.DataFrame, clasif) -> pd.DataFra
                 "base_del_cálculo": base + (f" ({n_reperf} eventos)" if clave == "reperforacion" else ""),
             })
     return pd.DataFrame(filas)
+
+
+RE_CAIDO = re.compile(r"ca[ií]d[oa]s?|se cay[oó]|se ca[ey]|a caer|caerse|cae la pared|derrumb|inestabilidad|no se recuper|"
+                      r"se recuper[oó]|recupera\b|caverna|solo se lleg|solo lleg|no avanz", re.IGNORECASE)
+RE_NEG_CAIDO = re.compile(r"no tuvo ca[ií]dos|sin ca[ií]dos|eviten ca[ií]dos|evitar ca[ií]dos|no hubo ca[ií]dos", re.IGNORECASE)
+RE_CABALLETE = re.compile(r"\bcaballete\s*(?:no\.?|#)?\s*(\d+)(?:\s*[-–,]?\s*pila\s*(?:no\.?|#)?\s*(\d+))?", re.IGNORECASE)
+RE_RECUPERA = re.compile(r"recuper\w*\s*(?:a\s*(?:los\s*)?)?(\d+(?:[.,]\d+)?)\s*(?:m\b|metros)", re.IGNORECASE)
+RE_CONTEXTO_PILA = re.compile(r"\bpila|perfora|reperfora|apoyo|\beje\b|P\d-\d|caballete|concreto fluido|caverna", re.IGNORECASE)
+
+
+def _hay_caido(texto: str) -> bool:
+    """Menciona caídos, sin contar frases que los niegan ("sin caídos", "no tuvo caídos", "eviten caídos")."""
+    t = RE_NEG_CAIDO.sub(" ", sin_acentos(texto))
+    return bool(RE_CAIDO.search(t)) and bool(RE_CONTEXTO_PILA.search(texto))
+
+
+def _pilas_en(texto: str) -> list[str]:
+    out = [f"E{e}-P{p}" for p, _, e in RE_PILA_EJE.findall(texto)]
+    out += [f"{('A' if ref.lower() == 'apoyo' else 'E')}{a}-P{p}" for p, ref, a, _ in RE_APOYO_PILA.findall(texto)]
+    out += [f"E{e}-P{p}" for e, p in RE_PILA_COD.findall(texto)]
+    cab = RE_CABALLETE.findall(texto)
+    con_pila = {c for c, p in cab if p}
+    out += [f"C{c}-P{p}" if p else f"C{c}" for c, p in cab if p or c not in con_pila]
+    return list(dict.fromkeys(out))
+
+
+def pilas_con_caidos(df: pd.DataFrame, actividades: pd.DataFrame,
+                     pilas: pd.DataFrame | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Publicaciones (reportes diarios y mensajes de cualquier grupo) que informan caídos en pilas,
+    y un resumen por pila."""
+    filas = []
+    if not actividades.empty:
+        for _, r in actividades.iterrows():
+            t = r["actividad"]
+            if not _hay_caido(t):
+                continue
+            prof = [_num(v) for v in RE_PROF.findall(t)]
+            rec = [_num(v) for v in RE_RECUPERA.findall(t)]
+            m3 = [_num(v) for v in RE_M3.findall(t)] if "relleno fluido" in sin_acentos(t) else []
+            filas.append({"fecha": r["fecha"], "hora": "", "puente": r["puente"], "pila": ", ".join(_pilas_en(t)) or "(sin indicar)",
+                          "profundidad_alcanzada_m": max(prof) if prof else None,
+                          "recuperada_a_m": min(rec) if rec else None, "relleno_fluido_m3": sum(m3) if m3 else None,
+                          "fuente": f"Reporte de actividades ({r['frente']})", "publicó": r["reportó"],
+                          "grupo": r.get("grupo", ""), "texto": t})
+    msg = df[~df["adjunto"] & ~df["es_reporte"]]
+    puente_de_pila = {}
+    if not actividades.empty:
+        for _, a in actividades.iterrows():
+            for p_ in _pilas_en(a["actividad"]):
+                puente_de_pila.setdefault(p_, a["puente"])
+    for _, r in msg.iterrows():
+        t = r["texto"]
+        if not _hay_caido(t):
+            continue
+        prof = [_num(v) for v in RE_PROF.findall(t)]
+        rec = [_num(v) for v in RE_RECUPERA.findall(t)]
+        m3 = [_num(v) for v in RE_M3.findall(t)] if "relleno" in sin_acentos(t) or "fluido" in sin_acentos(t) else []
+        pilas_m = _pilas_en(t)
+        pte = r.get("puente") or next((puente_de_pila[x] for x in pilas_m if x in puente_de_pila), "")
+        filas.append({"fecha": r["fecha"], "hora": r["hora"], "puente": pte, "pila": ", ".join(pilas_m) or "(sin indicar)",
+                      "profundidad_alcanzada_m": max(prof) if prof else None, "recuperada_a_m": min(rec) if rec else None,
+                      "relleno_fluido_m3": sum(m3) if m3 else None, "fuente": "Mensaje", "publicó": r["autor"],
+                      "grupo": r.get("grupo", ""), "texto": t})
+    det = pd.DataFrame(filas)
+    if det.empty:
+        return det, det
+    det = det.sort_values(["fecha", "hora"], kind="stable").drop_duplicates(["fecha", "pila", "texto"])
+    res = []
+    for pila, g in det.assign(pila=det["pila"].str.split(", ")).explode("pila").groupby("pila"):
+        if pila == "(sin indicar)":
+            continue
+        res.append({"pila": pila, "puente": ", ".join(dict.fromkeys(x for x in g["puente"] if x)),
+                    "publicaciones": len(g), "días_con_caídos": g["fecha"].nunique(),
+                    "primera_fecha": g["fecha"].min(), "última_fecha": g["fecha"].max(),
+                    "fechas": ", ".join(f"{f:%d/%m}" for f in sorted(set(g["fecha"]))),
+                    "máxima_profundidad_reportada_m": g["profundidad_alcanzada_m"].max(),
+                    "relleno_fluido_reportado_m3": g.loc[g["fuente"] != "Mensaje", "relleno_fluido_m3"].sum() or None,
+                    "quién_publicó": ", ".join(dict.fromkeys(g["publicó"])),
+                    "grupos": ", ".join(dict.fromkeys(x for x in g["grupo"] if x))})
+    res = pd.DataFrame(res)
+    if not res.empty and pilas is not None and not pilas.empty:  # estado y relleno total según la tabla de pilas
+        tabla = pilas.set_index("elemento")
+        res["estado_actual"] = res["pila"].map(tabla["estado"]).fillna("")
+        res["relleno_fluido_total_m3_tabla_pilas"] = res["pila"].map(tabla["relleno_fluido_m3"])
+        res["intentos_de_perforación"] = res["pila"].map(tabla["intentos_perforación"])
+    if not res.empty:
+        res = res.sort_values(["días_con_caídos", "pila"], ascending=[False, True])
+    return res, det
 
 
 def escribir_pilas(df: pd.DataFrame, actividades: pd.DataFrame, ruta: Path, nombre: str,
@@ -935,6 +1033,9 @@ def generar(df: pd.DataFrame, nombre: str, salida: Path, clasif=None, contratos=
         escribir_recursos(salida / f"recursos_{base}.xlsx", nombre, det, rend, propuesta, corte)
         extra = {"det": det, "rend": rend, "propuesta": propuesta, "corte": corte}
         print(f"   → {salida / f'recursos_{base}.xlsx'}")
+    extra["caidos"] = pilas_con_caidos(df, actividades, pilas)
+    if not extra["caidos"][1].empty:
+        print(f"   → {len(extra['caidos'][1])} publicaciones de caídos en {len(extra['caidos'][0])} pilas")
     escribir_excel(df, reportes, actividades, por_concepto, nombre, xlsx, pilas, por_eje, contratos, extra)
     reporte_html.escribir_html(htm, nombre, df, actividades, reportes, pilas, por_eje, por_concepto, contratos or [], extra)
     hecho_pdf = pdf and reporte_html.html_a_pdf(htm, htm.with_suffix(".pdf"))

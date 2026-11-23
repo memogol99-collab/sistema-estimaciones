@@ -180,8 +180,28 @@ def hoja_tablero(wb, nombre, df, actividades, reportes, pilas, por_eje, por_conc
                                  ("Intentos", 1), ("Relleno fluido (m³)", 1), ("Fecha colado", 2), ("Concreto (m³)", 1)],
                       filas, {2: "dd/mm/yyyy", 3: "#,##0.00", 5: "#,##0.00", 6: "dd/mm/yyyy", 7: "#,##0.00"})
 
-    # Recursos y propuesta
+    # Pilas con caídos
     extra = extra or {}
+    c_res, c_det = extra.get("caidos", (pd.DataFrame(), pd.DataFrame()))
+    if c_res is not None and not c_res.empty:
+        fila = _titulo(ws, fila, "Pilas con caídos")
+        fila = _nota(ws, fila, "Publicaciones que informan caídos (reportes diarios y mensajes de cualquier grupo). "
+                               "Detalle completo en las hojas 'Pilas con caídos' y 'Caídos (publicaciones)'.")
+        filas = [[(r["pila"], ROJO_F, ROJO), _chip_puente(r["puente"]) if r["puente"] in PUENTE_F else r["puente"],
+                  r["días_con_caídos"], r["fechas"], r["máxima_profundidad_reportada_m"],
+                  r.get("relleno_fluido_total_m3_tabla_pilas"),
+                  (r.get("estado_actual", ""), *ESTADO_F.get(r.get("estado_actual", ""), (None, "1D2330"))),
+                  r["quién_publicó"]] for _, r in c_res.iterrows()]
+        fila = _tabla(ws, fila, [("Pila", 1), ("Puente", 2), ("Días", 1), ("Fechas", 2), ("Prof. máx. (m)", 1),
+                                 ("Relleno fluido total (m³)", 1), ("Estado", 2), ("Publicó", 2)], filas,
+                      {4: "#,##0.00", 5: "#,##0.00"})
+        fila = _titulo(ws, fila, "Publicaciones", 2)
+        filas = [[r["fecha"], r["hora"] or "", r["pila"], r["fuente"], r["publicó"], _corto(r["texto"], 300)]
+                 for _, r in c_det.iterrows()]
+        fila = _tabla(ws, fila, [("Fecha", 1), ("Hora", 1), ("Pila", 1), ("Fuente", 2), ("Publicó", 2), ("Texto", 5)],
+                      filas, {0: "dd/mm/yyyy"})
+
+    # Recursos y propuesta
     det, rend, prop, corte = extra.get("det"), extra.get("rend"), extra.get("propuesta"), extra.get("corte")
     if det is not None and not det.empty:
         fila = _titulo(ws, fila, "Recursos en obra y propuesta")

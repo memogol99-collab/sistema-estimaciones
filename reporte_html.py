@@ -187,8 +187,24 @@ def escribir_html(ruta: Path, nombre: str, df: pd.DataFrame, actividades: pd.Dat
                       "es la de la sección <b>Pilas de cimentación</b>. En rojo: cantidad que supera la del catálogo "
                       "(posible doble conteo en los reportes o concepto mal asignado; revisar).</p></section>")
 
-    # Recursos, propuesta y extraordinarios
+    # Pilas con caídos
     extra = extra or {}
+    c_res, c_det = extra.get("caidos", (pd.DataFrame(), pd.DataFrame()))
+    if c_res is not None and not c_res.empty:
+        partes.append("<section><h2>Pilas con caídos</h2><p class='nota'>Publicaciones que informan caídos en los "
+                      "reportes diarios y en los mensajes de cualquier grupo.</p>")
+        filas = [[f"<span class='chip bad'>{_e(r['pila'])}</span>", _chip(r["puente"]) if r["puente"] else "",
+                  _e(r["días_con_caídos"]), _e(r["fechas"]), _num(r["máxima_profundidad_reportada_m"]),
+                  _num(r.get("relleno_fluido_total_m3_tabla_pilas")), _chip(r.get("estado_actual", "") or ""),
+                  _e(r["quién_publicó"])] for _, r in c_res.iterrows()]
+        partes.append(_tabla(["Pila", "Puente", "Días", "Fechas", "Prof. máx. (m)", "Relleno fluido total (m³)", "Estado",
+                              "Publicó"], filas, {2, 4, 5}))
+        filas = [[_fecha(r["fecha"]), _e(r["hora"]), _e(r["pila"]), _e(r["fuente"]), _e(r["publicó"]), _e(r["grupo"]),
+                  f"<span class='msg'>{_e(_corto(r['texto'], 300))}</span>"] for _, r in c_det.iterrows()]
+        partes.append("<h3>Publicaciones</h3>" + _tabla(["Fecha", "Hora", "Pila", "Fuente", "Publicó", "Grupo", "Texto"], filas)
+                      + "</section>")
+
+    # Recursos, propuesta y extraordinarios
     det, rend, prop, corte = extra.get("det"), extra.get("rend"), extra.get("propuesta"), extra.get("corte")
     if det is not None and not det.empty:
         import recursos as _rec
