@@ -1,4 +1,4 @@
-# MEMO SISTEMA: análisis de los LISP y propuestas de mejora
+# MemoPRO (antes MEMO SISTEMA): análisis de los LISP y propuestas de mejora
 
 Revisé los 60 archivos LISP, el `Memo.cuix`, el `acad.pgp` y el `perfil_dialog.dcl` del ZIP `MEMO_SISTEMA`.
 
@@ -400,6 +400,44 @@ Si con todo esto AutoCAD rechazara el archivo, `MEMO_MENU` muestra el error y cr
    * Cada patrón es configurable (`EA_TIPO_<TIPO>`). Ejemplo: `*BASE*,*BAS-*`.
 
 Verificado con `herramientas/probar_ea.py` (35 casos, incluido un texto que el método anterior mandaba al CAD equivocado).
+
+## 4f. Versión 3.0: MemoPRO y grupo de áreas
+
+### Nombre
+El sistema se llama ahora **MemoPRO**. Cambian el menú (`MemoPRO.cuix`), las fichas, el menú desplegable, la carpeta del bundle (`MemoPRO.bundle`) y el ZIP.
+* Se mantienen los comandos `MEMO_*` y los valores guardados de `MEMO_CONFIG`.
+* `INSTALAR.bat` borra las copias anteriores con cualquiera de los dos nombres, y el cargador reconoce ambos para usar siempre la versión más nueva.
+
+### Áreas: de 19 comandos a 8
+Revisé HA, HA2, HAPREF, HARESET, HAINFO, AM2, AH, AH2, AHINFO, AC, AS, CAS, QA y EA-HA:
+
+| Comandos originales | Qué hacían | Ahora |
+|---|---|---|
+| HA, HA2, AM2, EA-HA | Un hatch → un texto, con distinto formato ("A=25.50m2", "A= 25.50 m²", sólo el número) | **HA** + formato elegido en **MAREA** |
+| HAPREF, HARESET, HAINFO, AHINFO | Ajustar el prefijo o mostrar ayuda | Opciones y ejemplo en vivo dentro de **MAREA** |
+| AH, AH2 | Varios hatches → su texto (AH2 = AH con más mensajes) | **AH**, con el motor de etiquetado de EA (recuadros de sección, tipos) |
+| CAS, QA | Figuras con fórmula (QA era el **mismo código** que CAS) | **CAS** |
+| AC, AS | Contornos por tipo; área terreno–corte | **AC** y **AS** reescritos |
+| HAEA | Alias exacto de EA | Eliminado (queda **EA**) |
+
+### Errores encontrados y corregidos
+
+| Comando | Error | Efecto |
+|---|---|---|
+| AC | Al final ejecutaba `-LAYER ON *` | Encendía **todas** las capas del dibujo, incluso las que el usuario tenía apagadas. Con ESC a la mitad, las capas quedaban apagadas |
+| AC | Tomaba sólo el último contorno creado por BOUNDARY | Con islas, el área podía ser la de la isla |
+| AC | Pedía contar las áreas antes de tocarlas | Ahora se tocan las que haya y se presiona Enter |
+| AH | Capa sin tipo reconocido → "CORTE" por defecto | Escribía "AREA DE CORTE=" en hatches que no eran de corte |
+| AH | Buscaba texto con la palabra en un radio de 500 | Podía tomar el texto de la sección vecina, y "BASE" coincidía con "SUBBASE" |
+| CAS | Triángulo: "base" y "altura" = los dos lados más cortos | La fórmula escrita (b·a)/2 **no daba el área escrita**, salvo en triángulos rectángulos |
+| CAS | Trapecio: variables `B` y `b` (AutoLISP no distingue mayúsculas: son la misma) | La base mayor se mostraba igual a la menor, y la altura salía ajustada para que cuadrara el área |
+| CAS | Trapecio: suponía siempre que p1-p2 y p3-p4 eran los paralelos | Con otro vértice inicial, la fórmula usaba los lados no paralelos |
+| CAS | Círculo: se evaluaba como figura de 4 vértices antes que como círculo | Salía como "RECTANGULO" con el área del cuadrado inscrito |
+| AS | Sólo los primeros 3 vértices, emparejados por posición | Con más vértices o con X distintas, el área era incorrecta |
+| AS | Creaba el estilo con `_.STYLE`, que abre un cuadro de diálogo | El estilo no se creaba en macros |
+
+### Verificación
+`herramientas/probar_areas.py` ejecuta el AutoLISP real con 22 casos: formatos de texto, patrones de AC, triángulo equilátero, trapecio con los dos órdenes de vértices, rectángulo, cuadrilátero irregular, y AS con 3 y con 5 vértices. Además siguen pasando `probar_ea.py` (39 casos) y `probar_malla.py`.
 
 ## 5. Tabla de equivalencias de archivos
 

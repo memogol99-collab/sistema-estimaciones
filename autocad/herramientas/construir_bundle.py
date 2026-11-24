@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-Genera el paquete MEMO_SISTEMA.bundle a partir de autocad/originales.
+Genera el paquete MemoPRO.bundle a partir de autocad/originales.
 
     python construir_bundle.py
 
 Produce:
-  autocad/MEMO_SISTEMA.bundle/
+  autocad/MemoPRO.bundle/
       PackageContents.xml           -> lo lee AutoCAD al arrancar (Autoloader)
       Contents/MEMO_Cargador.lsp    -> UN solo cargador con carga bajo demanda
-      Contents/MEMO_SISTEMA.cuix    -> menú con 3 fichas (Ribbon) + menú desplegable
-      Contents/MEMO_SISTEMA.mnl     -> se carga junto con el CUIX (respaldo)
+      Contents/MemoPRO.cuix         -> menú con 3 fichas (Ribbon) + menú desplegable
+      Contents/MemoPRO.mnl          -> se carga junto con el CUIX (respaldo)
       Contents/Iconos/*.png         -> iconos 16 y 32 px
       Contents/LISP/<categoría>/*.lsp
-  autocad/MEMO_SISTEMA_bundle.zip   -> todo lo anterior + instaladores .bat
+  autocad/MemoPRO_bundle.zip   -> todo lo anterior + instaladores .bat
 
 Requiere Python 3.8+ y Pillow (pip install pillow).
 """
@@ -30,13 +30,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import catalogo as cat  # noqa: E402
 import iconos  # noqa: E402
 
-VERSION = "2.5.2"
+VERSION = "3.0.0"
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(AQUI)                       # autocad/
 ORIG = os.path.join(BASE, "originales", "MEMO_SISTEMA")
-BUNDLE = os.path.join(BASE, "MEMO_SISTEMA.bundle")
+BUNDLE = os.path.join(BASE, "MemoPRO.bundle")
 CONT = os.path.join(BUNDLE, "Contents")
-MENU = "MEMO_SISTEMA"
+MENU = "MemoPRO"
 
 MAX_SIMBOLO = 32
 SIMB = r"[\w\-*:!?.$&]"   # caracteres válidos en un símbolo AutoLISP
@@ -274,7 +274,7 @@ def leer_fuente(origen):
 
 def escribir_lisp(destino, texto, origen, parches):
     nl = "\r\n"
-    cab = (";;; MEMO SISTEMA %s - archivo generado por construir_bundle.py%s"
+    cab = (";;; MemoPRO %s - archivo generado por construir_bundle.py%s"
            ";;; Origen: %s%s" % (VERSION, nl, origen.encode("ascii", "replace").decode(), nl))
     if parches:
         cab += ";;; Parches aplicados: %s%s" % (", ".join(parches), nl)
@@ -344,7 +344,7 @@ def ascii_lisp(s):
 
 
 CARGADOR = r""";;; =====================================================================
-;;;  MEMO_Cargador.lsp  -  MEMO SISTEMA @VERSION@
+;;;  MEMO_Cargador.lsp  -  MemoPRO @VERSION@
 ;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
 ;;;
 ;;;  Un solo cargador para todos los LISP. NO carga los @NARCH@ archivos al
@@ -385,7 +385,8 @@ CARGADOR = r""";;; =============================================================
       (setq dirs (cons txt dirs) txt "")))
   (foreach e '("APPDATA" "ProgramFiles" "ProgramData")
     (if (getenv e)
-      (setq dirs (cons (strcat (getenv e) "/Autodesk/ApplicationPlugins/MEMO_SISTEMA.bundle/Contents") dirs))))
+      (foreach b '("MemoPRO.bundle" "MEMO_SISTEMA.bundle")   ; nombre actual y el anterior
+        (setq dirs (cons (strcat (getenv e) "/Autodesk/ApplicationPlugins/" b "/Contents") dirs)))))
   (foreach d dirs
     (setq d (vl-string-right-trim "/" (vl-string-translate "\\" "/" d)))
     (if (and (/= d "") (findfile (strcat d "/MEMO_Cargador.lsp")) (not (assoc (strcase d) res)))
@@ -480,7 +481,7 @@ CARGADOR = r""";;; =============================================================
           (princ (strcat "\nMEMO: se reemplazó la versión " memo:*reemplazando* " cargada antes por la " memo:version ".")))
         (if (> (length memo:*copias*) 1)
           (progn
-            (princ "\nMEMO: ATENCIÓN, hay más de una copia instalada del MEMO SISTEMA:")
+            (princ "\nMEMO: ATENCIÓN, hay más de una copia instalada de MemoPRO:")
             (foreach c memo:*copias* (princ (strcat "\n   versión " (if (= (caddr c) "0") "anterior a 2.5.2" (caddr c)) "  " (cadr c))))
             (princ (strcat "\n   Se usa la más nueva. Para quitar las viejas, ejecute de nuevo INSTALAR.bat."))))
         (if memo:*ya-definidos*
@@ -490,7 +491,7 @@ CARGADOR = r""";;; =============================================================
             (foreach c (reverse memo:*ya-definidos*) (princ (strcat c " ")))
             (princ "\n      (revise APPLOAD > Conjunto de inicio y quite los LISP viejos)")))
         (setq memo:cargado T)
-        (princ (strcat "\nMEMO SISTEMA " memo:version " listo: " (itoa memo:num-comandos)
+        (princ (strcat "\nMemoPRO " memo:version " listo: " (itoa memo:num-comandos)
                        " comandos" (if memo:usar-fas " (compilados)" "")
                        ". Escriba MEMO_AYUDA para ver la lista.")))
       (princ "\nMEMO: no se encontró MEMO_Cargador.lsp en las rutas de soporte."))))
@@ -500,7 +501,7 @@ CARGADOR = r""";;; =============================================================
 ;;; ---------------------------------------------------------------------
 (defun c:MEMO_AYUDA ()
   (textscr)
-  (princ (strcat "\n========== MEMO SISTEMA " memo:version " =========="))
+  (princ (strcat "\n========== MemoPRO " memo:version " =========="))
 @AYUDA@
   (princ "\n\nComandos renombrados por chocar con tu acad.pgp:")
 @RENOMBRES@
@@ -508,7 +509,7 @@ CARGADOR = r""";;; =============================================================
   (princ))
 
 (defun c:MEMO_INFO ()
-  (princ (strcat "\nMEMO SISTEMA " memo:version))
+  (princ (strcat "\nMemoPRO " memo:version))
   (princ (strcat "\nCarpeta: " (if memo:raiz memo:raiz "(no encontrada)")))
   (princ "\nCopias instaladas:")
   (foreach c (memo:copias)
@@ -530,16 +531,17 @@ CARGADOR = r""";;; =============================================================
   (princ (strcat "\nMenú @MENU@: " (if (menugroup "@MENU@") "cargado" "NO cargado")))
   (princ))
 
-(defun c:MEMO_QUITAR_ANTERIOR (/ old)
+(defun c:MEMO_QUITAR_ANTERIOR (/ old n)
   ;; Descarga el menú viejo 'MEMO' (Memo.cuix con rutas fijas a AutoCAD 2024/2026)
-  (if (menugroup "MEMO")
-    (progn
-      (setq old (getvar "CMDECHO"))
-      (setvar "CMDECHO" 0)
-      (command "_.CUIUNLOAD" "MEMO")
-      (setvar "CMDECHO" old)
-      (princ "\nMenú anterior MEMO descargado. Sus LISP ya no se cargarán al abrir dibujos."))
-    (princ "\nEl menú anterior MEMO no está cargado. Nada que hacer."))
+  (setq old (getvar "CMDECHO"))
+  (setvar "CMDECHO" 0)
+  (setq n 0)
+  (foreach g '("MEMO" "MEMO_SISTEMA")      ; menús de versiones anteriores
+    (if (menugroup g)
+      (progn (command "_.CUIUNLOAD" g) (setq n (1+ n))
+             (princ (strcat "\nMenú anterior " g " descargado.")))))
+  (setvar "CMDECHO" old)
+  (if (= n 0) (princ "\nNo hay menús anteriores cargados. Nada que hacer."))
   (princ))
 
 ;;; Menú desplegable MEMO creado con ActiveX (no necesita el CUIX)
@@ -552,9 +554,9 @@ CARGADOR = r""";;; =============================================================
     '(lambda ()
        (setq acad (vlax-get-acad-object)
              menus (vla-get-Menus (vla-Item (vla-get-MenuGroups acad) 0)))
-       (if (vl-catch-all-error-p (setq menu (vl-catch-all-apply 'vla-Item (list menus "MEMO"))))
+       (if (vl-catch-all-error-p (setq menu (vl-catch-all-apply 'vla-Item (list menus "MemoPRO"))))
          (progn
-           (setq menu (vla-Add menus "MEMO"))
+           (setq menu (vla-Add menus "MemoPRO"))
            (foreach sec memo:*menu-def*
              (setq sub (vla-AddSubMenu menu (vla-get-Count menu) (car sec)))
              (foreach it (cdr sec)
@@ -595,7 +597,7 @@ CARGADOR = r""";;; =============================================================
       (if (/= (getkword "\n¿Mostrar también la barra de menús clásica con el menú MEMO? [Si/No] <Si>: ") "No")
         (setvar "MENUBAR" 1))
       (command "_.RIBBON")
-      (princ "\nMenú MEMO_SISTEMA cargado. Arriba, en la barra de menús, debe verse el menú MEMO.")
+      (princ "\nMenú MemoPRO cargado. Arriba, en la barra de menús, debe verse el menú MemoPRO.")
       (princ "\nSi las fichas MEMO no aparecen en la cinta:")
       (princ "\n  1. Clic derecho sobre la cinta > Mostrar fichas > marque MEMO Estimaciones, MEMO Topografía y MEMO Dibujo.")
       (princ "\n  2. Si no están en esa lista: escriba IUP (o CUI) > arriba a la izquierda, 'Espacios de trabajo' >")
@@ -699,7 +701,7 @@ def construir_cargador(mapa):
     open(os.path.join(CONT, "MEMO_Cargador.lsp"), "wb").write(texto.encode("cp1252"))
     open(os.path.join(CONT, "MEMO_VERSION.txt"), "w").write(VERSION + "\n")
 
-    mnl = (";;; MEMO_SISTEMA.mnl - AutoCAD lo carga junto con MEMO_SISTEMA.cuix\r\n"
+    mnl = (";;; %s.mnl - AutoCAD lo carga junto con %s.cuix\r\n" % (MENU, MENU) +
            "(if (and (not memo:cargado) (findfile \"MEMO_Cargador.lsp\"))\r\n"
            "  (load (findfile \"MEMO_Cargador.lsp\")))\r\n(princ)\r\n")
     open(os.path.join(CONT, MENU + ".mnl"), "wb").write(mnl.encode("ascii"))
@@ -710,7 +712,7 @@ def construir_cargador(mapa):
 # ---------------------------------------------------------------------------
 AVISO = """<?xml version="1.0" encoding="utf-8"?>
 <!--
-Archivo generado por construir_bundle.py (MEMO SISTEMA %s).
+Archivo generado por construir_bundle.py (MemoPRO %s).
 Para cambiar el menu edite autocad/herramientas/catalogo.py y vuelva a generar.
 -->
 """ % VERSION
@@ -766,7 +768,7 @@ def construir_cuix(dueño):
             raise SystemExit("Falta describir %s en COMANDOS" % c)
 
     # --- MenuGroup (macros) ---
-    mg = [AVISO, '<MenuGroup %s Name="%s" DisplayName="MEMO SISTEMA">' % (NS, MENU), '  <MacroGroup Name="MEMO">']
+    mg = [AVISO, '<MenuGroup %s Name="%s" DisplayName="MemoPRO">' % (NS, MENU), '  <MacroGroup Name="MEMO">']
     for c in todos:
         et, desc, _g, _cat = cat.COMANDOS[c]
         mg.append('    <MenuMacro UID="%s">' % uid("MMU", c))
@@ -848,7 +850,7 @@ def construir_cuix(dueño):
     pm.append('  <PopMenu hasDiesel="false" UID="%s">' % raiz)
     pm.append("    " + REV)
     pm.append("    <Alias>POP901</Alias>")
-    pm.append('    <Name xlate="true" UID="%s">MEMO</Name>' % uid("XLS", "raiz"))
+    pm.append('    <Name xlate="true" UID="%s">MemoPRO</Name>' % uid("XLS", "raiz"))
     for tab, panel, _cs in subs:
         pm.append('    <PopMenuRef pUID="%s" UID="%s">' % (uid("PMU", tab + panel), uid("PMRU", tab + panel)))
         pm.append("      " + REV)
@@ -948,20 +950,20 @@ def construir_cuix(dueño):
 # ---------------------------------------------------------------------------
 def construir_package():
     pc = """<?xml version="1.0" encoding="utf-8"?>
-<!-- MEMO SISTEMA %(v)s - Autoloader de AutoCAD.
-     Copie la carpeta MEMO_SISTEMA.bundle a:
+<!-- MemoPRO %(v)s - Autoloader de AutoCAD.
+     Copie la carpeta MemoPRO.bundle a:
        %%ProgramFiles%%\\Autodesk\\ApplicationPlugins   (recomendado, ubicación de confianza)
        o %%APPDATA%%\\Autodesk\\ApplicationPlugins       (sin permisos de administrador)
      y reinicie AutoCAD. No hace falta APPLOAD, CUILOAD ni Startup Suite. -->
 <ApplicationPackage SchemaVersion="1.0" AutodeskProduct="AutoCAD" ProductType="Application"
-    Name="MEMO SISTEMA" AppVersion="%(v)s" Author="MEMO"
+    Name="MemoPRO" AppVersion="%(v)s" Author="MEMO"
     Description="Rutinas LISP para estimaciones, secciones, topografía y batimetría con menú de fichas."
     AppNameSpace="memo.sistema" HelpFile="./Contents/LEEME.txt"
     ProductCode="{%(pc)s}" UpgradeCode="{%(uc)s}">
   <CompanyDetails Name="MEMO" />
   <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R20.0"
       SupportPath="./Contents;./Contents/Iconos" />
-  <Components Description="MEMO SISTEMA">
+  <Components Description="MemoPRO">
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R20.0" />
     <ComponentEntry AppName="MEMO_Menu" Version="%(v)s" ModuleName="./Contents/%(m)s.cuix"
         AppDescription="Menú MEMO con fichas e iconos" LoadOnAutoCADStartup="True" />
@@ -970,7 +972,7 @@ def construir_package():
   </Components>
 </ApplicationPackage>
 """ % {"v": VERSION, "m": MENU,
-       "pc": str(uuid.uuid5(uuid.NAMESPACE_URL, "memo-sistema-product-" + VERSION)).upper(),
+       "pc": str(uuid.uuid5(uuid.NAMESPACE_URL, "memopro-product-" + VERSION)).upper(),
        "uc": str(uuid.uuid5(uuid.NAMESPACE_URL, "memo-sistema-upgrade")).upper()}
     import xml.dom.minidom
     xml.dom.minidom.parseString(pc.encode("utf-8"))
@@ -978,7 +980,7 @@ def construir_package():
 
 
 def construir_leeme(mapa):
-    t = ["MEMO SISTEMA %s" % VERSION, "=" * 40, "",
+    t = ["MemoPRO %s" % VERSION, "=" * 40, "",
          "Escriba MEMO_AYUDA en AutoCAD para ver todos los comandos.",
          "Escriba MEMO_INFO para ver la carpeta y los archivos cargados.", "",
          "Archivos LISP incluidos y sus comandos:", ""]
@@ -987,7 +989,7 @@ def construir_leeme(mapa):
     open(os.path.join(CONT, "LEEME.txt"), "wb").write("\r\n".join(t).encode("utf-8-sig"))
 
 
-PRUEBAS_CABECERA = """# Lista de pruebas - MEMO SISTEMA @VERSION@
+PRUEBAS_CABECERA = """# Lista de pruebas - MemoPRO @VERSION@
 
 > Archivo generado por `herramientas/construir_bundle.py`, a partir de `catalogo.py`.
 > Imprime esta lista o cópiala a Excel y marca cada prueba.
@@ -995,17 +997,49 @@ PRUEBAS_CABECERA = """# Lista de pruebas - MEMO SISTEMA @VERSION@
 ## 0. Prueba automática (2 minutos)
 
 1. Abre un **dibujo nuevo** (con plantilla vacía).
-2. Escribe `MEMO_INFO`: debe mostrar la carpeta del bundle, *Biblioteca MEMO_Lib: cargada* y *Menú MEMO_SISTEMA: cargado*.
+2. Escribe `MEMO_INFO`: debe mostrar la carpeta del bundle, *Biblioteca MEMO_Lib: cargada* y *Menú MemoPRO: cargado*.
 3. Escribe `MEMO_VERIFICAR` y presiona Enter: al final debe decir **Todo correcto**.
    Si aparece *ERROR AL CARGAR* o *NO DEFINIDO*, copia ese texto y envíamelo.
 
-## 1. Lo nuevo en 2.5 (probar primero)
+## 1. Lo nuevo en 3.0: MemoPRO y herramientas de áreas (probar primero)
+
+### Instalación con el nombre nuevo
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| 1 | `INSTALAR.bat` como administrador | Dice "Borrada: ...MEMO_SISTEMA.bundle" (la versión anterior) e instala MemoPRO.bundle | |
+| 2 | Abre AutoCAD | *Grupo de personalización: MemoPRO*, *MemoPRO 3.0.0 listo* y sin aviso de varias copias | |
+| 3 | `MEMO_QUITAR_ANTERIOR` | Descarga el menú MEMO_SISTEMA si seguía cargado | |
+| 4 | Cinta y barra de menús | Fichas *MemoPRO Estimaciones / Topografía / Dibujo* y menú desplegable *MemoPRO* | |
+
+### Áreas
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| 5 | `MAREA` | Abre el cuadro de diálogo; el ejemplo de abajo cambia al mover las opciones | |
+| 6 | `MAREA` → *Un hatch → su texto* → Aceptar | Ejecuta HA: hatch, texto, hatch, texto... hasta Enter | |
+| 7 | `HA` con *Cambiar sólo el número* sobre "AREA DE CORTE=12.50 M2" | Sólo cambia el número; el resto del texto queda igual | |
+| 8 | `MAREA` → *Escribir el texto completo*, prefijo `A=`, sufijo `m2` → `HA` | "A=25.50m2" (como el antiguo HA) | |
+| 9 | Prefijo `A= `, sufijo ` m²` | "A= 25.50 m²" (como el antiguo AM2) | |
+| 10 | *Prefijo según el tipo* + MAYÚSCULAS + sufijo `M2` | "AREA DE CORTE=25.50M2" (como el antiguo AH) | |
+| 11 | `AH` seleccionando varias secciones (hatches y textos) | Cada texto toma el hatch de su tipo y su recuadro; un hatch en capa sin tipo NO se escribe como CORTE | |
+| 12 | `AC`: apaga a mano una capa cualquiera, ejecuta AC completo | Al terminar esa capa **sigue apagada** (antes AC encendía todas) | |
+| 13 | `AC`: ESC a la mitad | Las capas XGRID, XFG, AC, XEG... vuelven a como estaban | |
+| 14 | `AC` en un área con una isla adentro | El área descuenta la isla | |
+| 15 | `AC`: en vez de contar áreas, toca las que haya y Enter | Pasa al siguiente tipo; ya no pregunta "¿cuántas áreas son?" | |
+| 16 | `AS` con líneas de terreno de 4 o más vértices | Escribe A1, A2, A3... y At; antes sólo funcionaba con 3 | |
+| 17 | `CAS` sobre un triángulo NO rectángulo | La fórmula (b*h)/2 da el área que escribe (antes no cuadraba) | |
+| 18 | `CAS` sobre un trapecio | B y b son los dos lados paralelos (antes la base mayor salía igual a la menor) y la línea h es perpendicular | |
+| 19 | `CAS` sobre un círculo | "CIRCULO =PI*r²" (antes salía como RECTANGULO) | |
+| 20 | `HA2`, `AM2`, `QA`, `HAPREF`, `AHINFO` | Ya no existen (todo está en MAREA) | |
+
+## 1a. Lo nuevo en 2.5
 
 ### Menú
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
-| 1 | Instala la 2.5 y abre AutoCAD | En la línea de comandos aparece *Grupo de personalización: MEMO_SISTEMA* y aparecen las fichas MEMO | |
+| 1 | Instala la 2.5 y abre AutoCAD | En la línea de comandos aparece *Grupo de personalización: MemoPRO* y aparecen las fichas MemoPRO | |
 | 2 | Si no aparecen: `MEMO_MENU` | Dice si el menú cargó; si AutoCAD lo rechaza, muestra el error **(envíalo)** y crea el menú desplegable MEMO arriba | |
 
 ### EA
@@ -1023,7 +1057,7 @@ PRUEBAS_CABECERA = """# Lista de pruebas - MEMO SISTEMA @VERSION@
 | 11 | `MEMO_CONFIG` → *patrón del tipo BASE* = `*BASE*,*BAS-*` | Las capas "BAS-..." se reconocen como BASE | |
 | 12 | `MEMO_CONFIG` → *tipos que son RELLENO* agrega SUBBASE | En RESUMEN, SUBBASE suma al relleno | |
 
-## 1b. Lo nuevo en 2.4: EA
+## 1b. Versión 2.4: EA
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
@@ -1100,7 +1134,7 @@ def construir_pruebas():
 
 
 def construir_zip():
-    ruta = os.path.join(BASE, "MEMO_SISTEMA_bundle.zip")
+    ruta = os.path.join(BASE, "MemoPRO_bundle.zip")
     with zipfile.ZipFile(ruta, "w", zipfile.ZIP_DEFLATED) as z:
         for raiz, _d, archivos in os.walk(BUNDLE):
             for a in sorted(archivos):

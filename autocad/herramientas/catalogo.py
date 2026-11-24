@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Catálogo único del MEMO SISTEMA.
+Catálogo único del MemoPRO.
 
 Es la "fuente de verdad": de aquí se generan el cargador (autoload), el menú
 CUIX con fichas, los iconos y la tabla de comandos de la documentación.
@@ -23,7 +23,6 @@ ARCHIVOS = [
     ("LISP_Estimaciones/Conceptos Asipona ( ASI ).lsp",        "Estimaciones/ASI_ConceptosAsipona.lsp",      ["prefijo:asi", "portapapeles:7", "cfg-asi"]),
     ("LISP_Estimaciones/Conceptos SSA ( CSSA ).lsp",           "Estimaciones/CSSA_ConceptosSSA.lsp",         ["prefijo:cssa", "portapapeles:4", "cfg-cssa"]),
     ("LISP_Estimaciones/Limpiar Conceptos ( LC ).lsp",         "Estimaciones/LC_LimpiarConceptos.lsp",       ["renombrar:LC=LCO"]),
-    ("LISP_Estimaciones/Comp_Area_Secc ( CAS ).lsp",           "Estimaciones/CAS_CompAreaSecc.lsp",          []),
     ("LISP_Estimaciones/CAD a JPG  ( IJPG ).LSP",              "Estimaciones/IJPG_CadAJpg.lsp",              []),
     # --- Bacheo ------------------------------------------------------------
     ("LISP_Estimaciones/RectanguloSnap ( RS ).lsp",            "Bacheo/RS_RectanguloSnap.lsp",               ["renombrar:CC=RSC"]),
@@ -35,11 +34,7 @@ ARCHIVOS = [
     # --- Secciones / Áreas -------------------------------------------------
     ("LISP_Secciones/Elevacion ( EL ).lsp",                    "Secciones/EL_Elevacion.lsp",                 ["renombrar:EL=ELTN"]),
     ("LISP_Secciones/Cambia Numeros x 00.00 ( R00 ).LSP",      "Secciones/R00_CambiaNumeros.lsp",            []),
-    ("LISP_Secciones/Area_m2 ( AM2 ).lsp",                     "Secciones/AM2_AreaM2.lsp",                   []),
-    ("LISP_Secciones/Area Pref Guard ( HA ).lsp",              "Secciones/HA_AreaPrefijo.lsp",               []),
-    ("LISP_Secciones/Area_Secc 3P( AS ).lsp",                  "Secciones/AS_AreaSecc3P.lsp",                []),
-    ("LISP_Secciones/Extraer Area de Cont ( AC ).LSP",         "Secciones/AC_AreaContorno.lsp",              []),
-    ("LISP_Secciones/Extraer Area de Hatch ( AH ).lsp",        "Secciones/AH_AreaHatch.lsp",                 []),
+    ("@fuente/MEMO_Areas.lsp",                                "Secciones/MEMO_Areas.lsp",                   []),   # MAREA HA AC AS CAS (nuevo)
     ("@fuente/EA_ExportarEstArea.lsp",                         "Secciones/EA_ExportarEstArea.lsp",           []),   # v7.1 corregida (original en originales/)
     # --- Textos ------------------------------------------------------------
     ("LISP_Textos/CT-Toolbox.lsp",                             "Textos/CT_Toolbox.lsp",                      ["renombrar:CT=CTB"]),
@@ -106,8 +101,6 @@ MENSAJES = {
     "Bloques/IBCZ_BloquesEnCapaEscala.lsp": [('"\\n  PV            - Inserta', '"\\n  IBPV          - Inserta'),
                                             ('"\\n  TM            - Inserta', '"\\n  IBTM          - Inserta')],
     "Estimaciones/COP_ConceptosObrasPublicas.lsp": [("COP5 - Crear tabla completa", "COP  - Crear tabla completa")],
-    "Secciones/AM2_AreaM2.lsp": [('"\\n• HA2 - Múltiples   (selección por ventana)"', '"\\n• HA2 - Múltiples   (comando HA2, archivo HA)"'),
-                                 ('(princ "\\n• HA3 - Ultra-rápida(selección mixta automática)")', '')],
     "Topografia/XY_ExportarCoordPol.lsp": [("Ejecute EXPORCOOR para comenzar", "Ejecute X-Y para comenzar")],
     "VistasLayout/BV_BorrarVistas.lsp": [("Rutina LVA cargada. Escribe LVA para", "Comando BV cargado. Escribe BV para")],
     "VistasLayout/CL_ClonarLayout.lsp": [("Comando ClonLayout cargado. Ejecute ClonLayout para", "Comando CLO cargado. Ejecute CLO para")],
@@ -142,8 +135,6 @@ CONFIG = [
     ("MALLA_METODO",       "ENTRECURVAS", "Malla de puntos: ENTRECURVAS (nuevo) o IDW (anterior)", "TXT", "ENTRECURVAS,IDW"),
     ("MALLA_RADIO",        "0",       "Malla: distancia máx. de búsqueda (0 = automática)", "NUM", ""),
     ("MALLA_CURVA_CERO",   "NO",      "Malla: usar curvas con elevación 0 (SI para batimetría)", "TXT", "SI,NO"),
-    ("EA_DISTANCIA_MAX",   "50",      "EA: distancia máx. texto-hatch para etiquetar", "NUM", ""),
-    ("EA_DECIMALES",       "2",       "EA: decimales del área al etiquetar", "NUM", ""),
     ("EA_ASIGNACION",      "RECUADRO", "EA: asignar áreas por RECUADRO de sección o CERCANO", "TXT", "RECUADRO,CERCANO"),
     ("EA_CAPA_RECUADRO",   "*",       "EA: capa(s) de los recuadros de sección (* = todas)", "TXT", ""),
     ("EA_TIPOS_CORTE",     "CORTE,EXCAVACION,DESMONTE", "EA resumen: tipos que son CORTE", "TXT", ""),
@@ -162,12 +153,27 @@ CONFIG = [
     ("EA_TIPO_CORTE", '*CORTE*', "EA: patrón de texto/capa del tipo CORTE", "TXT", ""),
     ("EA_TIPO_AFINE", '*AFINE*', "EA: patrón de texto/capa del tipo AFINE", "TXT", ""),
     ("EA_TIPO_BASE", '*BASE*', "EA: patrón de texto/capa del tipo BASE", "TXT", ""),
+    ("AREA_ULTIMO",        "HA",      "MAREA: última herramienta usada", "TXT", "HA,AH,AC,AS,CAS,EA"),
+    ("AREA_ESCRITURA",     "NUMERO",  "Áreas: NUMERO (cambia sólo el número) o COMPLETO", "TXT", "NUMERO,COMPLETO"),
+    ("AREA_PREFIJO",       "A=",      "Áreas: prefijo del texto completo", "TXT", ""),
+    ("AREA_SUFIJO",        "m2",      "Áreas: sufijo (NINGUNO = sin sufijo)", "TXT", ""),
+    ("AREA_PREF_TIPO",     "SI",      "Áreas: prefijo AREA DE <TIPO>= si se conoce el tipo", "TXT", "SI,NO"),
+    ("AREA_MAYUSCULAS",    "NO",      "Áreas: texto completo en mayúsculas", "TXT", "SI,NO"),
+    ("AREA_DECIMALES",     "2",       "Áreas y EA: decimales del área", "NUM", ""),
+    ("AREA_MOVER_CAPA",    "NO",      "Áreas: pasar el texto a la capa del hatch", "TXT", "SI,NO"),
+    ("AREA_DIST_MAX",      "50",      "Áreas y EA: distancia máx. texto-hatch (sin recuadro)", "NUM", ""),
+    ("AREA_ALTURA_TEXTO",  "0.15",    "CAS: altura de texto", "NUM", ""),
     ("TABLA_ULTIMO",       "Obras",   "MTABLA: último formato usado", "TXT", ""),
-    ("AREA_ULTIMO",        "Prefijo", "MAREA: última opción usada", "TXT", ""),
 ]
 
 # Archivos que se dejan FUERA a propósito (quedan en /originales) y por qué.
 EXCLUIDOS = {
+    "LISP_Secciones/Area Pref Guard ( HA ).lsp": "Reemplazado por MEMO_Areas.lsp (HA y MAREA). HA2/HAPREF/HARESET/HAINFO quedan como opciones de MAREA.",
+    "LISP_Secciones/Area_m2 ( AM2 ).lsp": "AM2 hacía lo mismo que HA con otro formato: ahora es una opción de MAREA (sufijo ' m²').",
+    "LISP_Secciones/Extraer Area de Hatch ( AH ).lsp": "AH/AH2 ahora usan el motor de etiquetado de EA (recuadros, tipos, sin escribir CORTE por defecto).",
+    "LISP_Secciones/Extraer Area de Cont ( AC ).LSP": "Reescrito en MEMO_Areas.lsp: ya no enciende todas las capas y descuenta islas.",
+    "LISP_Secciones/Area_Secc 3P( AS ).lsp": "Reescrito en MEMO_Areas.lsp: cualquier número de vértices.",
+    "LISP_Estimaciones/Comp_Area_Secc ( CAS ).lsp": "Reescrito en MEMO_Areas.lsp: geometría corregida; QA era idéntico a CAS.",
     "LISP_Secciones/Area Pref Nuevo ( HA2 ).lsp": "Copia idéntica byte a byte de 'Area Pref Guard ( HA )'.",
     "LISP_Secciones/HAEA.lsp": "Versión 5.2 superada por EA v7.0 (mismos comandos EA/HA/HAEA). Además cambiaba el *error* global de AutoCAD al cargar.",
     "LISP_Hatch/Fusionar Hatch ( FH ).lsp": "FUSIONHATCH/FH ya vienen incluidos dentro de SeparaHatch ( SPH ).",
@@ -238,25 +244,15 @@ COMANDOS = {
     "AXD":          ("Asignar XDATA",    "Asigna XDATA (número, largo, ancho) a rectángulos existentes.", "lista", "bacheo"),
     # Secciones
     "ELTN":         ("Elevación T.N.",   "Coloca elevaciones de terreno natural en secciones (escala vertical 1:1000 o 1:100).", "elev", "secciones"),
-    "CAS":          ("Áreas detalle",    "Cálculo de áreas con fórmulas y valores (triángulos, trapecios, rectángulos, círculos).", "area", "secciones"),
-    "QA":           ("Áreas rápido",     "Cálculo rápido de áreas con valores sustituidos.", "area", "secciones"),
-    "AS":           ("Área 3 puntos",    "Área de sección por 3 puntos (estilo text-Secc).", "area", "secciones"),
+    "CAS": ('Figuras con fórmula', 'Generador: triángulos, trapecios, rectángulos, círculos con su fórmula y el área total.', 'area', 'secciones'),
+    "AS": ('Área terreno-corte', 'Área entre la línea de terreno y la de corte, con su fórmula por trapecios.', 'area', 'secciones'),
     "R00":          ("Números 00.00",    "Cambia números de los textos por 00.00 (conserva 'M2').", "renum", "secciones"),
     # Áreas
-    "EA":           ("Exportar áreas",   "Etiqueta áreas por capa y exporta a CSV/Excel (interfaz completa).", "export", "areas"),
-    "HAEA":         ("HAEA",             "Igual que EA (alias de compatibilidad).", "export", "areas"),
+    "EA": ('Exportar áreas', 'Secciones: etiquetar por capa y exportar a Excel con hoja RESUMEN (cuadro de diálogo).', 'export', 'areas'),
     "HAEA-EXPORT":  ("Sólo exportar",    "Sólo exporta las áreas a Excel/CSV.", "export", "areas"),
-    "EA-HA":        ("HA de EA",         "Etiquetado manual de EA (antes se llamaba HA y chocaba con el HA de prefijos).", "area", "areas"),
-    "HA2":          ("Área + prefijo",   "Pone el área de un hatch en un texto, preguntando prefijo.", "area", "areas"),
-    "HA":           ("Área rápida",      "Pone el área de un hatch usando el último prefijo guardado.", "area", "areas"),
-    "HAPREF":       ("Prefijo HA",       "Cambia el prefijo usado por HA/HA2.", "prefijo", "areas"),
-    "HAINFO":       ("Info HA",          "Muestra la configuración actual de HA.", "info", "areas"),
-    "HARESET":      ("Reset HA",         "Restablece el prefijo de HA.", "engrane", "areas"),
-    "AM2":          ("Área m²",          "Actualiza el área en m² de un hatch en su texto.", "area", "areas"),
-    "AC":           ("Área contorno",    "Calcula y actualiza áreas de secciones a partir de contornos.", "area", "areas"),
-    "AH":           ("Área hatch",       "Extrae el área de hatches: 'AREA DE [TIPO]=[VALOR]M2'.", "hatch", "areas"),
-    "AH2":          ("Área hatch +",     "Versión completa de AH con opciones.", "hatch", "areas"),
-    "AHINFO":       ("Info AH",          "Información de los comandos AH.", "info", "areas"),
+    "HA": ('Área a texto', 'Hatch o área cerrada -> su texto, uno tras otro (Enter = terminar). Formato según MAREA.', 'area', 'areas'),
+    "AC": ('Áreas contorno', 'Tocar dentro de los contornos y sumar por tipo (AC=, ACA=, AB=, ASR=, AT=); respeta tus capas.', 'area', 'areas'),
+    "AH": ('Hatches a texto', 'Hatches seleccionados -> su texto del mismo tipo (motor de EA, por recuadro de sección).', 'hatch', 'areas'),
     # Imagen
     "IJPG":         ("CAD a JPG",        "Exporta el área seleccionada a imagen JPG/PNG con recorte exacto.", "imagen", "imagen"),
     "IJPG-EMF":     ("CAD a EMF",        "Exporta el área seleccionada a EMF vectorial sin bordes.", "imagen", "imagen"),
@@ -367,12 +363,12 @@ COMANDOS = {
     "CONFIGESCALAS":("Ver escalas",      "Muestra las escalas configuradas.", "info", "bloques"),
     # Unificados
     "MTABLA":       ("Tabla Excel",      "Tabla de conceptos desde el portapapeles: detecta el formato (5 col. Obras Públicas, 7 Asipona, 4 SSA) y llama a COP/ASI/CSSA.", "tabla", "conceptos"),
-    "MAREA":        ("Áreas (todas)",    "Un solo comando para las áreas: Prefijo, Rápido, M2, Hatch, Contorno, 3 puntos, Detalle, Valores, Exportar.", "area", "areas"),
+    "MAREA": ('Áreas (MAREA)', 'Cuadro de diálogo de áreas: elige la herramienta y cómo escribir el área.', 'area', 'areas'),
     "MBACHEO":      ("Flujo bacheo",     "Bacheo paso a paso: Dibujar > Numerar > Cotar > Hatch > Exportar.", "rect", "bacheo"),
     # MEMO (definidos en el cargador)
-    "MEMO_AYUDA":   ("Ayuda",            "Lista todos los comandos del MEMO SISTEMA por categoría.", "ayuda", "memo"),
+    "MEMO_AYUDA":   ("Ayuda",            "Lista todos los comandos del MemoPRO por categoría.", "ayuda", "memo"),
     "MEMO_MENU":    ("Mostrar menú",     "Carga el menú MEMO si no está cargado y explica cómo mostrar las fichas.", "ayuda", "memo"),
-    "MEMO_INFO":    ("Info",             "Muestra versión, carpeta y archivos cargados del MEMO SISTEMA.", "info", "memo"),
+    "MEMO_INFO":    ("Info",             "Muestra versión, carpeta y archivos cargados del MemoPRO.", "info", "memo"),
     "MEMO_QUITAR_ANTERIOR": ("Quitar menú viejo", "Descarga el menú anterior 'MEMO' (Memo.cuix) para que no se duplique.", "limpiar", "memo"),
     "MEMO_CONFIG":  ("Configurar",       "Anchos de tablas, espesor de bacheo, uso del portapapeles, etc.", "engrane", "memo"),
     "MEMO_VERIFICAR": ("Verificar",      "Carga todos los archivos y comprueba que cada comando exista (usar en un dibujo nuevo).", "lista", "memo"),
@@ -390,15 +386,15 @@ COMANDOS_CARGADOR = ["MEMO_AYUDA", "MEMO_MENU", "MEMO_INFO", "MEMO_QUITAR_ANTERI
 #   ["A", "B", "C"]  -> columna de hasta 3 botones pequeños con texto
 # ---------------------------------------------------------------------------
 FICHAS = [
-    ("MEMO Estimaciones", "ME", [
+    ("MemoPRO Estimaciones", "ME", [
         ("Conceptos", ["MTABLA", "COP", "ASI", "CSSA", ["LCO", "LIMPIARTABLA", "LIMPIARCSSA"]]),
         ("Bacheo", ["MBACHEO", "RS", "RNB", "COTB", "EXR",
                     ["HR", "BTR", "RSHATCH"], ["RSC", "AEC", "RC2"], ["RS-CONFIG", "VERLISTA", "AXD"]]),
-        ("Secciones", ["ELTN", "CAS", ["QA", "AS", "R00"]]),
-        ("Áreas", ["MAREA", "EA", "HA2", ["HA", "HAPREF", "HAINFO"], ["AM2", "AC", "AH"], ["AH2", "HAEA-EXPORT", "EA-HA"]]),
+        ("Secciones", ["ELTN", "CAS", ["AS", "R00"]]),
+        ("Áreas", ["MAREA", "HA", "AH", "AC", "EA", ["HAEA-EXPORT"]]),
         ("Imagen", ["IJPG", ["IJPG-EMF", "IJPG-PC3"]]),
     ]),
-    ("MEMO Topografía", "MT", [
+    ("MemoPRO Topografía", "MT", [
         ("Puntos", ["ICE", "PCC", "MALLA-PUNTOS", ["UPP", "UPPA", "PIT"], ["EXPORTAR-PUNTOS", "X-Y", "CPEC"]]),
         ("Curvas de nivel", ["CCN", "ECN", ["ECN-P", "ECN-M", "ECN-ETIQ"], ["ECN-ETIQM", "ECN-RECOLOR", "ECN-DUPLICADOS"],
                              ["ECN-CONFIG", "ECN-DESHACER", "ECN-LISTA"]]),
@@ -409,7 +405,7 @@ FICHAS = [
         ("Bloques", ["IBC", "IBCZ", "IBM", ["ARBOLES", "RAP", "DES"], ["IBPV", "IBTM", "CFE"],
                      ["VERBLOQUES", "VERCAPAS", "CONFIGESCALAS"]]),
     ]),
-    ("MEMO Dibujo", "MD", [
+    ("MemoPRO Dibujo", "MD", [
         ("Textos", ["CTB", ["CTE", "CTP", "IPT"], ["CTN", "STV", "CTX"], ["ALIT", "RTT", "UL"],
                     ["PS", "PREFSUFIND", "SETPREFSUF"], ["ST", "PTE", "CTAF"]]),
         ("Coordenadas", ["CORM", ["COR", "COR2"]]),

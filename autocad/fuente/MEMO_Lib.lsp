@@ -1,5 +1,5 @@
 ;;; =====================================================================
-;;;  MEMO_Lib.lsp  -  Biblioteca común del MEMO SISTEMA
+;;;  MEMO_Lib.lsp  -  Biblioteca común del MemoPRO
 ;;;  Se carga al abrir cada dibujo (es pequeña). Todas las funciones
 ;;;  llevan el prefijo memo: para no chocar con ningún otro LISP.
 ;;;
@@ -310,5 +310,175 @@
     )
   )
 )
+;;; ---------------------------------------------------------------------
+;;; TEXTOS DE ÁREA Y TIPOS (compartido por EA y las herramientas de áreas)
+;;;   memo:limpiar-mtext  memo:pos-igual  memo:buscar-numero
+;;;   memo:tipo-de  memo:cargar-patrones  memo:nombre-tipo  memo:cfg-txt
+;;; ---------------------------------------------------------------------
+
+;; Quita los códigos de formato de un MTEXT: \H0.25x; \fArial|b0; {} \P ...
+(defun memo:limpiar-mtext (txt / i n c c2 res)
+  (setq i 1 n (strlen txt) res "")
+  (while (<= i n)
+    (setq c (substr txt i 1))
+    (cond
+      ((and (= c "\\") (< i n))
+       (setq c2 (substr txt (1+ i) 1))
+       (cond
+         ((wcmatch c2 "[ACcFfHQTWpS]")        ; códigos con parámetro hasta ";"
+          (while (and (<= i n) (/= (substr txt i 1) ";")) (setq i (1+ i))))
+         ((member c2 '("P" "~")) (setq res (strcat res " ")) (setq i (1+ i)))
+         ((member c2 '("\\" "{" "}")) (setq res (strcat res c2)) (setq i (1+ i)))
+         (T (setq i (1+ i)))))                 ; \L \l \O \o \K \k
+      ((member c '("{" "}")))
+      (T (setq res (strcat res c))))
+    (setq i (1+ i)))
+  res)
+
+;; Posición (1..n) del último "=" o ":" del texto, o nil
+(defun memo:pos-igual (txt / i pos c)
+  (setq i 1)
+  (while (<= i (strlen txt))
+    (setq c (substr txt i 1))
+    (if (or (= c "=") (= c ":")) (setq pos i))
+    (setq i (1+ i)))
+  pos)
+
+;; Primer número del texto a partir de la posición ini (1..n), saltando
+;; códigos de MTEXT. Devuelve (inicio fin valor) o nil.
+;;   "1234.56" -> 1234.56   "1,234.56" -> 1234.56 (coma de miles = 3 dígitos)
+;;   "15,5"    -> 15.5      (coma decimal)
+(defun memo:buscar-numero (txt ini / i n c ini_num fin str dec sig)
+  (setq n (strlen txt) i ini)
+  (while (and (<= i n) (not ini_num))
+    (setq c (substr txt i 1))
+    (cond
+      ((and (= c "\\") (< i n) (wcmatch (substr txt (1+ i) 1) "[ACcFfHQTWpS]"))
+       (while (and (<= i n) (/= (substr txt i 1) ";")) (setq i (1+ i))))
+      ((and (= c "\\") (< i n)) (setq i (1+ i)))
+      ((wcmatch c "#") (setq ini_num i)))
+    (setq i (1+ i)))
+  (if ini_num
+    (progn
+      (setq i ini_num str "" dec nil)
+      (while (and (<= i n) (not fin))
+        (setq c (substr txt i 1) sig (substr txt (1+ i) 1))
+        (cond
+          ((wcmatch c "#") (setq str (strcat str c)))
+          ((and (= c ",") (not dec)
+                (wcmatch (substr txt (1+ i) 3) "###")
+                (not (wcmatch (substr txt (+ i 4) 1) "#")))
+           nil)                                       ; coma de miles: se omite
+          ((and (member c '("." ",")) (not dec) (wcmatch sig "#"))
+           (setq str (strcat str ".") dec T))         ; punto o coma decimal
+          (T (setq fin (1- i))))
+        (if (not fin) (setq i (1+ i))))
+      (if (not fin) (setq fin n))
+      (list ini_num fin (atof str)))))
+
+;; ---------------------------------------------------------------
+;; TIPOS DE ÁREA (7.2)
+;; Orden = prioridad: los más específicos primero (SUBBASE antes que
+;; BASE). Cada tipo se reconoce en el TEXTO y en la CAPA del hatch con
+;; el mismo patrón, configurable con MEMO_CONFIG (EA_TIPO_<TIPO>).
+;; ---------------------------------------------------------------
+(setq memo:*tipos-def* '(
+  ("SUBBASE"    "*SUBBASE*,*SUB-BASE*,*SUB BASE*")
+  ("SUBRASANTE" "*SUBRASANTE*,*SUB-RASANTE*")
+  ("CARPETA"    "*CARPETA*")
+  ("EXCAVACION" "*EXCAVACION*,*EXCAVACIÓN*")
+  ("DESMONTE"   "*DESMONTE*")
+  ("TERRAPLEN"  "*TERRAPLEN*,*TERRAPLÉN*")
+  ("RELLENO"    "*RELLENO*")
+  ("CORAZA"     "*CORAZA*")
+  ("NUCLEO"     "*NUCLEO*,*NÚCLEO*")
+  ("ARENA"      "*ARENA*")
+  ("CORTE"      "*CORTE*")
+  ("AFINE"      "*AFINE*")
+  ("BASE"       "*BASE*")))
+(setq memo:*tipos* (mapcar 'car memo:*tipos-def*))
+
+;; Texto de MEMO_CONFIG (o el valor por defecto)
+(defun memo:cfg-txt (clave defecto / v)
+  (if (and memo:cfg (setq v (memo:cfg clave)) (/= v "")) v defecto))
+
+;; Lee los patrones una vez por comando (getenv es lento en bucles)
+(defun memo:cargar-patrones ()
+  (setq memo:*patrones*
+    (mapcar '(lambda (e) (list (car e) (strcase (memo:cfg-txt (strcat "EA_TIPO_" (car e)) (cadr e)))))
+            memo:*tipos-def*)))
+
+;; Tipo de un texto o de un nombre de capa, o nil
+(defun memo:tipo-de (cadena / txt res)
+  (if (not memo:*patrones*) (memo:cargar-patrones))
+  (setq txt (strcase (memo:limpiar-mtext cadena)))
+  (foreach e memo:*patrones*
+    (if (and (not res) (wcmatch txt (cadr e))) (setq res (car e))))
+  res)
+
+;; Nombre para mostrar: "SUBBASE" -> "Subbase"
+(defun memo:nombre-tipo (tipo)
+  (strcat (substr tipo 1 1) (strcase (substr tipo 2) T)))
+
+;; Número con decimales fijos, sin depender de DIMZIN
+(defun memo:fmt-dec (v dec / dz txt)
+  (setq dz (getvar "DIMZIN"))
+  (setvar "DIMZIN" 0)
+  (setq txt (rtos v 2 dec))
+  (setvar "DIMZIN" dz)
+  txt)
+
+;; ---------------------------------------------------------------------
+;; ESCRIBIR UN ÁREA EN UN TEXTO (HA, AH, EA, MAREA)
+;; Según MEMO_CONFIG:
+;;   AREA_ESCRITURA = NUMERO   -> cambia sólo el número y conserva el resto
+;;                                ("AREA DE CORTE=12.50 M2" -> "...=13.10 M2");
+;;                                si no hay número pero sí "=", lo agrega
+;;                  = COMPLETO -> escribe Prefijo + área + Sufijo
+;;   AREA_PREFIJO ("A="), AREA_SUFIJO ("m2"), AREA_MAYUSCULAS (SI/NO),
+;;   AREA_PREF_TIPO (SI: prefijo "AREA DE <TIPO>=" si se conoce el tipo)
+;; ---------------------------------------------------------------------
+(defun memo:si-p (clave defecto)
+  (= (strcase (memo:cfg-txt clave defecto)) "SI"))
+
+(defun memo:decimales-area ()
+  (fix (cond ((distof (memo:cfg-txt "AREA_DECIMALES" "2") 2)) (2))))
+
+(defun memo:sufijo-area (/ s)
+  (setq s (memo:cfg-txt "AREA_SUFIJO" "m2"))
+  (if (= (strcase s) "NINGUNO") "" s))
+
+(defun memo:texto-area (original valor tipo / pos completo txt)
+  (setq pos (if original (memo:pos-igual original)))
+  (cond
+    ((and original (= (strcase (memo:cfg-txt "AREA_ESCRITURA" "NUMERO")) "NUMERO")
+          (if pos (memo:numero-tras original (1+ pos)) (memo:buscar-numero original 1)))
+     (memo:reemplazar-numero original valor))
+    ((and original pos (= (strcase (memo:cfg-txt "AREA_ESCRITURA" "NUMERO")) "NUMERO"))
+     ;; si después del "=" ya hay algo (p. ej. " M2") sólo se inserta el número
+     (strcat (substr original 1 pos) valor
+             (if (= (vl-string-trim " " (substr original (1+ pos))) "") (memo:sufijo-area) "")
+             (substr original (1+ pos))))
+    (T
+     (setq txt (strcat (if (and tipo (memo:si-p "AREA_PREF_TIPO" "SI"))
+                         (strcat "AREA DE " tipo "=")
+                         (memo:cfg-txt "AREA_PREFIJO" "A="))
+                       valor (memo:sufijo-area)))
+     (if (memo:si-p "AREA_MAYUSCULAS" "NO") (strcase txt) txt))))
+
+;; Número que empieza JUSTO en la posición ini (saltando espacios), o nil.
+;; Evita tomar el "2" de "M2" cuando después del "=" no hay número.
+(defun memo:numero-tras (txt ini / i r)
+  (setq i ini)
+  (while (and (<= i (strlen txt)) (= (substr txt i 1) " ")) (setq i (1+ i)))
+  (if (and (setq r (memo:buscar-numero txt i)) (= (car r) i)) r))
+
+;; Reemplaza el número que va después del último "=" o ":" (o el primero)
+(defun memo:reemplazar-numero (txt nuevo / pos r)
+  (setq pos (memo:pos-igual txt))
+  (setq r (if pos (memo:numero-tras txt (1+ pos)) (memo:buscar-numero txt 1)))
+  (if r
+    (strcat (substr txt 1 (1- (car r))) nuevo (substr txt (1+ (cadr r))))
+    txt))
 
 (princ)

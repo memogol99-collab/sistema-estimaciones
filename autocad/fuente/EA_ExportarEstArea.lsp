@@ -2,7 +2,7 @@
 ; EA - EXPORTADOR + ETIQUETADO + EXCEL
 ; Versión 7.2 MEMO - Compatible con CivilCAD (restaura *error*)
 ;
-; Nuevo en 7.2 (MEMO SISTEMA):
+; Nuevo en 7.2 (MemoPRO):
 ;  - Asignación por RECUADRO de sección: cada texto de área va al CAD
 ;    que está dentro del mismo recuadro (polilínea cerrada); al
 ;    etiquetar, sólo se buscan hatches dentro de ese recuadro.
@@ -12,7 +12,7 @@
 ;  - Tipos nuevos SUBBASE, TERRAPLEN y DESMONTE; patrones de texto y
 ;    capa configurables (EA_TIPO_<TIPO>); SUBBASE ya no cuenta como BASE.
 ;
-; Correcciones 7.1 (MEMO SISTEMA):
+; Correcciones 7.1 (MemoPRO):
 ;  - El valor de área que va a Excel se toma DESPUÉS del "=" o ":".
 ;    Antes "SUB-BASE=3.25" daba -3.25, "(M2)=12.50" daba 2,
 ;    "1,234.56" daba 1 y "15,5" daba 15.
@@ -351,7 +351,7 @@
       (setq *haea_ultima_accion* (cadr datos))
       (setq *haea_cambiar_capa* (caddr datos))
       (setq *haea_ultimo_modo* (cadddr datos))
-      (setq *haea_limite_dist* (ea:cfg-num "EA_DISTANCIA_MAX" 50.0))
+      (setq *haea_limite_dist* (ea:cfg-num "AREA_DIST_MAX" 50.0))
       ;; "Sólo exportar" no debe usar una selección de una corrida anterior
       (if (= *haea_ultima_accion* "XLSX") (setq *haea_textos_seleccionados* nil))
       
@@ -412,119 +412,30 @@
 (defun ea:fmt-area (v / dz txt)
   (setq dz (getvar "DIMZIN"))
   (setvar "DIMZIN" 0)
-  (setq txt (rtos v 2 (fix (ea:cfg-num "EA_DECIMALES" 2))))
+  (setq txt (rtos v 2 (memo:decimales-area)))
   (setvar "DIMZIN" dz)
   txt)
 
-;; Quita los códigos de formato de un MTEXT: \H0.25x; \fArial|b0; {} \P ...
-(defun ea:limpiar-mtext (txt / i n c c2 res)
-  (setq i 1 n (strlen txt) res "")
-  (while (<= i n)
-    (setq c (substr txt i 1))
-    (cond
-      ((and (= c "\\") (< i n))
-       (setq c2 (substr txt (1+ i) 1))
-       (cond
-         ((wcmatch c2 "[ACcFfHQTWpS]")        ; códigos con parámetro hasta ";"
-          (while (and (<= i n) (/= (substr txt i 1) ";")) (setq i (1+ i))))
-         ((member c2 '("P" "~")) (setq res (strcat res " ")) (setq i (1+ i)))
-         ((member c2 '("\\" "{" "}")) (setq res (strcat res c2)) (setq i (1+ i)))
-         (T (setq i (1+ i)))))                 ; \L \l \O \o \K \k
-      ((member c '("{" "}")))
-      (T (setq res (strcat res c))))
-    (setq i (1+ i)))
-  res)
 
-;; Posición (1..n) del último "=" o ":" del texto, o nil
-(defun ea:pos-igual (txt / i pos c)
-  (setq i 1)
-  (while (<= i (strlen txt))
-    (setq c (substr txt i 1))
-    (if (or (= c "=") (= c ":")) (setq pos i))
-    (setq i (1+ i)))
-  pos)
 
-;; Primer número del texto a partir de la posición ini (1..n), saltando
-;; códigos de MTEXT. Devuelve (inicio fin valor) o nil.
-;;   "1234.56" -> 1234.56   "1,234.56" -> 1234.56 (coma de miles = 3 dígitos)
-;;   "15,5"    -> 15.5      (coma decimal)
-(defun ea:buscar-numero (txt ini / i n c ini_num fin str dec sig)
-  (setq n (strlen txt) i ini)
-  (while (and (<= i n) (not ini_num))
-    (setq c (substr txt i 1))
-    (cond
-      ((and (= c "\\") (< i n) (wcmatch (substr txt (1+ i) 1) "[ACcFfHQTWpS]"))
-       (while (and (<= i n) (/= (substr txt i 1) ";")) (setq i (1+ i))))
-      ((and (= c "\\") (< i n)) (setq i (1+ i)))
-      ((wcmatch c "#") (setq ini_num i)))
-    (setq i (1+ i)))
-  (if ini_num
-    (progn
-      (setq i ini_num str "" dec nil)
-      (while (and (<= i n) (not fin))
-        (setq c (substr txt i 1) sig (substr txt (1+ i) 1))
-        (cond
-          ((wcmatch c "#") (setq str (strcat str c)))
-          ((and (= c ",") (not dec)
-                (wcmatch (substr txt (1+ i) 3) "###")
-                (not (wcmatch (substr txt (+ i 4) 1) "#")))
-           nil)                                       ; coma de miles: se omite
-          ((and (member c '("." ",")) (not dec) (wcmatch sig "#"))
-           (setq str (strcat str ".") dec T))         ; punto o coma decimal
-          (T (setq fin (1- i))))
-        (if (not fin) (setq i (1+ i))))
-      (if (not fin) (setq fin n))
-      (list ini_num fin (atof str)))))
+
+
+
 
 ;; T si el texto está en una capa de membrete/títulos/notas
 (defun ea:capa-ignorada-p (capa)
   (and *haea_usar_filtro_capas* capa
        (member (strcase capa) (mapcar 'strcase *haea_capas_ignorar*))))
 
-;; ---------------------------------------------------------------
-;; TIPOS DE ÁREA (7.2)
-;; Orden = prioridad: los más específicos primero (SUBBASE antes que
-;; BASE). Cada tipo se reconoce en el TEXTO y en la CAPA del hatch con
-;; el mismo patrón, configurable con MEMO_CONFIG (EA_TIPO_<TIPO>).
-;; ---------------------------------------------------------------
-(setq ea:*tipos-def* '(
-  ("SUBBASE"    "*SUBBASE*,*SUB-BASE*,*SUB BASE*")
-  ("SUBRASANTE" "*SUBRASANTE*,*SUB-RASANTE*")
-  ("CARPETA"    "*CARPETA*")
-  ("EXCAVACION" "*EXCAVACION*,*EXCAVACIÓN*")
-  ("DESMONTE"   "*DESMONTE*")
-  ("TERRAPLEN"  "*TERRAPLEN*,*TERRAPLÉN*")
-  ("RELLENO"    "*RELLENO*")
-  ("CORAZA"     "*CORAZA*")
-  ("NUCLEO"     "*NUCLEO*,*NÚCLEO*")
-  ("ARENA"      "*ARENA*")
-  ("CORTE"      "*CORTE*")
-  ("AFINE"      "*AFINE*")
-  ("BASE"       "*BASE*")))
-(setq ea:*tipos* (mapcar 'car ea:*tipos-def*))
 
-;; Texto de MEMO_CONFIG (o el valor por defecto)
-(defun ea:cfg-txt (clave defecto / v)
-  (if (and memo:cfg (setq v (memo:cfg clave)) (/= v "")) v defecto))
 
-(defun ea:split (txt sep / pos res)
-  (while (setq pos (vl-string-search sep txt))
-    (setq res (cons (substr txt 1 pos) res) txt (substr txt (+ pos 1 (strlen sep)))))
-  (reverse (cons txt res)))
 
-;; Lee los patrones una vez por comando (getenv es lento en bucles)
-(defun ea:cargar-patrones ()
-  (setq ea:*patrones*
-    (mapcar '(lambda (e) (list (car e) (strcase (ea:cfg-txt (strcat "EA_TIPO_" (car e)) (cadr e)))))
-            ea:*tipos-def*)))
 
-;; Tipo de un texto o de un nombre de capa, o nil
-(defun ea:tipo-de (cadena / txt res)
-  (if (not ea:*patrones*) (ea:cargar-patrones))
-  (setq txt (strcase (ea:limpiar-mtext cadena)))
-  (foreach e ea:*patrones*
-    (if (and (not res) (wcmatch txt (cadr e))) (setq res (car e))))
-  res)
+
+
+
+
+
 
 ;; ---------------------------------------------------------------
 ;; RECUADROS DE SECCIÓN (7.2)
@@ -622,9 +533,19 @@
   (princ (strcat "\n[OK] Recuadros de sección con CAD: " (itoa (length ea:*recuadros*))
                  (if ea:*recuadros* "" " (se usa el CAD más cercano)"))))
 
-;; Nombre para mostrar: "SUBBASE" -> "Subbase"
-(defun ea:nombre-tipo (tipo)
-  (strcat (substr tipo 1 1) (strcase (substr tipo 2) T)))
+
+
+;; Funciones compartidas: viven en MEMO_Lib (memo:*); estos alias mantienen
+;; los nombres que usa EA.
+(defun ea:limpiar-mtext (txt) (memo:limpiar-mtext txt))
+(defun ea:pos-igual (txt) (memo:pos-igual txt))
+(defun ea:buscar-numero (txt ini) (memo:buscar-numero txt ini))
+(defun ea:cfg-txt (clave defecto) (memo:cfg-txt clave defecto))
+(defun ea:split (txt sep) (memo:split txt sep))
+(defun ea:cargar-patrones () (memo:cargar-patrones))
+(defun ea:tipo-de (cadena) (memo:tipo-de cadena))
+(defun ea:nombre-tipo (tipo) (memo:nombre-tipo tipo))
+(setq ea:*tipos* memo:*tipos*)
 
 ;; T si el tipo está desmarcado en el cuadro de diálogo de EA
 (defun ea:tipo-excluido-p (tipo)
@@ -899,7 +820,7 @@
             (setq texto_datos (entget ent_texto))
             (setq texto_original (cdr (assoc 1 texto_datos)))
             (setq area_val (ea:fmt-area area_hatch))
-            (setq nuevo_texto (reemplazar-solo-numero texto_original area_val))
+            (setq nuevo_texto (memo:texto-area texto_original area_val tipo_texto))
             (entmod (subst (cons 1 nuevo_texto) (assoc 1 texto_datos) texto_datos))
             
             (if (and *haea_cambiar_capa*
@@ -942,9 +863,8 @@
   
   (princ))
 
-;===============================================================
-; COMANDO HAEA-EXPORT
-;===============================================================
+
+
 (defun c:HAEA-EXPORT (/ *error* ss_cads ss_textos i j
                         ent datos contenido capa pos
                         lista_cads cad_limpia cad_num
@@ -1220,51 +1140,21 @@
   (princ "\n=== FIN ===")
   (princ))
 
-;===============================================================
-; COMANDO HA
-;===============================================================
-(defun c:EA-HA (/ *error* hatch_ent text_ent hatch_obj area_val texto_datos 
-               nuevo_texto texto_original capa_hatch capa_texto old_err)
-  (setq old_err *error*)
-  (defun *error* (msg)
-    (if old_err (setq *error* old_err))
-    (princ)
-  )
-  
-  (vl-load-com)
-  (ea:cargar-patrones)
-  (princ "\n=== HA RAPIDO ===")
-  (setq hatch_ent (car (entsel "\nHATCH: ")))
-  (if (and hatch_ent (= (cdr (assoc 0 (entget hatch_ent))) "HATCH"))
-    (progn
-      (setq hatch_obj (vlax-ename->vla-object hatch_ent))
-      (setq area_val (ea:fmt-area (obtener-area-hatch hatch_ent)))
-      (setq capa_hatch (cdr (assoc 8 (entget hatch_ent))))
-      (princ (strcat "\n  CAPA: " capa_hatch))
-      (princ (strcat "\n  Area: " area_val))
-      (setq text_ent (car (entsel "\nTEXT: ")))
-      (if (and text_ent (wcmatch (cdr (assoc 0 (entget text_ent))) "TEXT,MTEXT"))
-        (progn
-          (setq texto_datos (entget text_ent))
-          (setq texto_original (cdr (assoc 1 texto_datos)))
-          (setq capa_texto (cdr (assoc 8 texto_datos)))
-          (setq nuevo_texto (reemplazar-solo-numero texto_original area_val))
-          (entmod (subst (cons 1 nuevo_texto) (assoc 1 texto_datos) texto_datos))
-          (if (and *haea_cambiar_capa*
-                   (not (equal (strcase capa_texto) (strcase capa_hatch)))
-                   (tblsearch "LAYER" capa_hatch))
-            (progn
-              (setq texto_datos (entget text_ent))
-              (entmod (subst (cons 8 capa_hatch) (assoc 8 texto_datos) texto_datos))))
-          (entupd text_ent)
-          (princ (strcat "\n  '" texto_original "' -> '" nuevo_texto "'")))))
-    (princ "\n! Hatch no válido"))
-  
-  (setq *error* old_err)
-  (princ))
 
-; ALIAS DE COMPATIBILIDAD: HAEA hace lo mismo que EA
-(defun c:HAEA () (c:EA))
+
+;===============================================================
+; AH - etiquetar los hatches y textos seleccionados (sin cuadro)
+; Usa el mismo motor que EA > Etiquetar (recuadros de sección, tipos,
+; filtros) y la forma de escribir el área elegida en MAREA.
+;===============================================================
+(defun c:AH (/ *haea_tipos_activos* *haea_cambiar_capa* *haea_limite_dist*)
+  (ea:cargar-patrones)
+  (setq *haea_tipos_activos* memo:*tipos*
+        *haea_cambiar_capa* (memo:si-p "AREA_MOVER_CAPA" "NO")
+        *haea_limite_dist* (ea:cfg-num "AREA_DIST_MAX" 50.0))
+  (princ "\n=== AH - Etiquetar hatches (mismo motor que EA) ===")
+  (ejecutar-etiquetado-ha *haea_prefijo* "Manual")
+  (princ))
 
 ;===============================================================
 ; MENSAJE DE CARGA
@@ -1273,8 +1163,7 @@
 (princ "\n  EA v7.2 MEMO - Compatible con CivilCAD")
 (princ "\n==========================================")
 (princ "\n  EA          -> Interfaz completa (etiquetar + Excel)")
-(princ "\n  EA-HA       -> Etiquetado manual")
 (princ "\n  HAEA-EXPORT -> Solo exportar Excel")
-(princ "\n  HAEA        -> Igual que EA")
+(princ "\n  AH          -> Etiquetar hatches seleccionados (sin cuadro)")
 (princ "\n==========================================")
 (princ)

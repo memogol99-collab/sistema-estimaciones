@@ -16,7 +16,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 from minilisp import Lisp, Sym  # noqa: E402
 
-MALLA = os.path.join(os.path.dirname(AQUI), "MEMO_SISTEMA.bundle", "Contents", "LISP", "Topografia", "MP_MallaPuntos.lsp")
+MALLA = os.path.join(os.path.dirname(AQUI), "MemoPRO.bundle", "Contents", "LISP", "Topografia", "MP_MallaPuntos.lsp")
 
 
 def circulo(r, n=72):

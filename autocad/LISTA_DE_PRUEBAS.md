@@ -1,4 +1,4 @@
-# Lista de pruebas - MEMO SISTEMA 2.5.2
+# Lista de pruebas - MemoPRO 3.0.0
 
 > Archivo generado por `herramientas/construir_bundle.py`, a partir de `catalogo.py`.
 > Imprime esta lista o cópiala a Excel y marca cada prueba.
@@ -6,17 +6,49 @@
 ## 0. Prueba automática (2 minutos)
 
 1. Abre un **dibujo nuevo** (con plantilla vacía).
-2. Escribe `MEMO_INFO`: debe mostrar la carpeta del bundle, *Biblioteca MEMO_Lib: cargada* y *Menú MEMO_SISTEMA: cargado*.
+2. Escribe `MEMO_INFO`: debe mostrar la carpeta del bundle, *Biblioteca MEMO_Lib: cargada* y *Menú MemoPRO: cargado*.
 3. Escribe `MEMO_VERIFICAR` y presiona Enter: al final debe decir **Todo correcto**.
    Si aparece *ERROR AL CARGAR* o *NO DEFINIDO*, copia ese texto y envíamelo.
 
-## 1. Lo nuevo en 2.5 (probar primero)
+## 1. Lo nuevo en 3.0: MemoPRO y herramientas de áreas (probar primero)
+
+### Instalación con el nombre nuevo
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| 1 | `INSTALAR.bat` como administrador | Dice "Borrada: ...MEMO_SISTEMA.bundle" (la versión anterior) e instala MemoPRO.bundle | |
+| 2 | Abre AutoCAD | *Grupo de personalización: MemoPRO*, *MemoPRO 3.0.0 listo* y sin aviso de varias copias | |
+| 3 | `MEMO_QUITAR_ANTERIOR` | Descarga el menú MEMO_SISTEMA si seguía cargado | |
+| 4 | Cinta y barra de menús | Fichas *MemoPRO Estimaciones / Topografía / Dibujo* y menú desplegable *MemoPRO* | |
+
+### Áreas
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| 5 | `MAREA` | Abre el cuadro de diálogo; el ejemplo de abajo cambia al mover las opciones | |
+| 6 | `MAREA` → *Un hatch → su texto* → Aceptar | Ejecuta HA: hatch, texto, hatch, texto... hasta Enter | |
+| 7 | `HA` con *Cambiar sólo el número* sobre "AREA DE CORTE=12.50 M2" | Sólo cambia el número; el resto del texto queda igual | |
+| 8 | `MAREA` → *Escribir el texto completo*, prefijo `A=`, sufijo `m2` → `HA` | "A=25.50m2" (como el antiguo HA) | |
+| 9 | Prefijo `A= `, sufijo ` m²` | "A= 25.50 m²" (como el antiguo AM2) | |
+| 10 | *Prefijo según el tipo* + MAYÚSCULAS + sufijo `M2` | "AREA DE CORTE=25.50M2" (como el antiguo AH) | |
+| 11 | `AH` seleccionando varias secciones (hatches y textos) | Cada texto toma el hatch de su tipo y su recuadro; un hatch en capa sin tipo NO se escribe como CORTE | |
+| 12 | `AC`: apaga a mano una capa cualquiera, ejecuta AC completo | Al terminar esa capa **sigue apagada** (antes AC encendía todas) | |
+| 13 | `AC`: ESC a la mitad | Las capas XGRID, XFG, AC, XEG... vuelven a como estaban | |
+| 14 | `AC` en un área con una isla adentro | El área descuenta la isla | |
+| 15 | `AC`: en vez de contar áreas, toca las que haya y Enter | Pasa al siguiente tipo; ya no pregunta "¿cuántas áreas son?" | |
+| 16 | `AS` con líneas de terreno de 4 o más vértices | Escribe A1, A2, A3... y At; antes sólo funcionaba con 3 | |
+| 17 | `CAS` sobre un triángulo NO rectángulo | La fórmula (b*h)/2 da el área que escribe (antes no cuadraba) | |
+| 18 | `CAS` sobre un trapecio | B y b son los dos lados paralelos (antes la base mayor salía igual a la menor) y la línea h es perpendicular | |
+| 19 | `CAS` sobre un círculo | "CIRCULO =PI*r²" (antes salía como RECTANGULO) | |
+| 20 | `HA2`, `AM2`, `QA`, `HAPREF`, `AHINFO` | Ya no existen (todo está en MAREA) | |
+
+## 1a. Lo nuevo en 2.5
 
 ### Menú
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
-| 1 | Instala la 2.5 y abre AutoCAD | En la línea de comandos aparece *Grupo de personalización: MEMO_SISTEMA* y aparecen las fichas MEMO | |
+| 1 | Instala la 2.5 y abre AutoCAD | En la línea de comandos aparece *Grupo de personalización: MemoPRO* y aparecen las fichas MemoPRO | |
 | 2 | Si no aparecen: `MEMO_MENU` | Dice si el menú cargó; si AutoCAD lo rechaza, muestra el error **(envíalo)** y crea el menú desplegable MEMO arriba | |
 
 ### EA
@@ -34,7 +66,7 @@
 | 11 | `MEMO_CONFIG` → *patrón del tipo BASE* = `*BASE*,*BAS-*` | Las capas "BAS-..." se reconocen como BASE | |
 | 12 | `MEMO_CONFIG` → *tipos que son RELLENO* agrega SUBBASE | En RESUMEN, SUBBASE suma al relleno | |
 
-## 1b. Lo nuevo en 2.4: EA
+## 1b. Versión 2.4: EA
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
@@ -96,7 +128,7 @@
 Una prueba rápida por comando: ejecútalo en `Ejercicio COMANDOS NUEVOS.dwg` y compara con lo que hacía antes.
 
 
-### MEMO Estimaciones
+### MemoPRO Estimaciones
 
 | Panel | Comando | Qué debe hacer | OK |
 |---|---|---|---|
@@ -122,27 +154,20 @@ Una prueba rápida por comando: ejecútalo en `Ejercicio COMANDOS NUEVOS.dwg` y 
 | Bacheo | `VERLISTA` | Muestra la lista de rectángulos en memoria. | |
 | Bacheo | `AXD` | Asigna XDATA (número, largo, ancho) a rectángulos existentes. | |
 | Secciones | `ELTN` | Coloca elevaciones de terreno natural en secciones (escala vertical 1:1000 o 1:100). | |
-| Secciones | `CAS` | Cálculo de áreas con fórmulas y valores (triángulos, trapecios, rectángulos, círculos). | |
-| Secciones | `QA` | Cálculo rápido de áreas con valores sustituidos. | |
-| Secciones | `AS` | Área de sección por 3 puntos (estilo text-Secc). | |
+| Secciones | `CAS` | Generador: triángulos, trapecios, rectángulos, círculos con su fórmula y el área total. | |
+| Secciones | `AS` | Área entre la línea de terreno y la de corte, con su fórmula por trapecios. | |
 | Secciones | `R00` | Cambia números de los textos por 00.00 (conserva 'M2'). | |
-| Áreas | `MAREA` | Un solo comando para las áreas: Prefijo, Rápido, M2, Hatch, Contorno, 3 puntos, Detalle, Valores, Exportar. | |
-| Áreas | `EA` | Etiqueta áreas por capa y exporta a CSV/Excel (interfaz completa). | |
-| Áreas | `HA2` | Pone el área de un hatch en un texto, preguntando prefijo. | |
-| Áreas | `HA` | Pone el área de un hatch usando el último prefijo guardado. | |
-| Áreas | `HAPREF` | Cambia el prefijo usado por HA/HA2. | |
-| Áreas | `HAINFO` | Muestra la configuración actual de HA. | |
-| Áreas | `AM2` | Actualiza el área en m² de un hatch en su texto. | |
-| Áreas | `AC` | Calcula y actualiza áreas de secciones a partir de contornos. | |
-| Áreas | `AH` | Extrae el área de hatches: 'AREA DE [TIPO]=[VALOR]M2'. | |
-| Áreas | `AH2` | Versión completa de AH con opciones. | |
+| Áreas | `MAREA` | Cuadro de diálogo de áreas: elige la herramienta y cómo escribir el área. | |
+| Áreas | `HA` | Hatch o área cerrada -> su texto, uno tras otro (Enter = terminar). Formato según MAREA. | |
+| Áreas | `AH` | Hatches seleccionados -> su texto del mismo tipo (motor de EA, por recuadro de sección). | |
+| Áreas | `AC` | Tocar dentro de los contornos y sumar por tipo (AC=, ACA=, AB=, ASR=, AT=); respeta tus capas. | |
+| Áreas | `EA` | Secciones: etiquetar por capa y exportar a Excel con hoja RESUMEN (cuadro de diálogo). | |
 | Áreas | `HAEA-EXPORT` | Sólo exporta las áreas a Excel/CSV. | |
-| Áreas | `EA-HA` | Etiquetado manual de EA (antes se llamaba HA y chocaba con el HA de prefijos). | |
 | Imagen | `IJPG` | Exporta el área seleccionada a imagen JPG/PNG con recorte exacto. | |
 | Imagen | `IJPG-EMF` | Exporta el área seleccionada a EMF vectorial sin bordes. | |
 | Imagen | `IJPG-PC3` | Configura el trazador PC3 para JPG/PNG. | |
 
-### MEMO Topografía
+### MemoPRO Topografía
 
 | Panel | Comando | Qué debe hacer | OK |
 |---|---|---|---|
@@ -194,7 +219,7 @@ Una prueba rápida por comando: ejecútalo en `Ejercicio COMANDOS NUEVOS.dwg` y 
 | Bloques | `VERCAPAS` | Muestra las capas finales requeridas. | |
 | Bloques | `CONFIGESCALAS` | Muestra las escalas configuradas. | |
 
-### MEMO Dibujo
+### MemoPRO Dibujo
 
 | Panel | Comando | Qué debe hacer | OK |
 |---|---|---|---|
@@ -227,9 +252,9 @@ Una prueba rápida por comando: ejecútalo en `Ejercicio COMANDOS NUEVOS.dwg` y 
 | Layouts | `CLO` | Copia el layout activo N veces con prefijo. | |
 | Layouts | `CFTL` | Configura página de varios layouts a la vez (copiar de uno existente). | |
 | Layouts | `SL` | Elimina layouts seleccionados de una lista. | |
-| MEMO | `MEMO_AYUDA` | Lista todos los comandos del MEMO SISTEMA por categoría. | |
+| MEMO | `MEMO_AYUDA` | Lista todos los comandos del MemoPRO por categoría. | |
 | MEMO | `MEMO_CONFIG` | Anchos de tablas, espesor de bacheo, uso del portapapeles, etc. | |
-| MEMO | `MEMO_INFO` | Muestra versión, carpeta y archivos cargados del MEMO SISTEMA. | |
+| MEMO | `MEMO_INFO` | Muestra versión, carpeta y archivos cargados del MemoPRO. | |
 | MEMO | `MEMO_VERIFICAR` | Carga todos los archivos y comprueba que cada comando exista (usar en un dibujo nuevo). | |
 | MEMO | `MEMO_COMPILAR` | Compila los LISP a FAS en %APPDATA%\MEMO_SISTEMA\FAS para cargar más rápido. | |
 | MEMO | `MEMO_QUITAR_ANTERIOR` | Descarga el menú anterior 'MEMO' (Memo.cuix) para que no se duplique. | |

@@ -1,0 +1,4 @@
+;;; MemoPRO.mnl - AutoCAD lo carga junto con MemoPRO.cuix
+(if (and (not memo:cargado) (findfile "MEMO_Cargador.lsp"))
+  (load (findfile "MEMO_Cargador.lsp")))
+(princ)

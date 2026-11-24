@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Dibuja los iconos del MEMO SISTEMA (PNG 16x16 y 32x32 con transparencia).
+Dibuja los iconos del MemoPRO (PNG 16x16 y 32x32 con transparencia).
 
 Cada icono = mosaico redondeado con el color de la categoría + un glifo blanco
 que representa la acción (tabla, cota, hatch, exportar, curvas, etc.).

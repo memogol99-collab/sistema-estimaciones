@@ -4,7 +4,6 @@
 ;;;   MTABLA      Una sola entrada para las tablas COP / ASI / CSSA.
 ;;;               Lee el portapapeles y propone el formato según el
 ;;;               número de columnas copiadas (5, 7 o 4).
-;;;   MAREA       Una sola entrada para los 9 comandos de áreas.
 ;;;   MBACHEO     Flujo de bacheo paso a paso: dibujar, numerar, cotar,
 ;;;               hatch, exportar.
 ;;;   MEMO_CONFIG Edita los valores configurables del sistema.
@@ -51,36 +50,6 @@
   (setq memo:*tabla-sin-preguntar* (if txt T nil))
   (memo:llamar (cdr (assoc fmt '(("Obras" . "COP") ("Asipona" . "ASI") ("Ssa" . "CSSA")))))
   (setq memo:*tabla-sin-preguntar* nil)
-  (princ)
-)
-
-;;; ---------------------------------------------------------------------
-;;; MAREA
-;;; ---------------------------------------------------------------------
-(setq memo:*areas*
-  '(("Prefijo"  "HA2"  "Área de un hatch a un texto, preguntando prefijo")
-    ("Rapido"   "HA"   "Igual que Prefijo, con el último prefijo usado")
-    ("M2"       "AM2"  "Actualiza el área en m² del texto de un hatch")
-    ("Hatch"    "AH"   "Varios hatches: 'AREA DE [TIPO]=[VALOR]M2'")
-    ("Contorno" "AC"   "Áreas de secciones a partir de contornos")
-    ("Tres"     "AS"   "Área de sección por 3 puntos")
-    ("Detalle"  "CAS"  "Cálculo con fórmulas (triángulos, trapecios, círculos)")
-    ("Valores"  "QA"   "Cálculo rápido con valores sustituidos")
-    ("Exportar" "EA"   "Etiquetar por capa y exportar a CSV/Excel"))
-)
-
-(defun c:MAREA (/ def op e)
-  (princ "\n=== MAREA - Áreas ===")
-  (foreach e memo:*areas*
-    (princ (strcat "\n  " (car e) (substr "          " 1 (- 10 (strlen (car e))))
-                   "(" (cadr e) ")  " (caddr e)))
-  )
-  (setq def (memo:cfg "AREA_ULTIMO"))
-  (if (not (assoc def memo:*areas*)) (setq def "Prefijo"))
-  (setq op (memo:opcion "\nTipo de área"
-                        "Prefijo Rapido M2 Hatch Contorno Tres Detalle Valores Exportar" def))
-  (memo:cfg-set "AREA_ULTIMO" op)
-  (memo:llamar (cadr (assoc op memo:*areas*)))
   (princ)
 )
 

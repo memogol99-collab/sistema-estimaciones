@@ -12,7 +12,8 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 from minilisp import Lisp  # noqa: E402
 
-EA = os.path.join(os.path.dirname(AQUI), "MEMO_SISTEMA.bundle", "Contents", "LISP", "Secciones", "EA_ExportarEstArea.lsp")
+LIB = os.path.join(os.path.dirname(AQUI), "MemoPRO.bundle", "Contents", "LISP", "Sistema", "MEMO_Lib.lsp")
+EA = os.path.join(os.path.dirname(AQUI), "MemoPRO.bundle", "Contents", "LISP", "Secciones", "EA_ExportarEstArea.lsp")
 
 AREAS = [  # texto del dibujo -> área que debe ir a Excel
     ("AREA DE CORTE=12.50 M2", 12.5),
@@ -51,6 +52,7 @@ CADS_EJ = [["0+020", 20.0, [20.0, 19.0, 0.0]], ["0+040", 40.0, [20.0, 41.0, 0.0]
 
 def main():
     L = Lisp()
+    L.cargar(LIB)
     L.cargar(EA)
     fallos = 0
 

@@ -1,21 +1,34 @@
-# MEMO SISTEMA para AutoCAD
+# MemoPRO para AutoCAD
 
 Rutinas LISP para estimaciones, secciones, topografía y batimetría, con **instalación en un paso** y un **menú de fichas con iconos**.
 
-![Fichas MEMO](docs/vista_previa_fichas.png)
+![Fichas MemoPRO](docs/vista_previa_fichas.png)
 
 ## Instalar
 
-1. Descarga [`MEMO_SISTEMA_bundle.zip`](MEMO_SISTEMA_bundle.zip) y descomprímelo.
+1. Descarga [`MemoPRO_bundle.zip`](MemoPRO_bundle.zip) y descomprímelo.
 2. Cierra AutoCAD.
 3. Clic derecho en **`INSTALAR.bat`** → *Ejecutar como administrador*.
-4. Abre AutoCAD: aparecen las fichas **MEMO Estimaciones**, **MEMO Topografía** y **MEMO Dibujo**.
+4. Abre AutoCAD: aparecen las fichas **MemoPRO Estimaciones**, **MemoPRO Topografía** y **MemoPRO Dibujo**.
 5. **Sólo la primera vez**, si tenías el `Memo.cuix` anterior:
    - Escribe `MEMO_QUITAR_ANTERIOR`.
    - Quita los LISP viejos del *Conjunto de inicio* de `APPLOAD`.
 6. En un dibujo nuevo, ejecuta `MEMO_VERIFICAR`: debe decir *Todo correcto*.
 
 Para actualizar, vuelve a ejecutar `INSTALAR.bat`; tu configuración se conserva. Funciona con AutoCAD 2015–2026, Civil 3D y Map.
+
+## Novedades 3.0
+
+* **Nuevo nombre: MemoPRO.** El instalador borra las copias anteriores (MEMO_SISTEMA) y `MEMO_QUITAR_ANTERIOR` descarga los menús viejos. Tus valores de `MEMO_CONFIG` se conservan.
+* **Áreas en un solo motor con cuadro de diálogo (`MAREA`):** eliges la herramienta y cómo escribir el área (sólo el número, o texto completo con prefijo y sufijo; prefijo por tipo; mayúsculas; decimales; mover a la capa del hatch).
+  * Se quedan **HA, AH, AC, AS, CAS, EA y HAEA-EXPORT**.
+  * Se eliminaron por duplicados **HA2, HAPREF, HARESET, HAINFO, AM2, AH2, AHINFO, QA, EA-HA y HAEA**.
+* **Errores corregidos:**
+  * **AC** encendía todas las capas al terminar; además ahora descuenta islas y ya no pregunta cuántas áreas hay.
+  * **AH** escribía "CORTE" en hatches sin tipo.
+  * **CAS:** en triángulos la fórmula no cuadraba; en trapecios la base mayor salía igual a la menor; los círculos salían como rectángulo.
+  * **AS** sólo servía con 3 vértices.
+* `herramientas/probar_areas.py`: 22 pruebas con el código AutoLISP real.
 
 ## Novedades 2.5
 
@@ -91,7 +104,7 @@ Para actualizar, vuelve a ejecutar `INSTALAR.bat`; tu configuración se conserva
 | `herramientas/catalogo.py` | **Fuente de verdad**: archivos, parches, comandos, iconos, fichas y configuración |
 | `herramientas/construir_bundle.py` | Genera el bundle, el CUIX, el cargador, los iconos, la lista de pruebas y el ZIP |
 | `instaladores/` | `INSTALAR.bat`, `DESINSTALAR.bat` |
-| `MEMO_SISTEMA.bundle/` | Resultado listo para AutoCAD (generado) |
+| `MemoPRO.bundle/` | Resultado listo para AutoCAD (generado) |
 
 ## Modificar o agregar un LISP
 

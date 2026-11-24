@@ -11,6 +11,7 @@ Uso:
     from minilisp import Lisp
     L = Lisp(); L.cargar("archivo.lsp"); L.llamar("MI:FUNC", arg1, arg2)
 """
+import functools
 import math
 import re
 
@@ -29,7 +30,7 @@ class Func:
 
 class Lisp:
     def __init__(self):
-        self.glob = {}
+        self.glob = {Sym("PI"): math.pi}
         self.pila = []
         self.builtins = {}
         self._registrar()
@@ -281,6 +282,15 @@ class Lisp:
             Sym("SETVAR"): lambda n, v: self.glob.__setitem__(Sym("*SYSVAR-" + n.upper() + "*"), v) or v,
             Sym("STRCAT"): lambda *a: "".join(a),
             Sym("VL-LOAD-COM"): lambda: None,
+            Sym("VL-MEMBER-IF"): lambda f, l: (lambda L: next((L[i:] for i, e in enumerate(L) if self.aplicar(f, [e]) is not None), None))(lst(l)),
+            Sym("VL-SOME"): lambda f, l: next((T for e in lst(l) if self.aplicar(f, [e]) is not None), None),
+            Sym("VL-REMOVE-IF-NOT"): lambda f, l: [e for e in lst(l) if self.aplicar(f, [e]) is not None] or None,
+            Sym("VL-REMOVE-IF"): lambda f, l: [e for e in lst(l) if self.aplicar(f, [e]) is None] or None,
+            Sym("VL-REMOVE"): lambda x, l: [e for e in lst(l) if e != x] or None,
+            Sym("POLAR"): lambda p, a, d: [p[0] + d * math.cos(a), p[1] + d * math.sin(a)] + list(p[2:]),
+            Sym("ANGLE"): lambda p, q: math.atan2(q[1] - p[1], q[0] - p[0]) % (2 * math.pi),
+            Sym("LOGAND"): lambda *a: functools.reduce(lambda x, y: x & y, a),
+            Sym("GETENV"): lambda k: None, Sym("SETENV"): lambda k, v: v,
             Sym("APPLY"): lambda f, l: self.aplicar(f, list(l or [])),
             Sym("MAPCAR"): lambda f, *ls: [self.aplicar(f, list(t)) for t in zip(*map(lst, ls))] or None,
         })
