@@ -1,8 +1,8 @@
 ;;; =====================================================================
-;;;  MEMO_Cargador.lsp  -  MemoPRO 3.0.2
+;;;  MEMO_Cargador.lsp  -  MemoPRO 3.1.0
 ;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
 ;;;
-;;;  Un solo cargador para todos los LISP. NO carga los 50 archivos al
+;;;  Un solo cargador para todos los LISP. NO carga los 45 archivos al
 ;;;  abrir cada dibujo: define cada comando como "stub" y el archivo real
 ;;;  se carga la primera vez que se usa el comando (carga bajo demanda).
 ;;;  Si existen versiones compiladas (MEMO_COMPILAR) de esta misma versión,
@@ -55,10 +55,10 @@
     (setq memo:*mejor* c)))
 
 ;;; Registrar si no hay nada cargado o si lo cargado es una versión anterior
-(if (or (not memo:cargado) (< (memo:ver-num memo:version) (memo:ver-num "3.0.2")))
+(if (or (not memo:cargado) (< (memo:ver-num memo:version) (memo:ver-num "3.1.0")))
   (progn
     (setq memo:*reemplazando* (if memo:cargado memo:version))
-    (setq memo:version "3.0.2" memo:cargado nil)
+    (setq memo:version "3.1.0" memo:cargado nil)
     (setq memo:raiz (if memo:*mejor* (cadr memo:*mejor*)))
     (if (not memo:raiz)
       (progn
@@ -182,12 +182,7 @@
         (memo:al "Estimaciones/CSSA_ConceptosSSA" '("LIMPIARCSSA" "CSSA"))
         (memo:al "Estimaciones/LC_LimpiarConceptos" '("LCO"))
         (memo:al "Estimaciones/IJPG_CadAJpg" '("IJPG" "IJPG-EMF" "IJPG-PC3"))
-        (memo:al "Bacheo/RS_RectanguloSnap" '("RS" "RSC" "AEC" "RC2" "RSHATCH" "RS-CONFIG"))
-        (memo:al "Bacheo/RV_RenumerarRectangulos" '("RENUMERARVECINO" "RNB"))
-        (memo:al "Bacheo/COTB_CotarBaches" '("COTB"))
-        (memo:al "Bacheo/EXR_ExportaRectangulos" '("EXR" "VERLISTA" "VERXDATA" "AXD"))
-        (memo:al "Bacheo/HR_HatchRectangulos" '("HR"))
-        (memo:al "Bacheo/BTR_BorrarTextoEnRect" '("BTR"))
+        (memo:al "Bacheo/MEMO_Bacheo" '("RS" "RSC" "AEC" "RC2" "RSHATCH" "RS-CONFIG" "RENUMERARVECINO" "BNUM" "COTB" "EXR" "VERLISTA" "VERXDATA" "AXD" "HR" "BTR"))
         (memo:al "Secciones/EL_Elevacion" '("ELTN"))
         (memo:al "Secciones/R00_CambiaNumeros" '("R00"))
         (memo:al "Secciones/MEMO_Areas" '("HA" "AC" "AS" "CAS" "MAREA"))
@@ -265,10 +260,10 @@
   (princ "\n  -- Bacheo")
   (princ "\n   MBACHEO          Bacheo paso a paso: Dibujar > Numerar > Cotar > Hatch > Exportar.")
   (princ "\n   RS               Dibuja rectángulos (baches) de cualquier medida, con cotas por fuera y hatch individual en capa Hatch_Bache.")
-  (princ "\n   RNB              Renumera los rectángulos seleccionados por vecino más cercano.")
+  (princ "\n   BNUM             Renumera los rectángulos seleccionados por vecino más cercano.")
   (princ "\n   COTB             Anota largo y ancho de cada rectángulo en la capa GEOMETRIA_RECTANGULOS.")
   (princ "\n   EXR              Exporta los baches a CSV: número, largo, ancho, área, volumen y acumulado.")
-  (princ "\n   HR               Aplica hatch a los rectángulos seleccionados.")
+  (princ "\n   HR               Sin preguntas: sombreado SÓLIDO al 70% de transparencia en todos los baches (reemplaza los anteriores).")
   (princ "\n   BTR              Borra los textos que quedan dentro de los rectángulos seleccionados.")
   (princ "\n   RSHATCH          Vuelve a aplicar el hatch a polilíneas existentes.")
   (princ "\n   RSC              Crea cotas con 2 decimales (estilo de RS).")
@@ -392,7 +387,7 @@
   (princ "\n   MEMO_MENU        Carga el menú MEMO si no está cargado y explica cómo mostrar las fichas.")
   (princ "\n\nComandos renombrados por chocar con tu acad.pgp:")
   (princ "\n   EL    -> ELTN                   (tu alias ELIPSE)")
-  (princ "\n   RV    -> RNB                    (tu alias REVOLUCION)")
+  (princ "\n   RV    -> BNUM                   (tu alias REVOLUCION)")
   (princ "\n   CC    -> RSC                    (tu alias CERRARCINTA)")
   (princ "\n   PV    -> IBPV                   (tu alias PTOVISTA)")
   (princ "\n   TM    -> IBTM                   (tu alias TILEMODE)")
@@ -443,7 +438,7 @@
 ;;; Menú desplegable MEMO creado con ActiveX (no necesita el CUIX)
 (setq memo:*menu-def* '(
   ("Conceptos" ("Tabla Excel (MTABLA)" "MTABLA") ("Obras Públicas (COP)" "COP") ("Asipona (ASI)" "ASI") ("SSA (CSSA)" "CSSA") ("Limpiar conceptos (LCO)" "LCO") ("Limpiar tabla (LIMPIARTABLA)" "LIMPIARTABLA") ("Limpiar SSA (LIMPIARCSSA)" "LIMPIARCSSA"))
-  ("Bacheo" ("Flujo bacheo (MBACHEO)" "MBACHEO") ("Rectángulo (RS)" "RS") ("Renumerar (RNB)" "RNB") ("Cotar baches (COTB)" "COTB") ("Exportar CSV (EXR)" "EXR") ("Hatch baches (HR)" "HR") ("Borrar textos (BTR)" "BTR") ("Re-hatch (RSHATCH)" "RSHATCH") ("Cotas 2 dec. (RSC)" "RSC") ("Estilo cota (AEC)" "AEC") ("Redondear cotas (RC2)" "RC2") ("Config. RS (RS-CONFIG)" "RS-CONFIG") ("Ver lista (VERLISTA)" "VERLISTA") ("Asignar XDATA (AXD)" "AXD"))
+  ("Bacheo" ("Flujo bacheo (MBACHEO)" "MBACHEO") ("Rectángulo (RS)" "RS") ("Renumerar (BNUM)" "BNUM") ("Cotar baches (COTB)" "COTB") ("Exportar CSV (EXR)" "EXR") ("Sombrear baches (HR)" "HR") ("Borrar textos (BTR)" "BTR") ("Re-hatch (RSHATCH)" "RSHATCH") ("Cotas 2 dec. (RSC)" "RSC") ("Estilo cota (AEC)" "AEC") ("Redondear cotas (RC2)" "RC2") ("Config. RS (RS-CONFIG)" "RS-CONFIG") ("Ver lista (VERLISTA)" "VERLISTA") ("Asignar XDATA (AXD)" "AXD"))
   ("Secciones" ("Elevación T.N. (ELTN)" "ELTN") ("Figuras con fórmula (CAS)" "CAS") ("Área terreno-corte (AS)" "AS") ("Números 00.00 (R00)" "R00"))
   ("Áreas" ("Áreas (MAREA) (MAREA)" "MAREA") ("Área a texto (HA)" "HA") ("Hatches a texto (AH)" "AH") ("Áreas contorno (AC)" "AC") ("Exportar áreas (EA)" "EA") ("Sólo exportar (HAEA-EXPORT)" "HAEA-EXPORT"))
   ("Imagen" ("CAD a JPG (IJPG)" "IJPG") ("CAD a EMF (IJPG-EMF)" "IJPG-EMF") ("Trazador JPG (IJPG-PC3)" "IJPG-PC3"))

@@ -58,7 +58,7 @@
 ;;; ---------------------------------------------------------------------
 (setq memo:*bacheo*
   '(("Dibujar"  "RS"        "Dibujar rectángulos con cotas y hatch")
-    ("Numerar"  "RNB"       "Renumerar por vecino más cercano")
+    ("Numerar"  "BNUM"       "Renumerar por vecino más cercano")
     ("Cotar"    "COTB"      "Anotar largo y ancho")
     ("Hatch"    "HR"        "Hatch a los rectángulos")
     ("Exportar" "EXR"       "Exportar a CSV (área, volumen, acumulado)")

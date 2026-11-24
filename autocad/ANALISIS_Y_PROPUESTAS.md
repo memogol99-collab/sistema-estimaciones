@@ -439,6 +439,15 @@ Revisé HA, HA2, HAPREF, HARESET, HAINFO, AM2, AH, AH2, AHINFO, AC, AS, CAS, QA 
 ### Verificación
 `herramientas/probar_areas.py` ejecuta el AutoLISP real con 22 casos: formatos de texto, patrones de AC, triángulo equilátero, trapecio con los dos órdenes de vértices, rectángulo, cuadrilátero irregular, y AS con 3 y con 5 vértices. Además siguen pasando `probar_ea.py` (39 casos) y `probar_malla.py`.
 
+## 4g. Versión 3.0.1–3.1: bacheo
+
+| Comando | Antes | Ahora |
+|---|---|---|
+| RS | El punto opuesto se ajustaba a una rejilla absoluta de 0.1 m (deformaba el largo según la posición); el ancho se redondeaba a 0.1 y no aceptaba ≤ 0.09; cambiaba SNAPUNIT; el ancho pedía dos puntos | Medidas exactas al centímetro (igual que cotas y XDATA). El ancho se teclea o se señala con **un** punto: es la distancia perpendicular a la línea del largo y define el lado del bache (cotas siempre por fuera) |
+| RV / RNB | Atajo en conflicto | **BNUM** (y RENUMERARVECINO) |
+| HR | Preguntaba ángulo y escala; patrón LINE; cada ejecución duplicaba los sombreados | Sin preguntas: SÓLIDO al 70% de transparencia, en SOMBREADOS_RECTANGULOS; reemplaza los anteriores; con preselección sólo sombrea lo seleccionado |
+| Archivos | 6 LISP (RS, RV, COTB, EXR, HR, BTR) | **1 LISP**: `Bacheo/MEMO_Bacheo.lsp`, generado con `@combinar` en `catalogo.py` (verifica que no se repitan funciones y deja un solo mensaje de carga) |
+
 ## 5. Tabla de equivalencias de archivos
 
 | Original | Nuevo (Contents/LISP/…) | Comandos |

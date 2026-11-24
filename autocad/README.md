@@ -17,6 +17,13 @@ Rutinas LISP para estimaciones, secciones, topografía y batimetría, con **inst
 
 Para actualizar, vuelve a ejecutar `INSTALAR.bat`; tu configuración se conserva. Funciona con AutoCAD 2015–2026, Civil 3D y Map.
 
+## Novedades 3.1
+
+* **Bacheo en un solo LISP** (`Bacheo/MEMO_Bacheo.lsp`): RS, renumerar, COTB, EXR, HR y BTR. El generador une los archivos, verifica que no se repitan funciones y deja un solo mensaje de carga.
+* **RS:** medidas libres (sin la rejilla de 0.1 m). El ancho se teclea o se señala con **un** punto, que también define hacia qué lado va el bache.
+* **Renumerar:** el atajo pasa a ser **`BNUM`** (antes RV/RNB); `RENUMERARVECINO` sigue funcionando.
+* **HR:** sin preguntas. Sombreado sólido con 70% de transparencia en todos los baches; reemplaza los sombreados anteriores en lugar de duplicarlos.
+
 ## Novedades 3.0
 
 * **Nuevo nombre: MemoPRO.** El instalador borra las copias anteriores (MEMO_SISTEMA) y `MEMO_QUITAR_ANTERIOR` descarga los menús viejos. Tus valores de `MEMO_CONFIG` se conservan.
@@ -82,7 +89,7 @@ Para actualizar, vuelve a ejecutar `INSTALAR.bat`; tu configuración se conserva
 |---|---|---|
 | MP | *(eliminado, usa `MLL`)* | EMPALME |
 | EL | `ELTN` | ELIPSE |
-| RV | `RNB` | REVOLUCION |
+| RV | `BNUM` | REVOLUCION |
 | CC | `RSC` | CERRARCINTA |
 | PV / TM | `IBPV` / `IBTM` | PTOVISTA / TILEMODE |
 | CL | `CLO` | LINEACENTRO |

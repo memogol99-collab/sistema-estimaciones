@@ -25,12 +25,15 @@ ARCHIVOS = [
     ("LISP_Estimaciones/Limpiar Conceptos ( LC ).lsp",         "Estimaciones/LC_LimpiarConceptos.lsp",       ["renombrar:LC=LCO"]),
     ("LISP_Estimaciones/CAD a JPG  ( IJPG ).LSP",              "Estimaciones/IJPG_CadAJpg.lsp",              []),
     # --- Bacheo ------------------------------------------------------------
-    ("LISP_Estimaciones/RectanguloSnap ( RS ).lsp",            "Bacheo/RS_RectanguloSnap.lsp",               ["renombrar:CC=RSC", "rs-libre"]),
-    ("LISP_Estimaciones/RenumerarRectangulos ( RV ).lsp",      "Bacheo/RV_RenumerarRectangulos.lsp",         ["renombrar:RV=RNB"]),
-    ("LISP_Estimaciones/COTAR_BACHES  (COTB ).lsp",            "Bacheo/COTB_CotarBaches.lsp",                []),
-    ("LISP_Estimaciones/ExportaRectangulos ( EXR ).lsp",       "Bacheo/EXR_ExportaRectangulos.lsp",          ["cfg-espesor"]),
-    ("LISP_Estimaciones/HatchRectangulos.lsp",                 "Bacheo/HR_HatchRectangulos.lsp",             ["msg-hr"]),
-    ("LISP_Estimaciones/BorrarTextoEnRect.lsp",                "Bacheo/BTR_BorrarTextoEnRect.lsp",           []),
+    # --- Bacheo: TODO en un solo LISP -----------------------------------
+    ("@combinar", "Bacheo/MEMO_Bacheo.lsp", [
+        ("LISP_Estimaciones/RectanguloSnap ( RS ).lsp",       "Bacheo/RS_RectanguloSnap.lsp",       ["renombrar:CC=RSC", "rs-libre"]),
+        ("LISP_Estimaciones/RenumerarRectangulos ( RV ).lsp", "Bacheo/RV_RenumerarRectangulos.lsp", ["renombrar:RV=BNUM"]),
+        ("LISP_Estimaciones/COTAR_BACHES  (COTB ).lsp",       "Bacheo/COTB_CotarBaches.lsp",        []),
+        ("LISP_Estimaciones/ExportaRectangulos ( EXR ).lsp",  "Bacheo/EXR_ExportaRectangulos.lsp",  ["cfg-espesor"]),
+        ("@fuente/BACHEO_HR.lsp",                             "Bacheo/HR_Sombreado.lsp",            []),
+        ("LISP_Estimaciones/BorrarTextoEnRect.lsp",           "Bacheo/BTR_BorrarTextoEnRect.lsp",   []),
+    ]),
     # --- Secciones / Áreas -------------------------------------------------
     ("LISP_Secciones/Elevacion ( EL ).lsp",                    "Secciones/EL_Elevacion.lsp",                 ["renombrar:EL=ELTN"]),
     ("LISP_Secciones/Cambia Numeros x 00.00 ( R00 ).LSP",      "Secciones/R00_CambiaNumeros.lsp",            []),
@@ -80,12 +83,17 @@ ARCHIVOS = [
     ("@fuente/MEMO_Unificados.lsp",                            "Sistema/MEMO_Unificados.lsp",                []),
 ]
 
+# Mensaje único de carga de los archivos combinados
+MENSAJE_COMBINADO = {
+    "Bacheo/MEMO_Bacheo.lsp": "RS, BNUM, COTB, EXR, HR, BTR, RSC, AEC, RC2, RSHATCH, RS-CONFIG, VERLISTA, VERXDATA, AXD (MBACHEO = flujo guiado)",
+}
+
 # Biblioteca común: se carga al abrir cada dibujo (no bajo demanda).
 BIBLIOTECA = ("@fuente/MEMO_Lib.lsp", "Sistema/MEMO_Lib.lsp")
 
 # Comandos renombrados por chocar con alias del acad.pgp del usuario.
 RENOMBRADOS = {
-    "EL": ("ELTN", "ELIPSE"), "RV": ("RNB", "REVOLUCION"), "CC": ("RSC", "CERRARCINTA"),
+    "EL": ("ELTN", "ELIPSE"), "RV": ("BNUM", "REVOLUCION"), "CC": ("RSC", "CERRARCINTA"),
     "PV": ("IBPV", "PTOVISTA"), "TM": ("IBTM", "TILEMODE"), "CL": ("CLO", "LINEACENTRO"),
     "LC": ("LCO", "LINEACENTRO"), "CT": ("CTB", "TXTC / CTABLESTYLE"), "CTT": ("CTX", "ADMATRB"),
     "MP": ("(eliminado; use MLL)", "EMPALME"),
@@ -94,7 +102,7 @@ RENOMBRADOS = {
 # Mensajes de carga que mencionan el nombre viejo (texto exacto -> nuevo).
 MENSAJES = {
     "Bacheo/RS_RectanguloSnap.lsp": [("|  CC       - Crear cotas", "|  RSC      - Crear cotas")],
-    "Bacheo/RV_RenumerarRectangulos.lsp": [("RENUMERARVECINO (o RV) - Renumerar", "RENUMERARVECINO (o RNB)- Renumerar")],
+    "Bacheo/RV_RenumerarRectangulos.lsp": [("RENUMERARVECINO (o RV) - Renumerar", "RENUMERARVECINO (o BNUM) - Renumerar")],
     "Secciones/EL_Elevacion.lsp": [("Comando EL cargado", "Comando ELTN cargado")],
     "Estimaciones/LC_LimpiarConceptos.lsp": [('"\\n  LC - Eliminar', '"\\n  LCO - Eliminar')],
     "Textos/CT_Toolbox.lsp": [("Comando: CT (di", "Comando: CTB (di")],
@@ -228,11 +236,11 @@ COMANDOS = {
     "LIMPIARCSSA":  ("Limpiar SSA",      "Borra los elementos creados por CSSA.", "limpiar", "conceptos"),
     # Bacheo
     "RS":           ("Rectángulo",       "Dibuja rectángulos (baches) de cualquier medida, con cotas por fuera y hatch individual en capa Hatch_Bache.", "rect", "bacheo"),
-    "RNB":          ("Renumerar",        "Renumera los rectángulos seleccionados por vecino más cercano.", "renum", "bacheo"),
-    "RENUMERARVECINO": ("Renumerar vecino", "Igual que RNB.", "renum", "bacheo"),
+    "BNUM": ("Renumerar",        "Renumera los rectángulos seleccionados por vecino más cercano.", "renum", "bacheo"),
+    "RENUMERARVECINO": ("Renumerar vecino", "Igual que BNUM.", "renum", "bacheo"),
     "COTB":         ("Cotar baches",     "Anota largo y ancho de cada rectángulo en la capa GEOMETRIA_RECTANGULOS.", "cota", "bacheo"),
     "EXR":          ("Exportar CSV",     "Exporta los baches a CSV: número, largo, ancho, área, volumen y acumulado.", "export", "bacheo"),
-    "HR":           ("Hatch baches",     "Aplica hatch a los rectángulos seleccionados.", "hatch", "bacheo"),
+    "HR":           ("Sombrear baches", "Sin preguntas: sombreado SÓLIDO al 70% de transparencia en todos los baches (reemplaza los anteriores).", "hatch", "bacheo"),
     "BTR":          ("Borrar textos",    "Borra los textos que quedan dentro de los rectángulos seleccionados.", "borrar", "bacheo"),
     "RSHATCH":      ("Re-hatch",         "Vuelve a aplicar el hatch a polilíneas existentes.", "hatch", "bacheo"),
     "RS-CONFIG":    ("Config. RS",       "Configura patrón, escala, ángulo, color y capa del hatch de RS.", "engrane", "bacheo"),
@@ -388,7 +396,7 @@ COMANDOS_CARGADOR = ["MEMO_AYUDA", "MEMO_MENU", "MEMO_INFO", "MEMO_QUITAR_ANTERI
 FICHAS = [
     ("MemoPRO Estimaciones", "ME", [
         ("Conceptos", ["MTABLA", "COP", "ASI", "CSSA", ["LCO", "LIMPIARTABLA", "LIMPIARCSSA"]]),
-        ("Bacheo", ["MBACHEO", "RS", "RNB", "COTB", "EXR",
+        ("Bacheo", ["MBACHEO", "RS", "BNUM", "COTB", "EXR",
                     ["HR", "BTR", "RSHATCH"], ["RSC", "AEC", "RC2"], ["RS-CONFIG", "VERLISTA", "AXD"]]),
         ("Secciones", ["ELTN", "CAS", ["AS", "R00"]]),
         ("Áreas", ["MAREA", "HA", "AH", "AC", "EA", ["HAEA-EXPORT"]]),

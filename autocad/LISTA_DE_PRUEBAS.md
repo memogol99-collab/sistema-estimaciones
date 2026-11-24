@@ -1,4 +1,4 @@
-# Lista de pruebas - MemoPRO 3.0.2
+# Lista de pruebas - MemoPRO 3.1.0
 
 > Archivo generado por `herramientas/construir_bundle.py`, a partir de `catalogo.py`.
 > Imprime esta lista o cópiala a Excel y marca cada prueba.
@@ -21,7 +21,7 @@
 | 3 | `MEMO_QUITAR_ANTERIOR` | Descarga el menú MEMO_SISTEMA si seguía cargado | |
 | 4 | Cinta y barra de menús | Fichas *MemoPRO Estimaciones / Topografía / Dibujo* y menú desplegable *MemoPRO* | |
 
-### Bacheo (3.0.1)
+### Bacheo (3.0.1 - 3.1)
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
@@ -30,6 +30,11 @@
 | B3 | `RS`: al pedir el ancho, señala **un** punto del lado donde va el bache | Pide un solo punto; el ancho es la distancia perpendicular a la línea del largo y el rectángulo se dibuja hacia ese lado | |
 | B3b | `RS`: señala el punto del ancho del **otro** lado de la línea | El rectángulo sale hacia ese otro lado y las cotas quedan por fuera | |
 | B4 | Después de `RS`, revisa la rejilla (SNAPUNIT) | Sigue como la tenías | |
+| B6 | `BNUM` | Renumera los baches (antes RV/RNB); `RENUMERARVECINO` sigue funcionando | |
+| B7 | `HR` | **No pregunta nada**: todos los baches quedan con sombreado SÓLIDO al 70% de transparencia en la capa SOMBREADOS_RECTANGULOS | |
+| B8 | `HR` otra vez | Reemplaza los sombreados de HR (no se duplican) | |
+| B9 | Selecciona 2 baches y luego `HR` | Sombrea sólo esos 2 | |
+| B10 | `MEMO_INFO` después de usar RS | Un solo archivo cargado para todo el bacheo: Bacheo/MEMO_Bacheo | |
 | B5 | `EXR` de esos baches | El CSV trae las medidas exactas | |
 
 ### Áreas
@@ -152,10 +157,10 @@ Una prueba rápida por comando: ejecútalo en `Ejercicio COMANDOS NUEVOS.dwg` y 
 | Conceptos | `LIMPIARCSSA` | Borra los elementos creados por CSSA. | |
 | Bacheo | `MBACHEO` | Bacheo paso a paso: Dibujar > Numerar > Cotar > Hatch > Exportar. | |
 | Bacheo | `RS` | Dibuja rectángulos (baches) de cualquier medida, con cotas por fuera y hatch individual en capa Hatch_Bache. | |
-| Bacheo | `RNB` | Renumera los rectángulos seleccionados por vecino más cercano. | |
+| Bacheo | `BNUM` | Renumera los rectángulos seleccionados por vecino más cercano. | |
 | Bacheo | `COTB` | Anota largo y ancho de cada rectángulo en la capa GEOMETRIA_RECTANGULOS. | |
 | Bacheo | `EXR` | Exporta los baches a CSV: número, largo, ancho, área, volumen y acumulado. | |
-| Bacheo | `HR` | Aplica hatch a los rectángulos seleccionados. | |
+| Bacheo | `HR` | Sin preguntas: sombreado SÓLIDO al 70% de transparencia en todos los baches (reemplaza los anteriores). | |
 | Bacheo | `BTR` | Borra los textos que quedan dentro de los rectángulos seleccionados. | |
 | Bacheo | `RSHATCH` | Vuelve a aplicar el hatch a polilíneas existentes. | |
 | Bacheo | `RSC` | Crea cotas con 2 decimales (estilo de RS). | |

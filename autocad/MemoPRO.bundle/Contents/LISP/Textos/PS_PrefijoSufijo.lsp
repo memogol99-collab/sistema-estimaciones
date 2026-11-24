@@ -1,4 +1,4 @@
-;;; MemoPRO 3.0.2 - archivo generado por construir_bundle.py
+;;; MemoPRO 3.1.0 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Textos/PrefijoSufijo ( PS ).lsp
 
 ; Variables globales para almacenar los últimos valores

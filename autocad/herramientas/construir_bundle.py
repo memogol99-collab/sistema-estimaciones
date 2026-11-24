@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import catalogo as cat  # noqa: E402
 import iconos  # noqa: E402
 
-VERSION = "3.0.2"
+VERSION = "3.1.0"
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(AQUI)                       # autocad/
 ORIG = os.path.join(BASE, "originales", "MEMO_SISTEMA")
@@ -320,11 +320,72 @@ def escribir_lisp(destino, texto, origen, parches):
            ";;; Origen: %s%s" % (VERSION, nl, origen.encode("ascii", "replace").decode(), nl))
     if parches:
         cab += ";;; Parches aplicados: %s%s" % (", ".join(parches), nl)
-    texto = cab + nl + texto
+    texto = (cab + nl + texto).replace("\r\n", "\n").replace("\n", "\r\n")   # siempre CRLF
     salida = os.path.join(CONT, "LISP", destino)
     os.makedirs(os.path.dirname(salida), exist_ok=True)
     open(salida, "wb").write(texto.encode("latin-1"))
     return texto
+
+
+def formas_superiores(texto):
+    """Devuelve [(inicio, fin)] de cada forma (...) de nivel superior."""
+    res, d, i, n, ins, ini = [], 0, 0, len(texto), False, None
+    while i < n:
+        c = texto[i]
+        if ins:
+            if c == "\\":
+                i += 2
+                continue
+            if c == '"':
+                ins = False
+        elif c == '"':
+            ins = True
+        elif c == ";":
+            if texto.startswith(";|", i):
+                j = texto.find("|;", i + 2)
+                i = j + 2 if j >= 0 else n
+                continue
+            j = texto.find("\n", i)
+            i = j if j >= 0 else n
+            continue
+        elif c == "(":
+            if d == 0:
+                ini = i
+            d += 1
+        elif c == ")":
+            d -= 1
+            if d == 0:
+                res.append((ini, i + 1))
+        i += 1
+    return res
+
+
+def quitar_mensajes_carga(texto):
+    """Quita los (princ ...) / (prompt ...) sueltos de nivel superior."""
+    for a, b in reversed(formas_superiores(texto)):
+        if re.match(r"\((princ|prompt)\b", texto[a:b], re.I):
+            texto = texto[:a] + texto[b:]
+    return texto
+
+
+def combinar(partes, destino, bitacora):
+    """Une varios LISP en uno solo (cada parte con sus parches)."""
+    textos, defs = [], {}
+    for origen, nombre_viejo, parches in partes:
+        t, conv = leer_fuente(origen)
+        if parches or nombre_viejo in cat.MENSAJES:
+            bitacora.append("%s <- %s:" % (destino, nombre_viejo))
+            t = aplicar_parches(t, parches, nombre_viejo, bitacora)
+        t = quitar_mensajes_carga(t)
+        for f in re.findall(r"\(defun\s+([^\s()]+)", sin_comentarios_ni_cadenas(t), re.I):
+            k = f.lower()
+            if k != "*error*" and k in defs and defs[k] != origen:
+                raise SystemExit("Al combinar %s: la funcion %s esta en %s y en %s" % (destino, f, defs[k], origen))
+            defs[k] = origen
+        textos.append(";;; ==================================================================\r\n"
+                      ";;; PARTE: %s\r\n"
+                      ";;; ==================================================================\r\n%s" % (origen.encode("ascii", "replace").decode(), t))
+    return "\r\n\r\n".join(textos)
 
 
 def construir_lisp():
@@ -342,10 +403,17 @@ def construir_lisp():
         if base in bases:
             raise SystemExit("Nombre de archivo repetido: " + destino)
         bases.add(base)
-        texto, convertido = leer_fuente(origen)
+        if origen == "@combinar":
+            texto = combinar(parches, destino, bitacora)
+            texto += "\r\n(princ \"\\n%s cargado: %s\")\r\n(princ)\r\n" % (
+                os.path.splitext(os.path.basename(destino))[0], cat.MENSAJE_COMBINADO.get(destino, ""))
+            parches = ["combinado de %d archivos" % len(parches)]
+            convertido = False
+        else:
+            texto, convertido = leer_fuente(origen)
         if convertido:
             bitacora.append("%s: convertido de UTF-8 a ANSI (Windows-1252)" % destino)
-        if parches or destino in cat.MENSAJES:
+        if origen != "@combinar" and (parches or destino in cat.MENSAJES):
             bitacora.append("%s:" % destino)
             texto = aplicar_parches(texto, parches, destino, bitacora)
         if not parentesis_balanceados(texto):
@@ -1054,7 +1122,7 @@ PRUEBAS_CABECERA = """# Lista de pruebas - MemoPRO @VERSION@
 | 3 | `MEMO_QUITAR_ANTERIOR` | Descarga el menú MEMO_SISTEMA si seguía cargado | |
 | 4 | Cinta y barra de menús | Fichas *MemoPRO Estimaciones / Topografía / Dibujo* y menú desplegable *MemoPRO* | |
 
-### Bacheo (3.0.1)
+### Bacheo (3.0.1 - 3.1)
 
 | # | Prueba | Resultado esperado | OK |
 |---|---|---|---|
@@ -1063,6 +1131,11 @@ PRUEBAS_CABECERA = """# Lista de pruebas - MemoPRO @VERSION@
 | B3 | `RS`: al pedir el ancho, señala **un** punto del lado donde va el bache | Pide un solo punto; el ancho es la distancia perpendicular a la línea del largo y el rectángulo se dibuja hacia ese lado | |
 | B3b | `RS`: señala el punto del ancho del **otro** lado de la línea | El rectángulo sale hacia ese otro lado y las cotas quedan por fuera | |
 | B4 | Después de `RS`, revisa la rejilla (SNAPUNIT) | Sigue como la tenías | |
+| B6 | `BNUM` | Renumera los baches (antes RV/RNB); `RENUMERARVECINO` sigue funcionando | |
+| B7 | `HR` | **No pregunta nada**: todos los baches quedan con sombreado SÓLIDO al 70% de transparencia en la capa SOMBREADOS_RECTANGULOS | |
+| B8 | `HR` otra vez | Reemplaza los sombreados de HR (no se duplican) | |
+| B9 | Selecciona 2 baches y luego `HR` | Sombrea sólo esos 2 | |
+| B10 | `MEMO_INFO` después de usar RS | Un solo archivo cargado para todo el bacheo: Bacheo/MEMO_Bacheo | |
 | B5 | `EXR` de esos baches | El CSV trae las medidas exactas | |
 
 ### Áreas
