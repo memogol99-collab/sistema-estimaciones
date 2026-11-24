@@ -1,4 +1,4 @@
-;;; MemoPRO 3.0.0 - archivo generado por construir_bundle.py
+;;; MemoPRO 3.0.1 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Textos/MayMin ( UL ).lsp
 
 ;;CADALYST 01/04 Tip1923: ULCASE.LSP  Uppercase

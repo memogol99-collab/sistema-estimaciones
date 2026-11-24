@@ -1,4 +1,4 @@
-;;; MemoPRO 3.0.0 - archivo generado por construir_bundle.py
+;;; MemoPRO 3.0.1 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Textos/CT-Toolbox.lsp
 ;;; Parches aplicados: renombrar:CT=CTB
 

@@ -1,5 +1,5 @@
 ;;; =====================================================================
-;;;  MEMO_Cargador.lsp  -  MemoPRO 3.0.0
+;;;  MEMO_Cargador.lsp  -  MemoPRO 3.0.1
 ;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
 ;;;
 ;;;  Un solo cargador para todos los LISP. NO carga los 50 archivos al
@@ -55,10 +55,10 @@
     (setq memo:*mejor* c)))
 
 ;;; Registrar si no hay nada cargado o si lo cargado es una versión anterior
-(if (or (not memo:cargado) (< (memo:ver-num memo:version) (memo:ver-num "3.0.0")))
+(if (or (not memo:cargado) (< (memo:ver-num memo:version) (memo:ver-num "3.0.1")))
   (progn
     (setq memo:*reemplazando* (if memo:cargado memo:version))
-    (setq memo:version "3.0.0" memo:cargado nil)
+    (setq memo:version "3.0.1" memo:cargado nil)
     (setq memo:raiz (if memo:*mejor* (cadr memo:*mejor*)))
     (if (not memo:raiz)
       (progn
@@ -264,7 +264,7 @@
   (princ "\n   LIMPIARCSSA      Borra los elementos creados por CSSA.")
   (princ "\n  -- Bacheo")
   (princ "\n   MBACHEO          Bacheo paso a paso: Dibujar > Numerar > Cotar > Hatch > Exportar.")
-  (princ "\n   RS               Dibuja rectángulos (baches) con cotas por fuera y hatch individual en capa Hatch_Bache.")
+  (princ "\n   RS               Dibuja rectángulos (baches) de cualquier medida, con cotas por fuera y hatch individual en capa Hatch_Bache.")
   (princ "\n   RNB              Renumera los rectángulos seleccionados por vecino más cercano.")
   (princ "\n   COTB             Anota largo y ancho de cada rectángulo en la capa GEOMETRIA_RECTANGULOS.")
   (princ "\n   EXR              Exporta los baches a CSV: número, largo, ancho, área, volumen y acumulado.")

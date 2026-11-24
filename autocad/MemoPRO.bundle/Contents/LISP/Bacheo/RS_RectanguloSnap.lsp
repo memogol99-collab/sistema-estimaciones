@@ -1,6 +1,6 @@
-;;; MemoPRO 3.0.0 - archivo generado por construir_bundle.py
+;;; MemoPRO 3.0.1 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/RectanguloSnap ( RS ).lsp
-;;; Parches aplicados: renombrar:CC=RSC
+;;; Parches aplicados: renombrar:CC=RSC, rs-libre
 
 ;;; ============================================================================
 ;;; RUTINA LISP MEJORADA PARA AUTOCAD
@@ -315,7 +315,7 @@
         *rs-old-dimstyle* (getvar "DIMSTYLE"))
 
   (setvar "CMDECHO" 0)
-  (setvar "SNAPUNIT" '(0.1 0.1))
+  ;; MemoPRO: ya no se fuerza la rejilla de 0.1 m
   (setvar "OSMODE" 0)
 
   ;; Crear capas, estilos y estilo de cota (idempotentes)
@@ -345,19 +345,17 @@
     (setq pt2 (getpoint pt1 "\nPunto opuesto: "))
     (if pt2
       (progn
-        (setq pt2-snap (list (* (fix (/ (+ (car pt2) 0.05) 0.1)) 0.1)
-                             (* (fix (/ (+ (cadr pt2) 0.05) 0.1)) 0.1)
-                             0.0))
+        (setq pt2-snap (list (car pt2) (cadr pt2) 0.0))   ; MemoPRO: punto exacto
         (setq angulo (angle pt1 pt2-snap))
         (setq largo (distance pt1 pt2-snap))
         (setq largo-redondo (rs-redondear largo))
 
         (princ (strcat "\nLargo: " (rs-formato-2decimales largo-redondo) "m"))
-        (setq ancho (getreal "\nAncho (m): "))
+        (setq ancho (getdist "\nAncho (m) <teclea el valor o señala 2 puntos>: "))
 
-        (if (and ancho (> ancho 0.09))
+        (if (and ancho (> ancho 0.0001))
           (progn
-            (setq ancho (* (fix (/ (+ ancho 0.05) 0.1)) 0.1))
+            ;; MemoPRO: el ancho ya no se redondea a 0.1 m
             (setq ancho-redondo (rs-redondear ancho))
 
             (setq p2 (polar pt1 (+ angulo (/ pi 2)) ancho-redondo))
@@ -403,7 +401,7 @@
             (princ (strcat " Largo: " (rs-formato-2decimales largo-redondo)
                            "m, Ancho: " (rs-formato-2decimales ancho-redondo) "m"))
             (setq contador (1+ contador)))
-          (princ "\nAncho invalido (debe ser > 0.1m).")))))
+          (princ "\nAncho invalido (debe ser mayor que 0).")))))
   (rs-guardar-ultimo-numero (1- contador))
   (rs-restaurar-variables)
   (setvar "SNAPMODE" 0)

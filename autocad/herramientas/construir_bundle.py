@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import catalogo as cat  # noqa: E402
 import iconos  # noqa: E402
 
-VERSION = "3.0.0"
+VERSION = "3.0.1"
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(AQUI)                       # autocad/
 ORIG = os.path.join(BASE, "originales", "MEMO_SISTEMA")
@@ -209,6 +209,22 @@ def aplicar_parches(texto, parches, nombre, bitacora):
             texto = reemplazar(texto, "MALLA DE PUNTOS POR INTERPOLACION IDW - v4.7", "MALLA DE PUNTOS v4.7 + MEMO (entre curvas)", nombre)
             bitacora.append("  - interpolación ENTRE CURVAS (lineal entre la curva más cercana y la del otro lado) con índice espacial; IDW opcional")
             bitacora.append("  - redondeo correcto de elevaciones negativas (batimetría)")
+        elif p == "rs-libre":
+            # RS: sin rejilla de 0.1 m; largo y ancho exactos (al centímetro)
+            texto = reemplazar(texto, "(setvar \"SNAPUNIT\" '(0.1 0.1))",
+                               ";; MemoPRO: ya no se fuerza la rejilla de 0.1 m", nombre)
+            texto, n = re.subn(r'\(setq pt2-snap \(list \(\* \(fix \(/ \(\+ \(car pt2\) 0\.05\) 0\.1\)\) 0\.1\)\s*'
+                               r'\(\* \(fix \(/ \(\+ \(cadr pt2\) 0\.05\) 0\.1\)\) 0\.1\)\s*0\.0\)\)',
+                               '(setq pt2-snap (list (car pt2) (cadr pt2) 0.0))   ; MemoPRO: punto exacto', texto)
+            if n != 1:
+                raise SystemExit("Parche rs-libre (punto) fallido")
+            texto = reemplazar(texto, '(setq ancho (getreal "\\nAncho (m): "))',
+                               '(setq ancho (getdist "\\nAncho (m) <teclea el valor o se\xf1ala 2 puntos>: "))', nombre)
+            texto = reemplazar(texto, "(if (and ancho (> ancho 0.09))", "(if (and ancho (> ancho 0.0001))", nombre)
+            texto = reemplazar(texto, "(setq ancho (* (fix (/ (+ ancho 0.05) 0.1)) 0.1))",
+                               ";; MemoPRO: el ancho ya no se redondea a 0.1 m", nombre)
+            texto = reemplazar(texto, '"\\nAncho invalido (debe ser > 0.1m)."', '"\\nAncho invalido (debe ser mayor que 0)."', nombre)
+            bitacora.append("  - RS: sin rejilla de 0.1 m; largo y ancho exactos (al cm); ancho tecleado o con 2 puntos")
         elif p == "quitar-mp":
             texto = reemplazar(texto, "(defun c:MP  () (c:MALLA-PUNTOS))", ";; MP eliminado: chocaba con EMPALME (acad.pgp). Use MLL.", nombre)
             bitacora.append("  - alias MP eliminado (era EMPALME en tu acad.pgp); queda MLL")
@@ -1011,6 +1027,16 @@ PRUEBAS_CABECERA = """# Lista de pruebas - MemoPRO @VERSION@
 | 2 | Abre AutoCAD | *Grupo de personalización: MemoPRO*, *MemoPRO 3.0.0 listo* y sin aviso de varias copias | |
 | 3 | `MEMO_QUITAR_ANTERIOR` | Descarga el menú MEMO_SISTEMA si seguía cargado | |
 | 4 | Cinta y barra de menús | Fichas *MemoPRO Estimaciones / Topografía / Dibujo* y menú desplegable *MemoPRO* | |
+
+### Bacheo (3.0.1)
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| B1 | `RS`: primer punto, punto opuesto a 3.37 m, ancho `1.23` | Rectángulo de 3.37 × 1.23 exactos; cotas, número, hatch y XDATA con esas medidas (antes se forzaba a múltiplos de 0.1) | |
+| B2 | `RS`: ancho `0.05` | Se acepta (antes exigía más de 0.09) | |
+| B3 | `RS`: al pedir el ancho, señala dos puntos | Toma esa distancia como ancho | |
+| B4 | Después de `RS`, revisa la rejilla (SNAPUNIT) | Sigue como la tenías | |
+| B5 | `EXR` de esos baches | El CSV trae las medidas exactas | |
 
 ### Áreas
 

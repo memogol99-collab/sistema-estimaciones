@@ -1,4 +1,4 @@
-﻿MemoPRO 3.0.0
+﻿MemoPRO 3.0.1
 ========================================
 
 Escriba MEMO_AYUDA en AutoCAD para ver todos los comandos.

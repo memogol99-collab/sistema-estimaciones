@@ -25,7 +25,7 @@ ARCHIVOS = [
     ("LISP_Estimaciones/Limpiar Conceptos ( LC ).lsp",         "Estimaciones/LC_LimpiarConceptos.lsp",       ["renombrar:LC=LCO"]),
     ("LISP_Estimaciones/CAD a JPG  ( IJPG ).LSP",              "Estimaciones/IJPG_CadAJpg.lsp",              []),
     # --- Bacheo ------------------------------------------------------------
-    ("LISP_Estimaciones/RectanguloSnap ( RS ).lsp",            "Bacheo/RS_RectanguloSnap.lsp",               ["renombrar:CC=RSC"]),
+    ("LISP_Estimaciones/RectanguloSnap ( RS ).lsp",            "Bacheo/RS_RectanguloSnap.lsp",               ["renombrar:CC=RSC", "rs-libre"]),
     ("LISP_Estimaciones/RenumerarRectangulos ( RV ).lsp",      "Bacheo/RV_RenumerarRectangulos.lsp",         ["renombrar:RV=RNB"]),
     ("LISP_Estimaciones/COTAR_BACHES  (COTB ).lsp",            "Bacheo/COTB_CotarBaches.lsp",                []),
     ("LISP_Estimaciones/ExportaRectangulos ( EXR ).lsp",       "Bacheo/EXR_ExportaRectangulos.lsp",          ["cfg-espesor"]),
@@ -227,7 +227,7 @@ COMANDOS = {
     "LIMPIARTABLA": ("Limpiar tabla",    "Borra textos de las capas CONCEPTOS y ENCABEZADOS (tablas COP/ASI).", "limpiar", "conceptos"),
     "LIMPIARCSSA":  ("Limpiar SSA",      "Borra los elementos creados por CSSA.", "limpiar", "conceptos"),
     # Bacheo
-    "RS":           ("Rectángulo",       "Dibuja rectángulos (baches) con cotas por fuera y hatch individual en capa Hatch_Bache.", "rect", "bacheo"),
+    "RS":           ("Rectángulo",       "Dibuja rectángulos (baches) de cualquier medida, con cotas por fuera y hatch individual en capa Hatch_Bache.", "rect", "bacheo"),
     "RNB":          ("Renumerar",        "Renumera los rectángulos seleccionados por vecino más cercano.", "renum", "bacheo"),
     "RENUMERARVECINO": ("Renumerar vecino", "Igual que RNB.", "renum", "bacheo"),
     "COTB":         ("Cotar baches",     "Anota largo y ancho de cada rectángulo en la capa GEOMETRIA_RECTANGULOS.", "cota", "bacheo"),

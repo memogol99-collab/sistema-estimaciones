@@ -1,4 +1,4 @@
-# Lista de pruebas - MemoPRO 3.0.0
+# Lista de pruebas - MemoPRO 3.0.1
 
 > Archivo generado por `herramientas/construir_bundle.py`, a partir de `catalogo.py`.
 > Imprime esta lista o cópiala a Excel y marca cada prueba.
@@ -20,6 +20,16 @@
 | 2 | Abre AutoCAD | *Grupo de personalización: MemoPRO*, *MemoPRO 3.0.0 listo* y sin aviso de varias copias | |
 | 3 | `MEMO_QUITAR_ANTERIOR` | Descarga el menú MEMO_SISTEMA si seguía cargado | |
 | 4 | Cinta y barra de menús | Fichas *MemoPRO Estimaciones / Topografía / Dibujo* y menú desplegable *MemoPRO* | |
+
+### Bacheo (3.0.1)
+
+| # | Prueba | Resultado esperado | OK |
+|---|---|---|---|
+| B1 | `RS`: primer punto, punto opuesto a 3.37 m, ancho `1.23` | Rectángulo de 3.37 × 1.23 exactos; cotas, número, hatch y XDATA con esas medidas (antes se forzaba a múltiplos de 0.1) | |
+| B2 | `RS`: ancho `0.05` | Se acepta (antes exigía más de 0.09) | |
+| B3 | `RS`: al pedir el ancho, señala dos puntos | Toma esa distancia como ancho | |
+| B4 | Después de `RS`, revisa la rejilla (SNAPUNIT) | Sigue como la tenías | |
+| B5 | `EXR` de esos baches | El CSV trae las medidas exactas | |
 
 ### Áreas
 
@@ -140,7 +150,7 @@ Una prueba rápida por comando: ejecútalo en `Ejercicio COMANDOS NUEVOS.dwg` y 
 | Conceptos | `LIMPIARTABLA` | Borra textos de las capas CONCEPTOS y ENCABEZADOS (tablas COP/ASI). | |
 | Conceptos | `LIMPIARCSSA` | Borra los elementos creados por CSSA. | |
 | Bacheo | `MBACHEO` | Bacheo paso a paso: Dibujar > Numerar > Cotar > Hatch > Exportar. | |
-| Bacheo | `RS` | Dibuja rectángulos (baches) con cotas por fuera y hatch individual en capa Hatch_Bache. | |
+| Bacheo | `RS` | Dibuja rectángulos (baches) de cualquier medida, con cotas por fuera y hatch individual en capa Hatch_Bache. | |
 | Bacheo | `RNB` | Renumera los rectángulos seleccionados por vecino más cercano. | |
 | Bacheo | `COTB` | Anota largo y ancho de cada rectángulo en la capa GEOMETRIA_RECTANGULOS. | |
 | Bacheo | `EXR` | Exporta los baches a CSV: número, largo, ancho, área, volumen y acumulado. | |

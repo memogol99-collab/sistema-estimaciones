@@ -1,4 +1,4 @@
-;;; MemoPRO 3.0.0 - archivo generado por construir_bundle.py
+;;; MemoPRO 3.0.1 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Textos/Cambia Texto ( CTT ).lsp
 ;;; Parches aplicados: renombrar:CTT=CTX, ctx-portapapeles
 
