@@ -1,4 +1,4 @@
-# Lista de pruebas - MemoPRO 3.0.1
+# Lista de pruebas - MemoPRO 3.0.2
 
 > Archivo generado por `herramientas/construir_bundle.py`, a partir de `catalogo.py`.
 > Imprime esta lista o cópiala a Excel y marca cada prueba.
@@ -27,7 +27,8 @@
 |---|---|---|---|
 | B1 | `RS`: primer punto, punto opuesto a 3.37 m, ancho `1.23` | Rectángulo de 3.37 × 1.23 exactos; cotas, número, hatch y XDATA con esas medidas (antes se forzaba a múltiplos de 0.1) | |
 | B2 | `RS`: ancho `0.05` | Se acepta (antes exigía más de 0.09) | |
-| B3 | `RS`: al pedir el ancho, señala dos puntos | Toma esa distancia como ancho | |
+| B3 | `RS`: al pedir el ancho, señala **un** punto del lado donde va el bache | Pide un solo punto; el ancho es la distancia perpendicular a la línea del largo y el rectángulo se dibuja hacia ese lado | |
+| B3b | `RS`: señala el punto del ancho del **otro** lado de la línea | El rectángulo sale hacia ese otro lado y las cotas quedan por fuera | |
 | B4 | Después de `RS`, revisa la rejilla (SNAPUNIT) | Sigue como la tenías | |
 | B5 | `EXR` de esos baches | El CSV trae las medidas exactas | |
 

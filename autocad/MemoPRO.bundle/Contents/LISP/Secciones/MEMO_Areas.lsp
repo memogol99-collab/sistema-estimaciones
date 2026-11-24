@@ -1,4 +1,4 @@
-;;; MemoPRO 3.0.1 - archivo generado por construir_bundle.py
+;;; MemoPRO 3.0.2 - archivo generado por construir_bundle.py
 ;;; Origen: @fuente/MEMO_Areas.lsp
 
 ;;; =====================================================================

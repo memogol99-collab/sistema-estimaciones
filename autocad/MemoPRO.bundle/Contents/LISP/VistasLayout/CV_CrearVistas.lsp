@@ -1,4 +1,4 @@
-;;; MemoPRO 3.0.1 - archivo generado por construir_bundle.py
+;;; MemoPRO 3.0.2 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_VistasLayout/Crear Vistas ( CV ).lsp
 
 (defun c:CV (/ pt1 num_vistas ancho alto base_x base_y i y_offset nombre_vista p1 p2 old_osmode old_clayer)

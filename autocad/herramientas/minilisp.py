@@ -290,6 +290,7 @@ class Lisp:
             Sym("POLAR"): lambda p, a, d: [p[0] + d * math.cos(a), p[1] + d * math.sin(a)] + list(p[2:]),
             Sym("ANGLE"): lambda p, q: math.atan2(q[1] - p[1], q[0] - p[0]) % (2 * math.pi),
             Sym("LOGAND"): lambda *a: functools.reduce(lambda x, y: x & y, a),
+            Sym("DISTOF"): lambda t, *m: (lambda x: x)(float(t)) if __import__("re").fullmatch(r"\s*[-+]?(\d+\.?\d*|\.\d+)\s*", t or "") else None,
             Sym("GETENV"): lambda k: None, Sym("SETENV"): lambda k, v: v,
             Sym("APPLY"): lambda f, l: self.aplicar(f, list(l or [])),
             Sym("MAPCAR"): lambda f, *ls: [self.aplicar(f, list(t)) for t in zip(*map(lst, ls))] or None,

@@ -1,4 +1,4 @@
-;;; MemoPRO 3.0.1 - archivo generado por construir_bundle.py
+;;; MemoPRO 3.0.2 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Topografia/Borra_pol ( BPOL ).lsp
 ;;; Parches aplicados: bpol-error
 

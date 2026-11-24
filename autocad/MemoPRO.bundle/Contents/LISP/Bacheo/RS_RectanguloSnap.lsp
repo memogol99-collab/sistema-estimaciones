@@ -1,6 +1,24 @@
-;;; MemoPRO 3.0.1 - archivo generado por construir_bundle.py
+;;; MemoPRO 3.0.2 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/RectanguloSnap ( RS ).lsp
 ;;; Parches aplicados: renombrar:CC=RSC, rs-libre
+
+;;; MemoPRO: ancho de RS con UN solo punto o el valor tecleado.
+;;; Con un punto: el ancho es la distancia PERPENDICULAR del punto a la línea
+;;; del largo, y el rectángulo se dibuja hacia ese lado (rs:lado = 1 izquierda,
+;;; -1 derecha). Con un valor tecleado se dibuja hacia la izquierda, como antes.
+(setq rs:lado 1)
+(defun rs:pedir-ancho (a b / r cruz largo)
+  (setq rs:lado 1)
+  (initget 128)
+  (setq r (getpoint "\nAncho (m) <teclea el valor o señala un punto del lado del bache>: "))
+  (cond
+    ((= (type r) 'STR) (distof r 2))
+    ((= (type r) 'LIST)
+     (setq largo (distance (list (car a) (cadr a)) (list (car b) (cadr b)))
+           cruz (- (* (- (car b) (car a)) (- (cadr r) (cadr a)))
+                   (* (- (cadr b) (cadr a)) (- (car r) (car a)))))
+     (if (< cruz 0.0) (setq rs:lado -1))
+     (if (> largo 0.0) (/ (abs cruz) largo)))))
 
 ;;; ============================================================================
 ;;; RUTINA LISP MEJORADA PARA AUTOCAD
@@ -351,14 +369,14 @@
         (setq largo-redondo (rs-redondear largo))
 
         (princ (strcat "\nLargo: " (rs-formato-2decimales largo-redondo) "m"))
-        (setq ancho (getdist "\nAncho (m) <teclea el valor o señala 2 puntos>: "))
+        (setq ancho (rs:pedir-ancho pt1 pt2-snap))
 
         (if (and ancho (> ancho 0.0001))
           (progn
             ;; MemoPRO: el ancho ya no se redondea a 0.1 m
             (setq ancho-redondo (rs-redondear ancho))
 
-            (setq p2 (polar pt1 (+ angulo (/ pi 2)) ancho-redondo))
+            (setq p2 (polar pt1 (+ angulo (* rs:lado (/ pi 2))) ancho-redondo))
             (setq p4 (polar pt1 angulo largo-redondo))
             (setq p3-calc (polar p2 angulo largo-redondo))
             (setq centro (list (/ (+ (car pt1) (car p3-calc)) 2)
@@ -381,7 +399,7 @@
             (setvar "CLAYER" "COTAS_RECTANGULOS")
             (setq offset-cota 0.3)
 
-            (setq pos-cota-largo (polar pt1 (- angulo (/ pi 2)) offset-cota))
+            (setq pos-cota-largo (polar pt1 (- angulo (* rs:lado (/ pi 2))) offset-cota))
             (command "._DIMALIGNED" pt1 p4 pos-cota-largo)
             (rs-modificar-cota-2decimales (entlast))
 

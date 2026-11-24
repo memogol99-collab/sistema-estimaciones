@@ -1,5 +1,5 @@
 ;;; =====================================================================
-;;;  MEMO_Cargador.lsp  -  MemoPRO 3.0.1
+;;;  MEMO_Cargador.lsp  -  MemoPRO 3.0.2
 ;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
 ;;;
 ;;;  Un solo cargador para todos los LISP. NO carga los 50 archivos al
@@ -55,10 +55,10 @@
     (setq memo:*mejor* c)))
 
 ;;; Registrar si no hay nada cargado o si lo cargado es una versión anterior
-(if (or (not memo:cargado) (< (memo:ver-num memo:version) (memo:ver-num "3.0.1")))
+(if (or (not memo:cargado) (< (memo:ver-num memo:version) (memo:ver-num "3.0.2")))
   (progn
     (setq memo:*reemplazando* (if memo:cargado memo:version))
-    (setq memo:version "3.0.1" memo:cargado nil)
+    (setq memo:version "3.0.2" memo:cargado nil)
     (setq memo:raiz (if memo:*mejor* (cadr memo:*mejor*)))
     (if (not memo:raiz)
       (progn

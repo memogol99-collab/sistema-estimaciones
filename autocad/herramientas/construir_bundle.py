@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import catalogo as cat  # noqa: E402
 import iconos  # noqa: E402
 
-VERSION = "3.0.1"
+VERSION = "3.0.2"
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(AQUI)                       # autocad/
 ORIG = os.path.join(BASE, "originales", "MEMO_SISTEMA")
@@ -218,13 +218,19 @@ def aplicar_parches(texto, parches, nombre, bitacora):
                                '(setq pt2-snap (list (car pt2) (cadr pt2) 0.0))   ; MemoPRO: punto exacto', texto)
             if n != 1:
                 raise SystemExit("Parche rs-libre (punto) fallido")
+            # Ancho: UN punto (distancia perpendicular y lado) o el valor tecleado
             texto = reemplazar(texto, '(setq ancho (getreal "\\nAncho (m): "))',
-                               '(setq ancho (getdist "\\nAncho (m) <teclea el valor o se\xf1ala 2 puntos>: "))', nombre)
+                               '(setq ancho (rs:pedir-ancho pt1 pt2-snap))', nombre)
+            texto = reemplazar(texto, "(setq p2 (polar pt1 (+ angulo (/ pi 2)) ancho-redondo))",
+                               "(setq p2 (polar pt1 (+ angulo (* rs:lado (/ pi 2))) ancho-redondo))", nombre)
+            texto = reemplazar(texto, "(setq pos-cota-largo (polar pt1 (- angulo (/ pi 2)) offset-cota))",
+                               "(setq pos-cota-largo (polar pt1 (- angulo (* rs:lado (/ pi 2))) offset-cota))", nombre)
+            texto = RS_ANCHO + "\r\n" + texto
             texto = reemplazar(texto, "(if (and ancho (> ancho 0.09))", "(if (and ancho (> ancho 0.0001))", nombre)
             texto = reemplazar(texto, "(setq ancho (* (fix (/ (+ ancho 0.05) 0.1)) 0.1))",
                                ";; MemoPRO: el ancho ya no se redondea a 0.1 m", nombre)
             texto = reemplazar(texto, '"\\nAncho invalido (debe ser > 0.1m)."', '"\\nAncho invalido (debe ser mayor que 0)."', nombre)
-            bitacora.append("  - RS: sin rejilla de 0.1 m; largo y ancho exactos (al cm); ancho tecleado o con 2 puntos")
+            bitacora.append("  - RS: sin rejilla de 0.1 m; largo y ancho exactos (al cm); ancho tecleado o con UN punto (perpendicular, y define el lado)")
         elif p == "quitar-mp":
             texto = reemplazar(texto, "(defun c:MP  () (c:MALLA-PUNTOS))", ";; MP eliminado: chocaba con EMPALME (acad.pgp). Use MLL.", nombre)
             bitacora.append("  - alias MP eliminado (era EMPALME en tu acad.pgp); queda MLL")
@@ -239,6 +245,26 @@ def aplicar_parches(texto, parches, nombre, bitacora):
 
 def _cfg(clave):
     return '(memo:cfg-num "%s")' % clave
+
+
+RS_ANCHO = r""";;; MemoPRO: ancho de RS con UN solo punto o el valor tecleado.
+;;; Con un punto: el ancho es la distancia PERPENDICULAR del punto a la línea
+;;; del largo, y el rectángulo se dibuja hacia ese lado (rs:lado = 1 izquierda,
+;;; -1 derecha). Con un valor tecleado se dibuja hacia la izquierda, como antes.
+(setq rs:lado 1)
+(defun rs:pedir-ancho (a b / r cruz largo)
+  (setq rs:lado 1)
+  (initget 128)
+  (setq r (getpoint "\nAncho (m) <teclea el valor o señala un punto del lado del bache>: "))
+  (cond
+    ((= (type r) 'STR) (distof r 2))
+    ((= (type r) 'LIST)
+     (setq largo (distance (list (car a) (cadr a)) (list (car b) (cadr b)))
+           cruz (- (* (- (car b) (car a)) (- (cadr r) (cadr a)))
+                   (* (- (cadr b) (cadr a)) (- (car r) (car a)))))
+     (if (< cruz 0.0) (setq rs:lado -1))
+     (if (> largo 0.0) (/ (abs cruz) largo)))))
+"""
 
 
 CFG_PARCHES = {
@@ -1034,7 +1060,8 @@ PRUEBAS_CABECERA = """# Lista de pruebas - MemoPRO @VERSION@
 |---|---|---|---|
 | B1 | `RS`: primer punto, punto opuesto a 3.37 m, ancho `1.23` | Rectángulo de 3.37 × 1.23 exactos; cotas, número, hatch y XDATA con esas medidas (antes se forzaba a múltiplos de 0.1) | |
 | B2 | `RS`: ancho `0.05` | Se acepta (antes exigía más de 0.09) | |
-| B3 | `RS`: al pedir el ancho, señala dos puntos | Toma esa distancia como ancho | |
+| B3 | `RS`: al pedir el ancho, señala **un** punto del lado donde va el bache | Pide un solo punto; el ancho es la distancia perpendicular a la línea del largo y el rectángulo se dibuja hacia ese lado | |
+| B3b | `RS`: señala el punto del ancho del **otro** lado de la línea | El rectángulo sale hacia ese otro lado y las cotas quedan por fuera | |
 | B4 | Después de `RS`, revisa la rejilla (SNAPUNIT) | Sigue como la tenías | |
 | B5 | `EXR` de esos baches | El CSV trae las medidas exactas | |
 

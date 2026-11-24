@@ -1,4 +1,4 @@
-;;; MemoPRO 3.0.1 - archivo generado por construir_bundle.py
+;;; MemoPRO 3.0.2 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Estimaciones/Conceptos SSA ( CSSA ).lsp
 ;;; Parches aplicados: prefijo:cssa, portapapeles:4, cfg-cssa
 
