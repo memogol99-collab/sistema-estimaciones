@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MemoPRO 3.1.0 - Autoloader de AutoCAD.
+<!-- MemoPRO 3.1.1 - Autoloader de AutoCAD.
      Copie la carpeta MemoPRO.bundle a:
        %ProgramFiles%\Autodesk\ApplicationPlugins   (recomendado, ubicación de confianza)
        o %APPDATA%\Autodesk\ApplicationPlugins       (sin permisos de administrador)
      y reinicie AutoCAD. No hace falta APPLOAD, CUILOAD ni Startup Suite. -->
 <ApplicationPackage SchemaVersion="1.0" AutodeskProduct="AutoCAD" ProductType="Application"
-    Name="MemoPRO" AppVersion="3.1.0" Author="MEMO"
+    Name="MemoPRO" AppVersion="3.1.1" Author="MEMO"
     Description="Rutinas LISP para estimaciones, secciones, topografía y batimetría con menú de fichas."
     AppNameSpace="memo.sistema" HelpFile="./Contents/LEEME.txt"
-    ProductCode="{B0F8A5B3-904C-59B2-998F-9A93D4FA8CA8}" UpgradeCode="{1108B24C-377B-5478-ACEA-A4874BA12CC7}">
+    ProductCode="{8A2E1A14-3807-55F0-9EA7-B8ED90D8602D}" UpgradeCode="{1108B24C-377B-5478-ACEA-A4874BA12CC7}">
   <CompanyDetails Name="MEMO" />
   <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R20.0"
-      SupportPath="./Contents;./Contents/Iconos" />
+      SupportPath="./Contents;./Contents/Iconos;./Contents/Plantillas" />
   <Components Description="MemoPRO">
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R20.0" />
-    <ComponentEntry AppName="MEMO_Menu" Version="3.1.0" ModuleName="./Contents/MemoPRO.cuix"
+    <ComponentEntry AppName="MEMO_Menu" Version="3.1.1" ModuleName="./Contents/MemoPRO.cuix"
         AppDescription="Menú MEMO con fichas e iconos" LoadOnAutoCADStartup="True" />
-    <ComponentEntry AppName="MEMO_Cargador" Version="3.1.0" ModuleName="./Contents/MEMO_Cargador.lsp"
+    <ComponentEntry AppName="MEMO_Cargador" Version="3.1.1" ModuleName="./Contents/MEMO_Cargador.lsp"
         AppDescription="Cargador bajo demanda de los comandos MEMO" LoadOnAutoCADStartup="True" PerDocument="True" />
   </Components>
 </ApplicationPackage>

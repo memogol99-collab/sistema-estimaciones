@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import catalogo as cat  # noqa: E402
 import iconos  # noqa: E402
 
-VERSION = "3.1.0"
+VERSION = "3.1.1"
 AQUI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(AQUI)                       # autocad/
 ORIG = os.path.join(BASE, "originales", "MEMO_SISTEMA")
@@ -405,6 +405,10 @@ def construir_lisp():
         bases.add(base)
         if origen == "@combinar":
             texto = combinar(parches, destino, bitacora)
+            enc = cat.ENCABEZADO_COMBINADO.get(destino)
+            if enc:
+                enc = enc.encode("cp1252").decode("latin-1")    # mismo trato que leer_fuente
+                texto = "".join(";;; " + l + "\r\n" if l else ";;;\r\n" for l in enc.rstrip("\n").split("\n")) + "\r\n" + texto
             texto += "\r\n(princ \"\\n%s cargado: %s\")\r\n(princ)\r\n" % (
                 os.path.splitext(os.path.basename(destino))[0], cat.MENSAJE_COMBINADO.get(destino, ""))
             parches = ["combinado de %d archivos" % len(parches)]
@@ -1072,7 +1076,7 @@ def construir_package():
     ProductCode="{%(pc)s}" UpgradeCode="{%(uc)s}">
   <CompanyDetails Name="MEMO" />
   <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R20.0"
-      SupportPath="./Contents;./Contents/Iconos" />
+      SupportPath="./Contents;./Contents/Iconos;./Contents/Plantillas" />
   <Components Description="MemoPRO">
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R20.0" />
     <ComponentEntry AppName="MEMO_Menu" Version="%(v)s" ModuleName="./Contents/%(m)s.cuix"
@@ -1136,7 +1140,11 @@ PRUEBAS_CABECERA = """# Lista de pruebas - MemoPRO @VERSION@
 | B8 | `HR` otra vez | Reemplaza los sombreados de HR (no se duplican) | |
 | B9 | Selecciona 2 baches y luego `HR` | Sombrea sólo esos 2 | |
 | B10 | `MEMO_INFO` después de usar RS | Un solo archivo cargado para todo el bacheo: Bacheo/MEMO_Bacheo | |
-| B5 | `EXR` de esos baches | El CSV trae las medidas exactas | |
+| B5 | `EXR` de esos baches → nombre de calle → guardar | Se abre Excel con el **Generador de Bacheo**: No., LARGO y ANCHO en las columnas del formato; áreas, sumas y volumen calculados; la calle en cada bloque; logo y firmas intactos | |
+| B11 | `EXR` con más de 110 baches | Usa los bloques que hagan falta (110 por bloque); los bloques sobrantes se borran | |
+| B12 | `MEMO_CONFIG` → *Bacheo: espesor* = 0.08 → `EXR` | Las fórmulas de volumen usan 0.08 y el texto dice "Vol Esp 8cm" | |
+| B13 | `EXR` guardando sobre un archivo abierto en Excel | Avisa que lo cierres (no truena) | |
+| B14 | `EXRCSV` | Exporta el CSV de antes | |
 
 ### Áreas
 
@@ -1234,7 +1242,7 @@ PRUEBAS_CABECERA = """# Lista de pruebas - MemoPRO @VERSION@
 |---|---|---|---|
 | 1 | `MAREA` → Enter | Ejecuta la opción por defecto (*Prefijo* = HA2); la segunda vez propone la última usada | |
 | 2 | `MBACHEO` | Propone *Dibujar*; después de cada paso propone el siguiente (Numerar, Cotar, Exportar, Salir) | |
-| 3 | `MEMO_CONFIG` → *Bacheo: espesor* = 0.15 → `EXR` | El volumen del CSV = área × 0.15 | |
+| 3 | `MEMO_CONFIG` → *Bacheo: espesor* = 0.15 → `EXR` | Las fórmulas de volumen del generador usan 0.15 | |
 | 4 | `MP`, `EL`, `RV`, `PV`, `TM`, `CL`, `LC`, `CT`, `CTT`, `CC` | Hacen lo que dice tu acad.pgp (EMPALME, ELIPSE, REVOLUCION...) | |
 | 5 | `MLL`, `ELTN`, `RNB`, `IBPV`, `IBTM`, `CLO`, `LCO`, `CTB`, `CTX`, `RSC` | Hacen lo que antes hacían los nombres viejos | |
 | 6 | `BPOL` y ESC a la mitad; después otro comando con ESC | AutoCAD queda normal | |
@@ -1276,6 +1284,8 @@ def main():
         shutil.rmtree(BUNDLE)
     os.makedirs(os.path.join(CONT, "Iconos"))
     mapa, dueño, bitacora = construir_lisp()
+    # Plantillas (Excel del generador de bacheo, etc.)
+    shutil.copytree(os.path.join(FUENTE, "plantillas"), os.path.join(CONT, "Plantillas"))
     construir_cargador(mapa)
     todos = [c for c in cat.COMANDOS if c in set(dueño) | set(cat.COMANDOS_CARGADOR)]
     faltan = sorted(set(dueño) - set(cat.COMANDOS))

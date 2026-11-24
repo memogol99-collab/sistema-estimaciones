@@ -1,4 +1,4 @@
-;;; MemoPRO 3.1.0 - archivo generado por construir_bundle.py
+;;; MemoPRO 3.1.1 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_VistasLayout/Restaurar Vistas ( AV ).lsp
 
         ; PARA GUARDAR VISTAS RAPIDAS

@@ -1,4 +1,4 @@
-;;; MemoPRO 3.1.0 - archivo generado por construir_bundle.py
+;;; MemoPRO 3.1.1 - archivo generado por construir_bundle.py
 ;;; Origen: LISP_Bloques/Insertar Bloques en Capa ( IBCZ ).lsp
 ;;; Parches aplicados: renombrar:PV=IBPV, renombrar:TM=IBTM
 

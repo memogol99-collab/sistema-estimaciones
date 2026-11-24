@@ -22,6 +22,8 @@ Para actualizar, vuelve a ejecutar `INSTALAR.bat`; tu configuración se conserva
 * **Bacheo en un solo LISP** (`Bacheo/MEMO_Bacheo.lsp`): RS, renumerar, COTB, EXR, HR y BTR. El generador une los archivos, verifica que no se repitan funciones y deja un solo mensaje de carga.
 * **RS:** medidas libres (sin la rejilla de 0.1 m). El ancho se teclea o se señala con **un** punto, que también define hacia qué lado va el bache.
 * **Renumerar:** el atajo pasa a ser **`BNUM`** (antes RV/RNB); `RENUMERARVECINO` sigue funcionando.
+* **EXR llena tu formato de Excel** (*Generador de Bacheo*): la plantilla limpia viene en `MemoPRO.bundle/Contents/Plantillas/Formato_Generador_Bacheo.xlsx`. EXR escribe No., largo y ancho (22 por columna, 5 columnas por bloque), la calle en cada bloque, ajusta los bloques al número de baches y respeta el espesor de `MEMO_CONFIG`; el área, las sumas y los acumulados los calculan las fórmulas del formato. Sin Excel exporta a CSV. El CSV anterior sigue en **`EXRCSV`**.
+* `MEMO_Bacheo.lsp` empieza con la descripción de cada comando.
 * **HR:** sin preguntas. Sombreado sólido con 70% de transparencia en todos los baches; reemplaza los sombreados anteriores en lugar de duplicarlos.
 
 ## Novedades 3.0

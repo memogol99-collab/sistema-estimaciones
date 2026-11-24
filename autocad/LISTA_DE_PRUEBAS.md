@@ -1,4 +1,4 @@
-# Lista de pruebas - MemoPRO 3.1.0
+# Lista de pruebas - MemoPRO 3.1.1
 
 > Archivo generado por `herramientas/construir_bundle.py`, a partir de `catalogo.py`.
 > Imprime esta lista o cópiala a Excel y marca cada prueba.
@@ -35,7 +35,11 @@
 | B8 | `HR` otra vez | Reemplaza los sombreados de HR (no se duplican) | |
 | B9 | Selecciona 2 baches y luego `HR` | Sombrea sólo esos 2 | |
 | B10 | `MEMO_INFO` después de usar RS | Un solo archivo cargado para todo el bacheo: Bacheo/MEMO_Bacheo | |
-| B5 | `EXR` de esos baches | El CSV trae las medidas exactas | |
+| B5 | `EXR` de esos baches → nombre de calle → guardar | Se abre Excel con el **Generador de Bacheo**: No., LARGO y ANCHO en las columnas del formato; áreas, sumas y volumen calculados; la calle en cada bloque; logo y firmas intactos | |
+| B11 | `EXR` con más de 110 baches | Usa los bloques que hagan falta (110 por bloque); los bloques sobrantes se borran | |
+| B12 | `MEMO_CONFIG` → *Bacheo: espesor* = 0.08 → `EXR` | Las fórmulas de volumen usan 0.08 y el texto dice "Vol Esp 8cm" | |
+| B13 | `EXR` guardando sobre un archivo abierto en Excel | Avisa que lo cierres (no truena) | |
+| B14 | `EXRCSV` | Exporta el CSV de antes | |
 
 ### Áreas
 
@@ -133,7 +137,7 @@
 |---|---|---|---|
 | 1 | `MAREA` → Enter | Ejecuta la opción por defecto (*Prefijo* = HA2); la segunda vez propone la última usada | |
 | 2 | `MBACHEO` | Propone *Dibujar*; después de cada paso propone el siguiente (Numerar, Cotar, Exportar, Salir) | |
-| 3 | `MEMO_CONFIG` → *Bacheo: espesor* = 0.15 → `EXR` | El volumen del CSV = área × 0.15 | |
+| 3 | `MEMO_CONFIG` → *Bacheo: espesor* = 0.15 → `EXR` | Las fórmulas de volumen del generador usan 0.15 | |
 | 4 | `MP`, `EL`, `RV`, `PV`, `TM`, `CL`, `LC`, `CT`, `CTT`, `CC` | Hacen lo que dice tu acad.pgp (EMPALME, ELIPSE, REVOLUCION...) | |
 | 5 | `MLL`, `ELTN`, `RNB`, `IBPV`, `IBTM`, `CLO`, `LCO`, `CTB`, `CTX`, `RSC` | Hacen lo que antes hacían los nombres viejos | |
 | 6 | `BPOL` y ESC a la mitad; después otro comando con ESC | AutoCAD queda normal | |
@@ -159,7 +163,7 @@ Una prueba rápida por comando: ejecútalo en `Ejercicio COMANDOS NUEVOS.dwg` y 
 | Bacheo | `RS` | Dibuja rectángulos (baches) de cualquier medida, con cotas por fuera y hatch individual en capa Hatch_Bache. | |
 | Bacheo | `BNUM` | Renumera los rectángulos seleccionados por vecino más cercano. | |
 | Bacheo | `COTB` | Anota largo y ancho de cada rectángulo en la capa GEOMETRIA_RECTANGULOS. | |
-| Bacheo | `EXR` | Exporta los baches a CSV: número, largo, ancho, área, volumen y acumulado. | |
+| Bacheo | `EXR` | Llena el formato Generador de Bacheo (Excel): No., largo y ancho en bloques de 5 columnas x 22; área, volumen y acumulados por fórmula. | |
 | Bacheo | `HR` | Sin preguntas: sombreado SÓLIDO al 70% de transparencia en todos los baches (reemplaza los anteriores). | |
 | Bacheo | `BTR` | Borra los textos que quedan dentro de los rectángulos seleccionados. | |
 | Bacheo | `RSHATCH` | Vuelve a aplicar el hatch a polilíneas existentes. | |
@@ -169,6 +173,7 @@ Una prueba rápida por comando: ejecútalo en `Ejercicio COMANDOS NUEVOS.dwg` y 
 | Bacheo | `RS-CONFIG` | Configura patrón, escala, ángulo, color y capa del hatch de RS. | |
 | Bacheo | `VERLISTA` | Muestra la lista de rectángulos en memoria. | |
 | Bacheo | `AXD` | Asigna XDATA (número, largo, ancho) a rectángulos existentes. | |
+| Bacheo | `EXRCSV` | Exportación anterior a CSV: número, largo, ancho, área, volumen y acumulado. | |
 | Secciones | `ELTN` | Coloca elevaciones de terreno natural en secciones (escala vertical 1:1000 o 1:100). | |
 | Secciones | `CAS` | Generador: triángulos, trapecios, rectángulos, círculos con su fórmula y el área total. | |
 | Secciones | `AS` | Área entre la línea de terreno y la de corte, con su fórmula por trapecios. | |

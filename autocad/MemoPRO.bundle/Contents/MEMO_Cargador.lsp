@@ -1,5 +1,5 @@
 ;;; =====================================================================
-;;;  MEMO_Cargador.lsp  -  MemoPRO 3.1.0
+;;;  MEMO_Cargador.lsp  -  MemoPRO 3.1.1
 ;;;  ARCHIVO GENERADO: no editar a mano; edite herramientas/catalogo.py
 ;;;
 ;;;  Un solo cargador para todos los LISP. NO carga los 45 archivos al
@@ -55,10 +55,10 @@
     (setq memo:*mejor* c)))
 
 ;;; Registrar si no hay nada cargado o si lo cargado es una versión anterior
-(if (or (not memo:cargado) (< (memo:ver-num memo:version) (memo:ver-num "3.1.0")))
+(if (or (not memo:cargado) (< (memo:ver-num memo:version) (memo:ver-num "3.1.1")))
   (progn
     (setq memo:*reemplazando* (if memo:cargado memo:version))
-    (setq memo:version "3.1.0" memo:cargado nil)
+    (setq memo:version "3.1.1" memo:cargado nil)
     (setq memo:raiz (if memo:*mejor* (cadr memo:*mejor*)))
     (if (not memo:raiz)
       (progn
@@ -88,6 +88,7 @@
       ("ASI_ANCHO_IMPORTE" "1.9849" "ASI: ancho Importe" "NUM" "")
       ("CSSA_ANCHO_TOTAL" "24.0964" "CSSA: ancho total de la tabla" "NUM" "")
       ("BACHEO_ESPESOR" "0.10" "Bacheo: espesor para volumen en EXR (m)" "NUM" "")
+      ("BACHEO_CALLE" "" "Bacheo: última calle usada en EXR" "TXT" "")
       ("MALLA_METODO" "ENTRECURVAS" "Malla de puntos: ENTRECURVAS (nuevo) o IDW (anterior)" "TXT" "ENTRECURVAS,IDW")
       ("MALLA_RADIO" "0" "Malla: distancia máx. de búsqueda (0 = automática)" "NUM" "")
       ("MALLA_CURVA_CERO" "NO" "Malla: usar curvas con elevación 0 (SI para batimetría)" "TXT" "SI,NO")
@@ -182,7 +183,7 @@
         (memo:al "Estimaciones/CSSA_ConceptosSSA" '("LIMPIARCSSA" "CSSA"))
         (memo:al "Estimaciones/LC_LimpiarConceptos" '("LCO"))
         (memo:al "Estimaciones/IJPG_CadAJpg" '("IJPG" "IJPG-EMF" "IJPG-PC3"))
-        (memo:al "Bacheo/MEMO_Bacheo" '("RS" "RSC" "AEC" "RC2" "RSHATCH" "RS-CONFIG" "RENUMERARVECINO" "BNUM" "COTB" "EXR" "VERLISTA" "VERXDATA" "AXD" "HR" "BTR"))
+        (memo:al "Bacheo/MEMO_Bacheo" '("RS" "RSC" "AEC" "RC2" "RSHATCH" "RS-CONFIG" "RENUMERARVECINO" "BNUM" "COTB" "EXRCSV" "VERLISTA" "VERXDATA" "AXD" "EXR" "HR" "BTR"))
         (memo:al "Secciones/EL_Elevacion" '("ELTN"))
         (memo:al "Secciones/R00_CambiaNumeros" '("R00"))
         (memo:al "Secciones/MEMO_Areas" '("HA" "AC" "AS" "CAS" "MAREA"))
@@ -262,7 +263,7 @@
   (princ "\n   RS               Dibuja rectángulos (baches) de cualquier medida, con cotas por fuera y hatch individual en capa Hatch_Bache.")
   (princ "\n   BNUM             Renumera los rectángulos seleccionados por vecino más cercano.")
   (princ "\n   COTB             Anota largo y ancho de cada rectángulo en la capa GEOMETRIA_RECTANGULOS.")
-  (princ "\n   EXR              Exporta los baches a CSV: número, largo, ancho, área, volumen y acumulado.")
+  (princ "\n   EXR              Llena el formato Generador de Bacheo (Excel): No., largo y ancho en bloques de 5 columnas x 22; área, volumen y acumulados por fórmula.")
   (princ "\n   HR               Sin preguntas: sombreado SÓLIDO al 70% de transparencia en todos los baches (reemplaza los anteriores).")
   (princ "\n   BTR              Borra los textos que quedan dentro de los rectángulos seleccionados.")
   (princ "\n   RSHATCH          Vuelve a aplicar el hatch a polilíneas existentes.")
@@ -272,6 +273,7 @@
   (princ "\n   RS-CONFIG        Configura patrón, escala, ángulo, color y capa del hatch de RS.")
   (princ "\n   VERLISTA         Muestra la lista de rectángulos en memoria.")
   (princ "\n   AXD              Asigna XDATA (número, largo, ancho) a rectángulos existentes.")
+  (princ "\n   EXRCSV           Exportación anterior a CSV: número, largo, ancho, área, volumen y acumulado.")
   (princ "\n  -- Secciones")
   (princ "\n   ELTN             Coloca elevaciones de terreno natural en secciones (escala vertical 1:1000 o 1:100).")
   (princ "\n   CAS              Generador: triángulos, trapecios, rectángulos, círculos con su fórmula y el área total.")
@@ -438,7 +440,7 @@
 ;;; Menú desplegable MEMO creado con ActiveX (no necesita el CUIX)
 (setq memo:*menu-def* '(
   ("Conceptos" ("Tabla Excel (MTABLA)" "MTABLA") ("Obras Públicas (COP)" "COP") ("Asipona (ASI)" "ASI") ("SSA (CSSA)" "CSSA") ("Limpiar conceptos (LCO)" "LCO") ("Limpiar tabla (LIMPIARTABLA)" "LIMPIARTABLA") ("Limpiar SSA (LIMPIARCSSA)" "LIMPIARCSSA"))
-  ("Bacheo" ("Flujo bacheo (MBACHEO)" "MBACHEO") ("Rectángulo (RS)" "RS") ("Renumerar (BNUM)" "BNUM") ("Cotar baches (COTB)" "COTB") ("Exportar CSV (EXR)" "EXR") ("Sombrear baches (HR)" "HR") ("Borrar textos (BTR)" "BTR") ("Re-hatch (RSHATCH)" "RSHATCH") ("Cotas 2 dec. (RSC)" "RSC") ("Estilo cota (AEC)" "AEC") ("Redondear cotas (RC2)" "RC2") ("Config. RS (RS-CONFIG)" "RS-CONFIG") ("Ver lista (VERLISTA)" "VERLISTA") ("Asignar XDATA (AXD)" "AXD"))
+  ("Bacheo" ("Flujo bacheo (MBACHEO)" "MBACHEO") ("Rectángulo (RS)" "RS") ("Renumerar (BNUM)" "BNUM") ("Cotar baches (COTB)" "COTB") ("Generador Excel (EXR)" "EXR") ("Sombrear baches (HR)" "HR") ("Borrar textos (BTR)" "BTR") ("Re-hatch (RSHATCH)" "RSHATCH") ("Cotas 2 dec. (RSC)" "RSC") ("Estilo cota (AEC)" "AEC") ("Redondear cotas (RC2)" "RC2") ("Config. RS (RS-CONFIG)" "RS-CONFIG") ("Ver lista (VERLISTA)" "VERLISTA") ("Asignar XDATA (AXD)" "AXD") ("Exportar CSV (EXRCSV)" "EXRCSV"))
   ("Secciones" ("Elevación T.N. (ELTN)" "ELTN") ("Figuras con fórmula (CAS)" "CAS") ("Área terreno-corte (AS)" "AS") ("Números 00.00 (R00)" "R00"))
   ("Áreas" ("Áreas (MAREA) (MAREA)" "MAREA") ("Área a texto (HA)" "HA") ("Hatches a texto (AH)" "AH") ("Áreas contorno (AC)" "AC") ("Exportar áreas (EA)" "EA") ("Sólo exportar (HAEA-EXPORT)" "HAEA-EXPORT"))
   ("Imagen" ("CAD a JPG (IJPG)" "IJPG") ("CAD a EMF (IJPG-EMF)" "IJPG-EMF") ("Trazador JPG (IJPG-PC3)" "IJPG-PC3"))

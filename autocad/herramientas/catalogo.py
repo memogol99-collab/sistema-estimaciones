@@ -30,7 +30,8 @@ ARCHIVOS = [
         ("LISP_Estimaciones/RectanguloSnap ( RS ).lsp",       "Bacheo/RS_RectanguloSnap.lsp",       ["renombrar:CC=RSC", "rs-libre"]),
         ("LISP_Estimaciones/RenumerarRectangulos ( RV ).lsp", "Bacheo/RV_RenumerarRectangulos.lsp", ["renombrar:RV=BNUM"]),
         ("LISP_Estimaciones/COTAR_BACHES  (COTB ).lsp",       "Bacheo/COTB_CotarBaches.lsp",        []),
-        ("LISP_Estimaciones/ExportaRectangulos ( EXR ).lsp",  "Bacheo/EXR_ExportaRectangulos.lsp",  ["cfg-espesor"]),
+        ("LISP_Estimaciones/ExportaRectangulos ( EXR ).lsp",  "Bacheo/EXR_ExportaRectangulos.lsp",  ["cfg-espesor", "renombrar:EXR=EXRCSV"]),
+        ("@fuente/BACHEO_EXR_Excel.lsp",                      "Bacheo/EXR_GeneradorExcel.lsp",      []),
         ("@fuente/BACHEO_HR.lsp",                             "Bacheo/HR_Sombreado.lsp",            []),
         ("LISP_Estimaciones/BorrarTextoEnRect.lsp",           "Bacheo/BTR_BorrarTextoEnRect.lsp",   []),
     ]),
@@ -85,7 +86,51 @@ ARCHIVOS = [
 
 # Mensaje único de carga de los archivos combinados
 MENSAJE_COMBINADO = {
-    "Bacheo/MEMO_Bacheo.lsp": "RS, BNUM, COTB, EXR, HR, BTR, RSC, AEC, RC2, RSHATCH, RS-CONFIG, VERLISTA, VERXDATA, AXD (MBACHEO = flujo guiado)",
+    "Bacheo/MEMO_Bacheo.lsp": "RS, BNUM, COTB, EXR, EXRCSV, HR, BTR, RSC, AEC, RC2, RSHATCH, RS-CONFIG, VERLISTA, VERXDATA, AXD (MBACHEO = flujo guiado)",
+}
+
+# Encabezado (qué hace cada comando) al inicio de los archivos combinados
+ENCABEZADO_COMBINADO = {
+    "Bacheo/MEMO_Bacheo.lsp": """MEMO_Bacheo.lsp  -  MemoPRO  -  Todos los comandos de BACHEO en un archivo
+
+ FLUJO NORMAL:  RS -> BNUM -> COTB -> HR -> EXR
+ (MBACHEO, en MEMO_Unificados, guía estos pasos uno tras otro)
+
+ DIBUJO
+   RS         Dibuja un bache: 2 puntos dan el LARGO y la dirección; el
+              ANCHO se da con UN punto (o tecleando la distancia). Medidas
+              libres (sin redondeo). Pone número, cotas por fuera, hatch
+              individual y guarda número/largo/ancho en XDATA.
+   RS-CONFIG  Configura patrón, escala, ángulo, color y capa del hatch de RS.
+   RSHATCH    Vuelve a aplicar el hatch de RS a polilíneas existentes.
+   HR         Sin preguntas: sombreado SÓLIDO con 70 % de transparencia a
+              todos los baches (o a los preseleccionados); reemplaza los
+              sombreados anteriores de HR (capa SOMBREADOS_RECTANGULOS).
+
+ NUMERACIÓN Y COTAS
+   BNUM       Renumera los baches seleccionados por vecino más cercano
+              (antes RV, que chocaba con AutoCAD). RENUMERARVECINO = igual.
+   COTB       Anota largo x ancho de cada bache (capa GEOMETRIA_RECTANGULOS).
+   RSC        Crea una cota con 2 decimales en el estilo de RS.
+   AEC        Actualiza el estilo de cota que usa RS.
+   RC2        Redondea a 2 decimales cotas ya dibujadas.
+   BTR        Borra los textos que quedan dentro de los baches seleccionados.
+
+ EXPORTAR
+   EXR        Llena el formato "Generador de Bacheo" de Excel (plantilla
+              Plantillas/Formato_Generador_Bacheo.xlsx del menú): No., LARGO
+              y ANCHO, 22 baches por columna y 5 columnas por bloque; área,
+              volumen y acumulados los calculan las fórmulas. Pide el nombre
+              de la calle y dónde guardar. Espesor: MEMO_CONFIG >
+              BACHEO_ESPESOR. Sin Excel o sin plantilla -> CSV.
+   EXRCSV     Exportación anterior a CSV (número, largo, ancho, área,
+              volumen y acumulado).
+
+ CONSULTA / DATOS
+   VERLISTA   Lista en la línea de comandos los baches en memoria.
+   VERXDATA   Muestra el XDATA (número, largo, ancho) de los seleccionados.
+   AXD        Asigna XDATA a rectángulos dibujados sin RS (para EXR).
+""",
 }
 
 # Biblioteca común: se carga al abrir cada dibujo (no bajo demanda).
@@ -140,6 +185,7 @@ CONFIG = [
     ("ASI_ANCHO_IMPORTE",  "1.9849",  "ASI: ancho Importe", "NUM", ""),
     ("CSSA_ANCHO_TOTAL",   "24.0964", "CSSA: ancho total de la tabla", "NUM", ""),
     ("BACHEO_ESPESOR",     "0.10",    "Bacheo: espesor para volumen en EXR (m)", "NUM", ""),
+    ("BACHEO_CALLE",       "",        "Bacheo: última calle usada en EXR", "TXT", ""),
     ("MALLA_METODO",       "ENTRECURVAS", "Malla de puntos: ENTRECURVAS (nuevo) o IDW (anterior)", "TXT", "ENTRECURVAS,IDW"),
     ("MALLA_RADIO",        "0",       "Malla: distancia máx. de búsqueda (0 = automática)", "NUM", ""),
     ("MALLA_CURVA_CERO",   "NO",      "Malla: usar curvas con elevación 0 (SI para batimetría)", "TXT", "SI,NO"),
@@ -239,7 +285,8 @@ COMANDOS = {
     "BNUM": ("Renumerar",        "Renumera los rectángulos seleccionados por vecino más cercano.", "renum", "bacheo"),
     "RENUMERARVECINO": ("Renumerar vecino", "Igual que BNUM.", "renum", "bacheo"),
     "COTB":         ("Cotar baches",     "Anota largo y ancho de cada rectángulo en la capa GEOMETRIA_RECTANGULOS.", "cota", "bacheo"),
-    "EXR":          ("Exportar CSV",     "Exporta los baches a CSV: número, largo, ancho, área, volumen y acumulado.", "export", "bacheo"),
+    "EXR":          ("Generador Excel",  "Llena el formato Generador de Bacheo (Excel): No., largo y ancho en bloques de 5 columnas x 22; área, volumen y acumulados por fórmula.", "export", "bacheo"),
+    "EXRCSV":       ("Exportar CSV",     "Exportación anterior a CSV: número, largo, ancho, área, volumen y acumulado.", "export", "bacheo"),
     "HR":           ("Sombrear baches", "Sin preguntas: sombreado SÓLIDO al 70% de transparencia en todos los baches (reemplaza los anteriores).", "hatch", "bacheo"),
     "BTR":          ("Borrar textos",    "Borra los textos que quedan dentro de los rectángulos seleccionados.", "borrar", "bacheo"),
     "RSHATCH":      ("Re-hatch",         "Vuelve a aplicar el hatch a polilíneas existentes.", "hatch", "bacheo"),
@@ -397,7 +444,7 @@ FICHAS = [
     ("MemoPRO Estimaciones", "ME", [
         ("Conceptos", ["MTABLA", "COP", "ASI", "CSSA", ["LCO", "LIMPIARTABLA", "LIMPIARCSSA"]]),
         ("Bacheo", ["MBACHEO", "RS", "BNUM", "COTB", "EXR",
-                    ["HR", "BTR", "RSHATCH"], ["RSC", "AEC", "RC2"], ["RS-CONFIG", "VERLISTA", "AXD"]]),
+                    ["HR", "BTR", "RSHATCH"], ["RSC", "AEC", "RC2"], ["RS-CONFIG", "VERLISTA", "AXD", "EXRCSV"]]),
         ("Secciones", ["ELTN", "CAS", ["AS", "R00"]]),
         ("Áreas", ["MAREA", "HA", "AH", "AC", "EA", ["HAEA-EXPORT"]]),
         ("Imagen", ["IJPG", ["IJPG-EMF", "IJPG-PC3"]]),

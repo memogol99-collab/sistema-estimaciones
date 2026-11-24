@@ -1,4 +1,4 @@
-﻿MemoPRO 3.1.0
+﻿MemoPRO 3.1.1
 ========================================
 
 Escriba MEMO_AYUDA en AutoCAD para ver todos los comandos.
@@ -11,7 +11,7 @@ Archivos LISP incluidos y sus comandos:
   Estimaciones/CSSA_ConceptosSSA.lsp            LIMPIARCSSA CSSA
   Estimaciones/LC_LimpiarConceptos.lsp          LCO
   Estimaciones/IJPG_CadAJpg.lsp                 IJPG IJPG-EMF IJPG-PC3
-  Bacheo/MEMO_Bacheo.lsp                        RS RSC AEC RC2 RSHATCH RS-CONFIG RENUMERARVECINO BNUM COTB EXR VERLISTA VERXDATA AXD HR BTR
+  Bacheo/MEMO_Bacheo.lsp                        RS RSC AEC RC2 RSHATCH RS-CONFIG RENUMERARVECINO BNUM COTB EXRCSV VERLISTA VERXDATA AXD EXR HR BTR
   Secciones/EL_Elevacion.lsp                    ELTN
   Secciones/R00_CambiaNumeros.lsp               R00
   Secciones/MEMO_Areas.lsp                      HA AC AS CAS MAREA

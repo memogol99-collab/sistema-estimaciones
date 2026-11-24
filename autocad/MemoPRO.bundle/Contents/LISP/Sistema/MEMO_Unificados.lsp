@@ -1,4 +1,4 @@
-;;; MemoPRO 3.1.0 - archivo generado por construir_bundle.py
+;;; MemoPRO 3.1.1 - archivo generado por construir_bundle.py
 ;;; Origen: @fuente/MEMO_Unificados.lsp
 
 ;;; =====================================================================
@@ -64,7 +64,7 @@
     ("Numerar"  "BNUM"       "Renumerar por vecino más cercano")
     ("Cotar"    "COTB"      "Anotar largo y ancho")
     ("Hatch"    "HR"        "Hatch a los rectángulos")
-    ("Exportar" "EXR"       "Exportar a CSV (área, volumen, acumulado)")
+    ("Exportar" "EXR"       "Llenar el generador de bacheo en Excel")
     ("Limpiar"  "BTR"       "Borrar textos dentro de rectángulos")
     ("Config"   "RS-CONFIG" "Configurar el hatch de RS"))
 )
