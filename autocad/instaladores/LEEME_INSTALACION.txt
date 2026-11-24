@@ -1,0 +1,18 @@
+MemoPRO - Instalacion rapida
+============================
+
+1. Descomprima todo el ZIP en el Escritorio o en Descargas
+   (NO dentro de Program Files ni de la carpeta de AutoCAD).
+2. Clic derecho en el ZIP > Propiedades > Desbloquear (si aparece), antes de descomprimir.
+3. Cierre AutoCAD.
+4. Clic derecho en INSTALAR.bat > "Ejecutar como administrador".
+   Windows puede avisar "Publicador desconocido": presione Ejecutar.
+5. Abra AutoCAD: apareceran las fichas
+      MemoPRO Estimaciones | MemoPRO Topografia | MemoPRO Dibujo
+6. Solo la primera vez escriba MEMO_QUITAR_ANTERIOR
+   y quite los LISP viejos del "Conjunto de inicio" de APPLOAD.
+
+Verificar: en un dibujo nuevo escriba MEMO_VERIFICAR (debe decir "Todo correcto").
+Si las fichas no aparecen: MEMO_MENU.
+Actualizar: vuelva a ejecutar INSTALAR.bat con la nueva version (su configuracion se conserva).
+Desinstalar: DESINSTALAR.bat
